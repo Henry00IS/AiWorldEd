@@ -1,3 +1,5 @@
+import { curveEncode } from '@/curve/model/curve_codec.js';
+import { curvePresetBuild } from '@/curve/model/curve_preset.js';
 import { pathAssetEncode } from '@/path/model/path_asset.js';
 import { pathReferenceEncode } from '@/path/model/path_reference.js';
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
@@ -115,6 +117,53 @@ export const SOLID_SCRIPT_EXAMPLE_BASEBOARD: readonly SolidScriptLine[] = [
       '[0, 0, 0], [[Thickness], 0, 0], [[Thickness], [=[Height] * 0.8], 0], [[=[Thickness] / 2], [Height], 0], [0, [Height], 0]',
     up: '0, 1, 0',
   }),
+];
+
+/**
+ * Moulding curve of a new Curve Baseboard: plinth step, ogee curve and bevelled
+ * top.
+ */
+const SOLID_SCRIPT_EXAMPLE_BASEBOARD_CURVE = curveEncode(
+  curvePresetBuild({
+    id: 'baseboard_moulding',
+    label: 'Baseboard Moulding',
+    tooltip: 'A stepped plinth with an ogee moulding and chamfered top.',
+    markers: { bottom: 0.35, top: 0.85 },
+    start: 1,
+    steps: [
+      ['L', 0.35, 1],
+      ['L', 0.35, 0.72],
+      ['B', 0.85, 0.35, 0.5, 0.72, 0.7, 0.35],
+      ['L', 1, 0],
+    ],
+  }),
+);
+
+/**
+ * A baseboard built from a Curve input: Curve Profile turns the curve into a 2D
+ * XY cross-section and Sweep Along Path sweeps it along the wall path.
+ */
+export const SOLID_SCRIPT_EXAMPLE_CURVE_BASEBOARD: readonly SolidScriptLine[] = [
+  ...solidScriptExampleNote(
+    'Edit Moulding to reshape the baseboard cross-section: left is the bottom against the floor and right is the top.',
+  ),
+  solidScriptExampleInput('Moulding', 'Curve', SOLID_SCRIPT_EXAMPLE_BASEBOARD_CURVE, { label: 'Moulding' }),
+  solidScriptExampleInput('Height', 'Number', '0.15', { min: '0.02', max: '1', label: 'Height' }),
+  solidScriptExampleInput('Depth', 'Number', '0.03', { min: '0.005', max: '0.2', label: 'Depth' }),
+  solidScriptExampleLine('curve_profile', {
+    curve: '[Moulding]',
+    height: '[Height]',
+    depth: '[Depth]',
+    side: 'Normal',
+    segments: '16',
+    into: 'Profile',
+  }),
+  solidScriptExampleLine('path', {
+    shape: 'From Points',
+    points: '[-1.5, 0, 1], [-1.5, 0, -1], [1.5, 0, -1], [1.5, 0, 1]',
+    into: 'Wall',
+  }),
+  solidScriptExampleLine('sweep_along_path', { path: '[Wall]', profile: '[Profile]', up: '0, 1, 0' }),
 ];
 
 /** The run a new Path Stairs follows: a flight, a landing and a second flight. */

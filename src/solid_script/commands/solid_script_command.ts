@@ -1,3 +1,4 @@
+import type { CurvePreset } from '@/curve/model/curve_preset.js';
 import { solidScriptFieldBoolean, solidScriptFieldTrim } from '@/solid_script/language/solid_script_field.js';
 import type { SolidScriptAnchorAxis } from '@/solid_script/language/solid_script_anchor.js';
 import type {
@@ -154,6 +155,18 @@ export interface SolidScriptCommandEntry {
   value: string;
 }
 
+/** Curve editor settings for a field holding an encoded curve. */
+export interface SolidScriptCommandCurve {
+  /** Presets offered by the curve editor. */
+  readonly presets: readonly CurvePreset[];
+  /** True shows Base and Top marker toggles beside the curve strip. */
+  readonly markers: boolean;
+  /** Encoded fallback curve shown visually when the stored text is empty. */
+  readonly fallback: string;
+  /** True skips field bracket escaping, for formula text literals. */
+  readonly raw?: boolean;
+}
+
 /** One labelled field of a command line. */
 export interface SolidScriptCommandParameter {
   /** Key of the stored value. */
@@ -188,6 +201,8 @@ export interface SolidScriptCommandParameter {
   words?: readonly SolidScriptCommandWord[];
   /** True for a library texture: the window offers the texture picker or typing. */
   texture?: boolean;
+  /** Curve editor settings when this field holds an encoded curve. */
+  curve?: SolidScriptCommandCurve;
   /**
    * True for a vector field that takes a direction its label does not name,
    * such as a widget's Along: it offers Pick Normal….

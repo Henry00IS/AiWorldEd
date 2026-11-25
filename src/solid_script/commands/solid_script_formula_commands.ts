@@ -36,6 +36,10 @@ import {
 import { solidScriptFormulaProblem } from '@/solid_script/language/solid_script_formula_bare.js';
 import { solidScriptWhereHelper } from '@/solid_script/language/solid_script_where_helpers.js';
 import { solidScriptFunctionGroups } from '@/solid_script/language/solid_script_function_doc_groups.js';
+import {
+  SOLID_SCRIPT_CURVE_PROFILE_FALLBACK,
+  SOLID_SCRIPT_CURVE_PROFILE_PRESETS,
+} from '@/solid_script/language/solid_script_curve_profile.js';
 
 export { SOLID_SCRIPT_FORMULA_COMMAND, SOLID_SCRIPT_FORMULA_FUNCTION } from './solid_script_formula_groups.js';
 
@@ -207,6 +211,16 @@ function solidScriptFormulaCheckField(input: SolidScriptFormulaInput): SolidScri
     ...(placeholder ? { placeholder } : {}),
     ...(words.length > 0 ? { words } : {}),
     ...(input.kind === 'variable' ? { reference: true } : {}),
+    ...(input.curve
+      ? {
+          curve: {
+            presets: SOLID_SCRIPT_CURVE_PROFILE_PRESETS,
+            markers: false,
+            fallback: SOLID_SCRIPT_CURVE_PROFILE_FALLBACK,
+            raw: true,
+          },
+        }
+      : {}),
   };
 }
 

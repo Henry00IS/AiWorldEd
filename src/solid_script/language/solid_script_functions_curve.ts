@@ -3,6 +3,7 @@ import { curveFromPolyline, type Curve } from '@/curve/model/curve_model.js';
 import { curveEvaluate } from '@/curve/model/curve_sample.js';
 import { generatorRevolveStationsFromCurve } from '@/generator/revolve/generator_revolve_curve.js';
 import { solidScriptAxesEach } from './solid_script_functions_axes.js';
+import { solidScriptCurveProfilePoints, solidScriptCurveProfileSideRead } from './solid_script_curve_profile.js';
 import { solidScriptExtraNumber } from './solid_script_functions_extra.js';
 import {
   solidScriptPathAt,
@@ -113,6 +114,18 @@ export const SOLID_SCRIPT_FUNCTIONS_CURVE = {
       solidScriptExtraNumber(args, 2, usage),
       usage,
     );
+  },
+  curve_profile: (args) => {
+    const usage = 'CurveProfile(curve, height, depth, side, segments)';
+    const curve = solidScriptCurveRead(args, usage);
+    const height = args[1] === undefined ? 1 : solidScriptExtraNumber(args, 1, usage);
+    const depth = args[2] === undefined ? 0.2 : solidScriptExtraNumber(args, 2, usage);
+    const side = solidScriptCurveProfileSideRead(
+      args[3] === undefined ? 'Normal' : solidScriptValueText(args[3]),
+      usage,
+    );
+    const segments = args[4] === undefined ? 16 : solidScriptExtraNumber(args, 4, usage);
+    return solidScriptCurveProfilePoints(curve, height, depth, side, segments, usage);
   },
   profile_points: (args) => {
     const usage = 'ProfilePoints(curve, height, radius)';

@@ -50,7 +50,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 
 </details>
 
-- To sweep a 2D polygon (`Circle`, `Square`, `Star`, or `Polygon`) along a path, give the 2D shape an **Into** name such as `Ring`, then pass `[Ring]` (or `[Ring.Points]`) to **Sweep Along Path**'s **Profile**.
+- To sweep a 2D shape (`Circle`, `Square`, `Star`, `Polygon`, or `Curve Profile`) along a path, give it an **Into** name such as `Profile`, then pass `[Profile]` (or `[Profile.Points]`) to **Sweep Along Path**'s **Profile**.
 
 ## Inputs
 
@@ -59,7 +59,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 <details>
 <summary>More Details</summary>
 
-- A **curve** input opens the curve editor; read it with `CurveAt(curve, x)` or `ProfilePoints(curve, height, radius)`.
+- A **curve** input opens the curve editor; read it with `CurveAt(curve, x)`, `ProfilePoints(curve, height, radius)`, or `CurveProfile(curve, height, depth, side, segments)` (rotated -90° into a closed 2D XY moulding profile with **Side** `Normal`, `Flipped`, or `Mirrored`).
 - A **texture** input picks a library texture; wrap solids in a **Texture** block, such as `Texture [Wall]`, to paint every face with it. The 🔁 Texture may change per object, such as `[=Pick([$Index] % 2, "grass", "stone")]`. An inner Texture block wins, and solids outside keep the generator's texture. **Texture Faces** gives the faces Select Faces picked their own texture. **Project UVs** gives them coordinates from a Box, Planar, Cylinder or Sphere projection (Box, the default, uses the Overhead, Front or Side view each face faces most). **Unwrap**, **Pack Islands** and **Transform UVs** lay those islands flat, pack them into 0 to 1, or move, scale and rotate them. Transform UVs Pivot Each Face turns and scales each face's UVs about their own middle, rather than the middle of them all. Transform UVs Offset is tiles of U and V, and on solids from Input Objects it shifts the texture of that copy; Readable Text keeps lettering readable on a mirrored copy, and Textures is Move With Shape or World Aligned, so any solid can use those options. Solids stay solids; meshes stay meshes.
 - **Input Group** shows the inputs inside it under a heading, **Input Row** puts them side by side, **Show Inputs When** shows them only while another input has a given value, or any one of several values written with commas, and **Input Note** shows a line of text among them.
 - When Input Changes and When Button Pressed blocks can check and change inputs.

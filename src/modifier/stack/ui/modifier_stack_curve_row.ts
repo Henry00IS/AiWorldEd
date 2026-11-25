@@ -61,7 +61,7 @@ export function modifierStackCurveRow(
 }
 
 /** Inspector text buttons for the Base and Top marker toggles of a curve row. */
-const MODIFIER_STACK_CURVE_MARKER_STYLE: CurveFieldMarkerStyle = {
+export const MODIFIER_STACK_CURVE_MARKER_STYLE: CurveFieldMarkerStyle = {
   create: (label, title, onClick) => {
     const button = modifierStackUiTextButton(label, title, onClick);
     // Same height as Add modifier; the two share the row width.

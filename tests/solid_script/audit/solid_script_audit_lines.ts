@@ -51,6 +51,7 @@ const SOLID_SCRIPT_AUDIT_PLACES: Readonly<Record<string, (self: SolidScriptLine)
   square: (self) => [[line('linear_extrude', { anchor: 'Center' })], [self, line('end')]],
   circle: (self) => [[line('linear_extrude', { anchor: 'Center' })], [self, line('end')]],
   star: (self) => [[line('linear_extrude', { anchor: 'Center' })], [self, line('end')]],
+  curve_profile: (self) => [[line('linear_extrude', { anchor: 'Center' })], [self, line('end')]],
   offset: (self) => [[line('linear_extrude', { anchor: 'Center' })], [self, line('square'), line('end'), line('end')]],
   polygon: (self) => [
     [line('linear_extrude', { anchor: 'Center' })],

@@ -9,6 +9,8 @@ import { ModifierStackKindGenerator } from '@/modifier/stack/kinds/generator/mod
 import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
 import { solidScriptGeneratorPieces } from '@/solid_script/language/solid_script_generator_pieces.js';
 import type { SolidScriptFaceUv } from '@/solid_script/language/solid_script_shape.js';
+import { curveEncode } from '@/curve/model/curve_codec.js';
+import { curveFromPolyline } from '@/curve/model/curve_model.js';
 
 /**
  * Runs script lines.
@@ -81,7 +83,11 @@ function generatorScriptDefault(field: ModifierStackField): string {
   if (field.type === 'boolean') return field.default === true ? 'Yes' : 'No';
   if (field.type === 'choice') {
     const match = (field.choices ?? []).find((choice) => choice.value === field.default);
-    if (match) return match.label === match.value.replaceAll('Centre', 'Center') ? match.label : match.value;
+    if (match) {
+      if (match.label === match.value.replaceAll('Centre', 'Center')) return match.label;
+      if (/^[a-z]/.test(match.value)) return match.label.replace(/\s*\([^)]*\)/g, '').trim();
+      return match.value;
+    }
   }
   return String(field.default);
 }
@@ -95,9 +101,9 @@ describe('SolidScript generator blocks', () => {
       expect(command?.label).toBe(kind.label);
       const shaped = kind.fields.filter(
         (field) =>
-          !field.group &&
+          !['Texture', 'Shading', 'Output'].includes(field.group ?? '') &&
           !field.hidden &&
-          ['number', 'choice', 'boolean'].includes(field.type) &&
+          ['number', 'choice', 'boolean', 'curve'].includes(field.type) &&
           field.key !== 'operation',
       );
       expect(command?.parameters.map((parameter) => parameter.key)).toEqual([
@@ -232,6 +238,54 @@ describe('SolidScript generator blocks', () => {
         })),
       ),
     );
+  });
+
+  it('exposes Column Profile curve and passes a Curve input or encoded curve to the real Column generator', () => {
+    const column = solidScriptCommandFind('column');
+    const profileParam = column?.parameters.find((entry) => entry.key === 'profile');
+    expect(profileParam?.curve?.markers).toBe(true);
+    expect(profileParam?.curve?.presets.length).toBeGreaterThan(0);
+
+    const slim = curveEncode(
+      curveFromPolyline([
+        [0, 0.4],
+        [1, 0.4],
+      ]),
+    );
+    const viaInput = run(
+      { command: 'input', values: { name: 'Profile', type: 'Curve', default: slim } },
+      { command: 'column', values: { size: '2, 4, 2', sides: '8', profile: '[Profile]' } },
+    );
+    expect(viaInput.error).toBeNull();
+    const realPieces = generator('column').previewPieces(
+      { sides: 8, profile: slim },
+      new THREE.Box3(new THREE.Vector3(-1, -2, -1), new THREE.Vector3(1, 2, 1)),
+    );
+    expect(bounds(viaInput.shapes)).toEqual(
+      bounds(realPieces.map((piece) => ({ kind: 'solid', label: '', points: piece.vertices, faces: [] }))),
+    );
+
+    const bad = run({ command: 'column', values: { profile: 'not a curve' } });
+    expect(bad.error?.message).toMatch(/Profile must be a curve/);
+  });
+
+  it('exposes Blast Hole Bricks parameters derived from the generator fields', () => {
+    const blast = solidScriptCommandFind('blastHole');
+    const keys = blast?.parameters.map((entry) => entry.key) ?? [];
+    expect(keys).toEqual(expect.arrayContaining(['brickLength', 'brickHeight', 'bond', 'jut']));
+    const result = run({
+      command: 'blastHole',
+      values: {
+        size: '4, 2, 0.5',
+        style: 'Bricks',
+        brickLength: '0.8',
+        brickHeight: '0.4',
+        bond: 'Stack Bond',
+        jut: '0',
+      },
+    });
+    expect(result.error).toBeNull();
+    expect(solids(result.shapes).length).toBeGreaterThan(1);
   });
 });
 

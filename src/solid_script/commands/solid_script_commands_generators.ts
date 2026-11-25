@@ -10,6 +10,8 @@ import {
 } from './solid_script_command_parameters.js';
 import { SOLID_SCRIPT_ANCHOR_SOLID, solidScriptAnchorMin } from '@/solid_script/language/solid_script_anchor.js';
 import type { SolidScriptBlockArguments } from '@/solid_script/language/solid_script_block_arguments.js';
+import * as THREE from 'three';
+import { curveDecode } from '@/curve/model/curve_codec.js';
 import { solidScriptValueNumber, solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackKindGenerator } from '@/modifier/stack/kinds/generator/modifier_stack_kind_generator.js';
@@ -38,13 +40,16 @@ const SOLID_SCRIPT_GENERATOR_SIZE = '2, 2, 2';
  * @param kind Box generator.
  * @returns Fields in inspector order.
  */
+/** Inspector field groups excluded from Solid Script generator blocks. */
+const SOLID_SCRIPT_GENERATOR_EXCLUDED_GROUPS: ReadonlySet<string> = new Set(['Texture', 'Shading', 'Output']);
+
 function solidScriptGeneratorFields(kind: ModifierStackKindGenerator): ModifierStackField[] {
   return kind.fields.filter(
     (field) =>
-      !field.group &&
+      !SOLID_SCRIPT_GENERATOR_EXCLUDED_GROUPS.has(field.group ?? '') &&
       !field.hidden &&
       field.key !== 'operation' &&
-      (field.type === 'number' || field.type === 'choice' || field.type === 'boolean'),
+      (field.type === 'number' || field.type === 'choice' || field.type === 'boolean' || field.type === 'curve'),
   );
 }
 
@@ -56,7 +61,12 @@ function solidScriptGeneratorFields(kind: ModifierStackKindGenerator): ModifierS
  * @returns Word a script writes.
  */
 function solidScriptGeneratorChoiceWord(choice: { value: string; label: string }): string {
-  return choice.label === choice.value.replaceAll('Centre', 'Center') ? choice.label : choice.value;
+  if (choice.label === choice.value.replaceAll('Centre', 'Center')) return choice.label;
+  if (/^[a-z]/.test(choice.value)) {
+    const clean = choice.label.replace(/\s*\([^)]*\)/g, '').trim();
+    if (clean) return clean;
+  }
+  return choice.value;
 }
 
 /**
@@ -70,7 +80,8 @@ function solidScriptGeneratorChoiceList(field: ModifierStackField): string {
   return (field.choices ?? [])
     .map((choice) => {
       const word = solidScriptGeneratorChoiceWord(choice);
-      return word === choice.label ? word : `${word} (${choice.label})`;
+      if (word === choice.label) return word;
+      return choice.label.startsWith(`${word} (`) ? choice.label : `${word} (${choice.label})`;
     })
     .join(', ');
 }
@@ -108,8 +119,21 @@ function solidScriptGeneratorChoiceParameter(field: ModifierStackField, hint: st
  * @param field Generator field.
  * @returns Script field.
  */
-function solidScriptGeneratorParameter(field: ModifierStackField): SolidScriptCommandParameter {
+function solidScriptGeneratorParameter(
+  field: ModifierStackField,
+  kind: ModifierStackKindGenerator,
+): SolidScriptCommandParameter {
   const hint = field.hint ?? field.label;
+  if (field.type === 'curve')
+    return {
+      ...solidScriptParameter(field.key, field.label, 'message', '', solidScriptGeneratorHintExample(field, hint)),
+      accepts: ['Text'],
+      curve: {
+        presets: field.curvePresets ?? [],
+        markers: field.curveMarkers === true,
+        fallback: kind.curveFallback(field.key, {}, new THREE.Object3D()),
+      },
+    };
   if (field.type === 'boolean')
     return solidScriptParameter(
       field.key,
@@ -140,6 +164,7 @@ function solidScriptGeneratorParameter(field: ModifierStackField): SolidScriptCo
  */
 function solidScriptGeneratorHintExample(field: ModifierStackField, hint: string): string {
   if (/such as|example/i.test(hint)) return hint;
+  if (field.type === 'curve') return `${hint} Pick a curve or type a Curve input, such as [Profile].`;
   if (field.type === 'boolean') return `${hint} Type Yes or No, such as Yes.`;
   const sample = field.integer ? 'a whole number' : 'a number';
   return `${hint} Type ${sample}, such as ${field.default}.`;
@@ -154,6 +179,12 @@ function solidScriptGeneratorHintExample(field: ModifierStackField, hint: string
  * @returns Parameter value for the generator.
  */
 function solidScriptGeneratorValue(args: SolidScriptBlockArguments, field: ModifierStackField): unknown {
+  if (field.type === 'curve') {
+    const text = solidScriptValueText(args.value(field.key)).trim();
+    if (text === '') return '';
+    if (!curveDecode(text)) throw args.error(field.key, 'must be a curve, such as a Curve input', text);
+    return text;
+  }
   if (field.type === 'boolean') return args.flag(field.key);
   if (field.type === 'choice') {
     const text = solidScriptValueText(args.value(field.key));
@@ -216,7 +247,7 @@ function solidScriptGeneratorCommand(kind: ModifierStackKindGenerator): SolidScr
       ),
       solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_SOLID),
       solidScriptParameterMode(),
-      ...fields.map(solidScriptGeneratorParameter),
+      ...fields.map((field) => solidScriptGeneratorParameter(field, kind)),
     ],
     listing: (read) => [
       kind.label,

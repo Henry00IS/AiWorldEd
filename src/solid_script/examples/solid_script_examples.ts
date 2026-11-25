@@ -19,6 +19,7 @@ import {
   SOLID_SCRIPT_EXAMPLE_IRREGULAR_ROCK,
   SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL,
   SOLID_SCRIPT_EXAMPLE_BASEBOARD,
+  SOLID_SCRIPT_EXAMPLE_CURVE_BASEBOARD,
   SOLID_SCRIPT_EXAMPLE_PATH_STAIRS,
   SOLID_SCRIPT_EXAMPLE_TAPERED_BOX,
 } from './solid_script_examples_geometry.js';
@@ -220,6 +221,15 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
       'A Path input traced around the bottom corners of a room in the scene; Sweep Along Path runs a moulding along it.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_BASEBOARD,
+  },
+  {
+    id: 'curveBaseboard',
+    name: 'Curve Baseboard',
+    group: 'Basics',
+    summary:
+      'Curve Profile turns a Curve input into a 2D baseboard cross-section; Sweep Along Path runs it along a wall path.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_CURVE_BASEBOARD,
   },
   {
     id: 'pathStairs',

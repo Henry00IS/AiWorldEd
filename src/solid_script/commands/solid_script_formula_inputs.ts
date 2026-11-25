@@ -68,6 +68,8 @@ export interface SolidScriptFormulaInput {
    * none.
    */
   fallback: string;
+  /** True attaches the curve picker in the Formula Editor. */
+  curve?: boolean;
 }
 
 /**
@@ -153,7 +155,7 @@ function solidScriptFormulaInputKind(type: SolidScriptFunctionKinds): SolidScrip
  * Built-in functions outside Checks that use a field-per-input block so their
  * enum choices show dropdowns.
  */
-const SOLID_SCRIPT_FORMULA_FIELD_FUNCTIONS = new Set(['remap_axes']);
+const SOLID_SCRIPT_FORMULA_FIELD_FUNCTIONS = new Set(['remap_axes', 'curve_profile']);
 
 /**
  * Tells whether a built-in function uses a single-line field-per-input block.
@@ -224,6 +226,7 @@ export function solidScriptFormulaCheckInputs(
       choices: argument.choices ?? [],
       fallback: each,
       start: each === '' && fallback === undefined ? (argument.start ?? '') : '',
+      ...(argument.curve ? { curve: true } : {}),
     };
   });
 }

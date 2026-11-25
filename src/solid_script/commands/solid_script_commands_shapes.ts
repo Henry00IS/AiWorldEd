@@ -1,6 +1,17 @@
 import * as THREE from 'three';
 import { SOLID_SCRIPT_ANCHOR_FLAT, SOLID_SCRIPT_ANCHOR_SOLID } from '@/solid_script/language/solid_script_anchor.js';
 import { SolidScriptCommand } from './solid_script_command.js';
+import { curveDecode } from '@/curve/model/curve_codec.js';
+import { curveFromPolyline } from '@/curve/model/curve_model.js';
+import {
+  SOLID_SCRIPT_CURVE_PROFILE_FALLBACK,
+  SOLID_SCRIPT_CURVE_PROFILE_MAX_SEGMENTS,
+  SOLID_SCRIPT_CURVE_PROFILE_PRESETS,
+  SOLID_SCRIPT_CURVE_PROFILE_SIDES,
+  solidScriptCurveProfilePoints,
+  solidScriptCurveProfileSideRead,
+} from '@/solid_script/language/solid_script_curve_profile.js';
+import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
@@ -9,6 +20,7 @@ import {
   solidScriptParameterOptional,
   solidScriptParameterRings,
   solidScriptParameterSides,
+  solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
 import {
   solidScriptCircleOutline,
@@ -296,6 +308,108 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
       ]),
     ],
     execute: (run) => run.pathFlat(solidScriptStarOutline(run.fields())),
+  }),
+  new SolidScriptCommand({
+    id: 'curve_profile',
+    draws: true,
+    label: 'Curve Profile',
+    category: '2D Shapes',
+    description: 'Draw a 2D profile from a Curve',
+    manual:
+      'Draws a closed 2D XY profile from a Curve rotated -90 degrees along a vertical edge: the curve left side shapes the bottom (0) and the right side shapes the top (Height), with curve height scaled by Depth. Side is Normal (outward), Flipped (inward) or Mirrored (symmetric on both sides). Give it an Into name such as Profile to sweep it directly with Sweep Along Path, or place it inside Linear Extrude or Rotate Extrude. Example: Curve Profile [Moulding] Height 0.15 Depth 0.03 Into [Profile], then Sweep Along Path Along [Wall] Profile [Profile].',
+    stops: [
+      'Height or Depth of 0 or less.',
+      'Segments outside 1 to 256.',
+      'A Curve that is not a valid curve or encloses no area.',
+      'A Side other than Normal, Flipped or Mirrored.',
+    ],
+    parameters: [
+      {
+        ...solidScriptParameter(
+          'curve',
+          'Curve',
+          'message',
+          '',
+          'Profile curve along the height, or a Curve input such as [Moulding].',
+        ),
+        accepts: ['Text'],
+        curve: {
+          presets: SOLID_SCRIPT_CURVE_PROFILE_PRESETS,
+          markers: false,
+          fallback: SOLID_SCRIPT_CURVE_PROFILE_FALLBACK,
+        },
+      },
+      solidScriptParameter(
+        'height',
+        'Height',
+        'number',
+        '1',
+        'Vertical height of the profile in metres, such as 0.15.',
+      ),
+      solidScriptParameter(
+        'depth',
+        'Depth',
+        'number',
+        '0.2',
+        'Outward depth at curve value 1 in metres, such as 0.03.',
+      ),
+      solidScriptParameterWords(
+        'side',
+        'Side',
+        'text',
+        'Normal',
+        'Which side the curve shapes: Normal, Flipped or Mirrored. Type one, such as Normal.',
+        [
+          { word: 'Normal', detail: 'Vertical back at X = 0 with the curve outward on +X' },
+          { word: 'Flipped', detail: 'Vertical back at X = 0 with the curve inward on -X' },
+          { word: 'Mirrored', detail: 'Symmetric profile with the curve on both sides' },
+        ],
+      ),
+      solidScriptParameter(
+        'segments',
+        'Segments',
+        'count',
+        '16',
+        'Straight steps along the height, 1 to 256, such as 16.',
+      ),
+    ],
+    listing: (read) => [
+      'Curve Profile',
+      read.value('height'),
+      ' Depth ',
+      read.value('depth'),
+      ...solidScriptListingOptions([
+        read.changed('side') && ['Side ', read.value('side')],
+        read.changed('segments') && ['Segments ', read.value('segments')],
+        read.changed('curve') && ['Curve ', read.value('curve')],
+      ]),
+    ],
+    execute: (run) => {
+      const args = run.fields();
+      const text = solidScriptValueText(args.value('curve')).trim();
+      const flat = text === '' ? 1 : Number(text);
+      const curve = Number.isFinite(flat)
+        ? curveFromPolyline([
+            [0, flat],
+            [1, flat],
+          ])
+        : curveDecode(text);
+      if (!curve) throw args.error('curve', 'must be a curve, such as a Curve input', text);
+      const height = args.positive('height', args.number('height', 1));
+      const depth = args.positive('depth', args.number('depth', 0.2));
+      const sideText = solidScriptValueText(args.value('side')).trim() || 'Normal';
+      if (!SOLID_SCRIPT_CURVE_PROFILE_SIDES.some((word) => word.toLowerCase() === sideText.toLowerCase()))
+        throw args.error('side', `must be one of ${SOLID_SCRIPT_CURVE_PROFILE_SIDES.join(', ')}`, sideText);
+      const side = solidScriptCurveProfileSideRead(sideText, 'Curve Profile');
+      const segments = args.number('segments', 16);
+      if (!Number.isInteger(segments) || segments < 1 || segments > SOLID_SCRIPT_CURVE_PROFILE_MAX_SEGMENTS)
+        throw args.error(
+          'segments',
+          `must be a whole number from 1 to ${SOLID_SCRIPT_CURVE_PROFILE_MAX_SEGMENTS}`,
+          segments,
+        );
+      return run.pathFlat(solidScriptCurveProfilePoints(curve, height, depth, side, segments, 'Curve Profile'));
+    },
   }),
   new SolidScriptCommand({
     id: 'polygon',

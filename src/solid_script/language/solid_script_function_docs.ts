@@ -34,6 +34,10 @@ import {
 } from './solid_script_functions_kind_checks.js';
 import { SOLID_SCRIPT_FUNCTION_DOCS_MATH, solidScriptFunctionDocSummary } from './solid_script_function_docs_math.js';
 import {
+  SOLID_SCRIPT_CURVE_PROFILE_ARGUMENTS,
+  SOLID_SCRIPT_FUNCTION_DOCS_CURVE_PROFILE,
+} from './solid_script_function_docs_curve.js';
+import {
   SOLID_SCRIPT_FUNCTION_DOCS_NUMBERS,
   SOLID_SCRIPT_NUMBERS_ARGUMENTS,
 } from './solid_script_function_docs_numbers.js';
@@ -471,6 +475,7 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
     group: 'Path',
     gives: ['List'],
   },
+  ...SOLID_SCRIPT_FUNCTION_DOCS_CURVE_PROFILE,
   profile_points: {
     usage: 'ProfilePoints(curve, height, radius)',
     summary:
@@ -594,6 +599,8 @@ export interface SolidScriptFunctionArgument {
   default?: string;
   /** Value a new formula block fills in, as typed, such as 0.5. */
   start?: string;
+  /** True attaches the visual curve editor picker in the Formula Editor. */
+  curve?: boolean;
 }
 
 /** Kind and meaning of the inputs by name, shared by the functions using it. */
@@ -949,6 +956,7 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   ...SOLID_SCRIPT_ROTATION_ARGUMENTS,
   ...SOLID_SCRIPT_DICTIONARY_ARGUMENTS,
   ...SOLID_SCRIPT_COORDINATES_ARGUMENTS,
+  ...SOLID_SCRIPT_CURVE_PROFILE_ARGUMENTS,
   ...SOLID_SCRIPT_SHAPING_WAVE_ARGUMENTS,
 };
 
