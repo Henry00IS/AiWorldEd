@@ -4,6 +4,11 @@ import {
   solidScriptResourcesNormalize,
   type SolidScriptResource,
 } from '@/solid_script/document/solid_script_resource.js';
+import {
+  solidScriptResourceTextureBlob,
+  solidScriptResourceTextureEmbed,
+} from '@/solid_script/document/solid_script_resource_texture.js';
+import { textureEmbeddedIdParse } from '@/texture/embedded/texture_embedded_id.js';
 
 /** Folder of a script file that holds its resources. */
 export const SOLID_SCRIPT_FILE_RESOURCES = 'resources/';
@@ -25,6 +30,8 @@ export interface SolidScriptFileResource {
   name: string;
   /** Texture, Curve or Path. */
   kind: SolidScriptResource['kind'];
+  /** Zip entry path of a texture's image, under resources/. */
+  image?: string;
 }
 
 /**
@@ -44,9 +51,46 @@ export async function solidScriptFileResourcesWrite(
     const [ending, type] = SOLID_SCRIPT_FILE_RESOURCE_TYPES[resource.kind];
     const path = `${SOLID_SCRIPT_FILE_RESOURCES}${resource.name}.${ending}`;
     await writer.addText(path, JSON.stringify(resource, null, 2));
-    listed.push({ path, type, name: resource.name, kind: resource.kind });
+    const image =
+      resource.kind === 'Texture' ? await solidScriptFileImageWrite(writer, resource.name, resource.textureId) : null;
+    listed.push({ path, type, name: resource.name, kind: resource.kind, ...(image ? { image } : {}) });
   }
   return listed;
+}
+
+/**
+ * Writes the image of a texture resource next to it, so the script carries its
+ * own copy.
+ *
+ * @param writer Zip being written.
+ * @param name Resource name.
+ * @param id Texture id.
+ * @returns Zip entry path, or null when the image is not at hand.
+ */
+async function solidScriptFileImageWrite(writer: ZipWriter, name: string, id: string): Promise<string | null> {
+  const blob = solidScriptResourceTextureBlob(id);
+  if (!blob) return null;
+  const path = `${SOLID_SCRIPT_FILE_RESOURCES}${name}.${textureEmbeddedIdParse(id)?.extension ?? 'png'}`;
+  await writer.addBlob(path, blob);
+  return path;
+}
+
+/**
+ * Reads the image of a texture resource back into the texture library, and
+ * gives the resource the id of those bytes.
+ *
+ * @param zip Script file.
+ * @param entry Listed resource.
+ * @param resource Resource read from its file.
+ * @returns Resource.
+ */
+async function solidScriptFileImageRead(zip: ZipReader, entry: unknown, resource: unknown): Promise<unknown> {
+  const image = (entry as { image?: unknown }).image;
+  const file = typeof image === 'string' && image.startsWith(SOLID_SCRIPT_FILE_RESOURCES) ? zip.entry(image) : null;
+  if (!file || typeof resource !== 'object' || resource === null) return resource;
+  const name = String((resource as { name?: unknown }).name ?? 'Texture');
+  const textureId = await solidScriptResourceTextureEmbed(await zip.read(file), name);
+  return textureId === null ? resource : { ...resource, textureId };
 }
 
 /**
@@ -65,7 +109,7 @@ export async function solidScriptFileResourcesRead(zip: ZipReader, listed: unkno
     const file = zip.entry(path);
     if (!file) continue;
     try {
-      read.push(JSON.parse(await (await zip.read(file)).text()));
+      read.push(await solidScriptFileImageRead(zip, entry, JSON.parse(await (await zip.read(file)).text())));
     } catch {
       continue;
     }

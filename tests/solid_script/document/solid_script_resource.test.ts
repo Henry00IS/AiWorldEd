@@ -35,7 +35,7 @@ const RESOURCES: SolidScriptResource[] = [
       closed: false,
     },
   },
-  { name: 'Brick', kind: 'Texture', texture: 'tex-brick' },
+  { name: 'Brick', kind: 'Texture', textureId: 'tex-brick' },
 ];
 
 /**
@@ -90,7 +90,7 @@ describe('Script resources', () => {
     expect(decoded.resources).toEqual(RESOURCES);
     const normalized = solidScriptDocumentNormalize({
       blocks: [],
-      resources: [...RESOURCES, { name: 'Ramp', kind: 'Texture', texture: 'x' }, { name: '1bad', kind: 'Curve' }],
+      resources: [...RESOURCES, { name: 'Ramp', kind: 'Texture', textureId: 'x' }, { name: '1bad', kind: 'Curve' }],
     });
     expect(normalized.resources).toEqual(RESOURCES);
   });

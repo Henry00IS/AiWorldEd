@@ -54,7 +54,7 @@ export class SolidScriptResourceValues {
    * @returns Value.
    */
   private make(resource: SolidScriptResource): SolidScriptValue {
-    if (resource.kind === 'Texture') return resource.texture;
+    if (resource.kind === 'Texture') return resource.textureId;
     if (resource.kind === 'Path') return this.pathMake(pathAssetScriptPath(resource.path), resource.name);
     const curve = solidScriptResourceCurveRead(resource);
     if (!curve) throw new Error(`the curve of [$Resource.${resource.name}] could not be read`);

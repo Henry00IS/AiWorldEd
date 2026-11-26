@@ -9,12 +9,15 @@ export const SOLID_SCRIPT_RESOURCE_KINDS = ['Texture', 'Curve', 'Path'] as const
 /** Kind of one resource. */
 export type SolidScriptResourceKind = (typeof SOLID_SCRIPT_RESOURCE_KINDS)[number];
 
-/** A texture the script uses, by its library id. */
+/** A texture the script keeps a copy of, by the id of its embedded image. */
 export interface SolidScriptResourceTexture {
   name: string;
   kind: 'Texture';
-  /** Library id of the texture. */
-  texture: string;
+  /**
+   * Id of the embedded image (embedded:<hash>.<ext>); its bytes travel with the
+   * script.
+   */
+  textureId: string;
 }
 
 /** A curve the script uses. */
@@ -128,11 +131,11 @@ export function solidScriptResourcesNormalize(input: unknown): SolidScriptResour
  */
 function solidScriptResourceNormalize(input: unknown): SolidScriptResource | null {
   if (!input || typeof input !== 'object') return null;
-  const record = input as { name?: unknown; kind?: unknown; texture?: unknown; curve?: unknown; path?: unknown };
+  const record = input as { name?: unknown; kind?: unknown; textureId?: unknown; curve?: unknown; path?: unknown };
   if (typeof record.name !== 'string' || !solidScriptResourceNameValid(record.name)) return null;
   const name = record.name;
-  if (record.kind === 'Texture' && typeof record.texture === 'string')
-    return { name, kind: 'Texture', texture: record.texture };
+  if (record.kind === 'Texture' && typeof record.textureId === 'string')
+    return { name, kind: 'Texture', textureId: record.textureId };
   if (record.kind === 'Curve') {
     const curve = curveFromData(record.curve);
     return curve ? solidScriptResourceCurve(name, curve) : null;
