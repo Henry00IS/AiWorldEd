@@ -95,7 +95,7 @@ type SolidScriptFieldGroup = Extract<SolidScriptFieldPiece, { kind: 'group' }>;
 /** A plain variable name, such as width. */
 const SOLID_SCRIPT_FIELD_NAME_PLAIN = /^[A-Za-z_]\w*$/;
 
-/** A Function's own variable, such as $local.n. */
+/** A Function's own variable, such as $Local.N. */
 const SOLID_SCRIPT_FIELD_NAME_LOCAL = /^\$local\.([A-Za-z_]\w*)$/;
 
 /** A part of a vector variable, such as Pos.X. */

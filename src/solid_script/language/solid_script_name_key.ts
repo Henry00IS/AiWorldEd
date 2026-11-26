@@ -21,7 +21,7 @@ export const SOLID_SCRIPT_LOCAL_PREFIX = '$local.';
 
 /**
  * Start of a variable kept with the generator between runs, such as
- * [$persistent.presses].
+ * [$Persistent.Presses].
  */
 export const SOLID_SCRIPT_PERSISTENT_PREFIX = '$persistent.';
 
@@ -65,7 +65,7 @@ export function solidScriptNameKey(name: string): string {
 
 /**
  * Spells a name key for a message or the debugger as it was written, with
- * $Local. and $Persistent. as taught, such as $Local.Width for $local.width.
+ * $Local. and $Persistent. as taught, such as $Local.Width for $Local.Width.
  *
  * @param key Key.
  * @param written Finds how a key was written, or undefined.

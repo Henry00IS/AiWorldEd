@@ -42,7 +42,7 @@ function libraryFresh(): TextureLibrary {
 function worldOf(textureId: string): { world: THREE.Group; model: SolidModel } {
   const script = solidScriptDocumentResourcesWith(
     solidScriptDocumentCreate([
-      { command: 'texture', values: { texture: '[$Resource.Brick]' } },
+      { command: 'texture', values: { texture: '[$Resources.Brick]' } },
       { command: 'cube', values: {} },
       { command: 'end', values: {} },
     ]),

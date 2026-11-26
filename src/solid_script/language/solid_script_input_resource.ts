@@ -7,8 +7,8 @@ import {
 } from '@/solid_script/document/solid_script_resource.js';
 import type { SolidScriptInput } from './solid_script_input.js';
 
-/** An Input Default that names one resource, such as [$Resource.Arch]. */
-const SOLID_SCRIPT_INPUT_RESOURCE = /^\[\$Resource\.([A-Za-z_]\w*)\]$/i;
+/** An Input Default that names one resource, such as [$Resources.Arch]. */
+const SOLID_SCRIPT_INPUT_RESOURCE = /^\[\$Resources\.([A-Za-z_]\w*)\]$/i;
 
 /**
  * Finds the resource an Input Default names.

@@ -325,7 +325,7 @@ export interface SolidScriptBlockRun {
   /** The move of the Transform block around this line. */
   matrix(): THREE.Matrix4;
   /**
-   * Reads a resource of the script by its name after $Resource.; the run's
+   * Reads a resource of the script by its name after $Resources.; the run's
    * copy.
    */
   resource(name: string): SolidScriptValue;
@@ -518,7 +518,7 @@ export interface SolidScriptRun extends SolidScriptEvaluation {
 
 /** One variable and its value as the debugger shows it. */
 export interface SolidScriptVariable {
-  /** Name as fields read it, such as width, $local.n or points(2). */
+  /** Name as fields read it, such as width, $Local.N or points(2). */
   name: string;
   /** Value as text. */
   value: string;

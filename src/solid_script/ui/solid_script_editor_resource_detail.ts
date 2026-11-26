@@ -51,7 +51,7 @@ export function solidScriptEditorResourceDetail(
   const name = solidScriptEditorResourceName(resource.name, hooks.rename);
   const head = document.createElement('div');
   Object.assign(head.style, { display: 'flex', gap: '8px', alignItems: 'center' });
-  head.append(name, modifierStackUiText('span', `Read it as [$Resource.${resource.name}]`));
+  head.append(name, modifierStackUiText('span', `Read it as [$Resources.${resource.name}]`));
   element.append(head);
   if (resource.kind === 'Path') element.append(solidScriptEditorResourcePath(resource, hooks.change));
   const curve = resource.kind === 'Curve' ? solidScriptEditorResourceCurve(resource, hooks.change) : null;

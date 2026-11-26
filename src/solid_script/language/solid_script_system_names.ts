@@ -133,7 +133,7 @@ export interface SolidScriptSystemCatalogEntry {
   /** What the explorer shows when the value cannot be read outside a run. */
   absent: string;
   /**
-   * True for $Local, $Persistent and $Resource, which hold the script's own
+   * True for $Local, $Persistent and $Resources, which hold the script's own
    * names rather than a value.
    */
   scoped?: true;
@@ -182,9 +182,9 @@ export const SOLID_SCRIPT_SYSTEM_CATALOG: readonly SolidScriptSystemCatalogEntry
   ),
   ...SOLID_SCRIPT_NAME_SCOPES.map((name) => ({ name, ...SOLID_SCRIPT_SYSTEM_SCOPES[name] })),
   {
-    name: '$Resource',
+    name: '$Resources',
     type: 'Script Resources',
-    detail: 'the textures, curves and paths of the Resources tab, written $Resource.Name',
+    detail: 'the textures, curves and paths of the Resources tab, written $Resources.Name',
     absent: 'No Resources Yet',
     scoped: true,
   },

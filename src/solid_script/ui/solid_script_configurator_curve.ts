@@ -87,7 +87,7 @@ function solidScriptCurveShouldPick(text: string, raw: boolean): boolean {
  * @param parameter Parameter with curve settings.
  * @param inputs Container element.
  * @param problem Checks typed text when not picking.
- * @param resources Curve resources of the script, such as $Resource.Wall.
+ * @param resources Curve resources of the script, such as $Resources.Wall.
  * @returns Reader and validation check.
  */
 export function solidScriptConfiguratorCurve(
@@ -186,7 +186,7 @@ class SolidScriptConfiguratorCurveField {
     this.resource.setAttribute('aria-label', `${this.label} resource`);
     this.resource.className = SOLID_SCRIPT_EDITOR_CLASSES.input;
     const own = new Option('Edit Here', '');
-    this.resource.append(own, ...this.resources.map((name) => new Option(name.slice(1), `[${name}]`)));
+    this.resource.append(own, ...this.resources.map((name) => new Option(`[${name}]`, `[${name}]`)));
     this.resource.value = this.resourceOf(this.input.value);
     this.resource.addEventListener('change', () => {
       this.picked = this.resource.value === '' ? this.own : this.resource.value;
@@ -200,7 +200,7 @@ class SolidScriptConfiguratorCurveField {
    * Finds the curve resource field text names.
    *
    * @param text Field text.
-   * @returns Text such as [$Resource.Wall], or empty when it names none.
+   * @returns Text such as [$Resources.Wall], or empty when it names none.
    */
   private resourceOf(text: string): string {
     const trimmed = text.trim();

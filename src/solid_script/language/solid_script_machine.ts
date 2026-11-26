@@ -237,7 +237,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   /**
    * Reads a resource of the script.
    *
-   * @param name Name after $Resource.
+   * @param name Name after $Resources.
    * @returns The run's copy.
    */
   protected override resourceRead(name: string): SolidScriptValue {
@@ -248,7 +248,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * Reads a resource of the script for a line, such as an Input whose Default
    * picks one.
    *
-   * @param name Name after $Resource.
+   * @param name Name after $Resources.
    * @returns The run's copy.
    */
   resourceValue(name: string): SolidScriptValue {

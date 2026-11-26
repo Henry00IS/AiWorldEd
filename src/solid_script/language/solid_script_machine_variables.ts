@@ -157,7 +157,7 @@ function solidScriptSystemListed(name: string): string | undefined {
  * @returns Resource name, or undefined when the name reads no resource itself.
  */
 function solidScriptResourceNameOf(name: string): string | undefined {
-  const match = /^resource\.([A-Za-z_][A-Za-z0-9_]*)$/i.exec(name);
+  const match = /^resources\.([A-Za-z_][A-Za-z0-9_]*)$/i.exec(name);
   return match?.[1];
 }
 
@@ -237,7 +237,7 @@ export function solidScriptLocalBare(name: string): string {
   let bare = SOLID_SCRIPT_LOCAL_BARE.get(name);
   if (bare === undefined) {
     bare = name.slice(SOLID_SCRIPT_LOCAL_PREFIX.length);
-    // Names built while running, such as $local.p[i], could fill it up.
+    // Names built while running, such as $Local.P[i], could fill it up.
     if (SOLID_SCRIPT_LOCAL_BARE.size >= SOLID_SCRIPT_LOCAL_BARE_MAX) SOLID_SCRIPT_LOCAL_BARE.clear();
     SOLID_SCRIPT_LOCAL_BARE.set(name, bare);
   }
@@ -614,7 +614,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   }
 
   /**
-   * Reads any variable name as written in brackets, such as width, $local.n,
+   * Reads any variable name as written in brackets, such as width, $Local.N,
    * Pos.X, points(2) or Box.Width; throws when there is none.
    *
    * @param name Name as written.
@@ -832,13 +832,13 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   }
 
   /**
-   * Reads a resource of the script, written $Resource.Name.
+   * Reads a resource of the script, written $Resources.Name.
    *
-   * @param name Name after $Resource.
+   * @param name Name after $Resources.
    * @returns Value.
    */
   protected resourceRead(name: string): SolidScriptValue {
-    throw new Error(`there is no resource [$Resource.${name}]; add it in the Resources tab`);
+    throw new Error(`there is no resource [$Resources.${name}]; add it in the Resources tab`);
   }
 
   /**

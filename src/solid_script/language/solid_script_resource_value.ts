@@ -12,7 +12,7 @@ import type { SolidScriptPathElement, SolidScriptValue } from './solid_script_va
 export type SolidScriptResourcePathMake = (path: SolidScriptPath<number[]>, name: string) => SolidScriptPathElement;
 
 /**
- * The resources one run reads as $Resource.Name: each read once and kept, so
+ * The resources one run reads as $Resources.Name: each read once and kept, so
  * the run works on its own copy and the stored resource never changes.
  */
 export class SolidScriptResourceValues {
@@ -31,7 +31,7 @@ export class SolidScriptResourceValues {
    * Reads a resource by name: a Texture as its id, a Curve as a Curve and a
    * Path as a Path.
    *
-   * @param name Name after $Resource., in any case.
+   * @param name Name after $Resources., in any case.
    * @returns Value.
    */
   value(name: string): SolidScriptValue {
@@ -40,7 +40,7 @@ export class SolidScriptResourceValues {
     const resource = solidScriptResourceFind(this.resources, name);
     if (!resource)
       throw new Error(
-        `there is no resource [$Resource.${name}]; add it in the Resources tab${this.resources.length > 0 ? `, or use one of ${this.resources.map((entry) => entry.name).join(', ')}` : ''}`,
+        `there is no resource [$Resources.${name}]; add it in the Resources tab${this.resources.length > 0 ? `, or use one of ${this.resources.map((entry) => entry.name).join(', ')}` : ''}`,
       );
     const value = this.make(resource);
     this.read.set(key, value);
@@ -57,7 +57,7 @@ export class SolidScriptResourceValues {
     if (resource.kind === 'Texture') return resource.textureId;
     if (resource.kind === 'Path') return this.pathMake(pathAssetScriptPath(resource.path), resource.name);
     const curve = solidScriptResourceCurveRead(resource);
-    if (!curve) throw new Error(`the curve of [$Resource.${resource.name}] could not be read`);
+    if (!curve) throw new Error(`the curve of [$Resources.${resource.name}] could not be read`);
     return new SolidScriptCurveValue(curve);
   }
 }

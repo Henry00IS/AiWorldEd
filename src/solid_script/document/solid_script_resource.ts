@@ -38,7 +38,7 @@ export interface SolidScriptResourcePath {
 
 /**
  * A named texture, curve or path kept with a script, which the script reads as
- * $Resource.Name and the user edits in the Resources tab.
+ * $Resources.Name and the user edits in the Resources tab.
  */
 export type SolidScriptResource = SolidScriptResourceTexture | SolidScriptResourceCurve | SolidScriptResourcePath;
 
@@ -46,7 +46,7 @@ export type SolidScriptResource = SolidScriptResourceTexture | SolidScriptResour
 export const SOLID_SCRIPT_RESOURCE_PREFIX = '$resource.';
 
 /**
- * Tells whether a resource name is one a script can write after $Resource.: a
+ * Tells whether a resource name is one a script can write after $Resources.: a
  * letter or underscore, then letters, digits or underscores.
  *
  * @param name Name.

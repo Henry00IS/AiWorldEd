@@ -1,5 +1,6 @@
 import { curveDrawThumbnail } from '@/curve/ui/curve_draw.js';
-import { modifierStackUiText } from '@/modifier/stack/ui/modifier_stack_ui_style.js';
+import { curveFromPolyline } from '@/curve/model/curve_model.js';
+import { modifierStackUiText, modifierStackUiTextButton } from '@/modifier/stack/ui/modifier_stack_ui_style.js';
 import type { ProjectFileKind } from '@/project/fs/project_file_kind.js';
 import type { ProjectFileRecord } from '@/project/scan/project_snapshot.js';
 import { PanelProjectGrid } from '@/project/ui/panel_project_grid.js';
@@ -8,7 +9,9 @@ import {
   solidScriptDocumentResources,
   solidScriptDocumentResourcesWith,
   solidScriptResourceCurveRead,
+  solidScriptResourceCurve,
   solidScriptResourceFind,
+  solidScriptResourceNameFree,
   solidScriptResourceNameValid,
   type SolidScriptResource,
 } from '@/solid_script/document/solid_script_resource.js';
@@ -31,7 +34,7 @@ const SOLID_SCRIPT_RESOURCE_TILE_KINDS: Readonly<Record<SolidScriptResource['kin
 };
 
 /** Prefix of a resource tile's path: the name the script reads it by. */
-const SOLID_SCRIPT_RESOURCE_TILE_PREFIX = '$Resource.';
+const SOLID_SCRIPT_RESOURCE_TILE_PREFIX = '$Resources.';
 
 /**
  * The Resources tab of the script editor: the textures, curves and paths kept
@@ -67,9 +70,11 @@ export class SolidScriptEditorResources {
     Object.assign(this.files.host.style, { flex: '0 1 auto', minHeight: '120px' });
     const hint = modifierStackUiText(
       'div',
-      'Drop textures, curves and paths here. The script reads each as [$Resource.Name].',
+      'Drop textures, curves and paths here. The script reads each as [$Resources.Name].',
     );
-    this.element.append(hint, this.files.host, this.message, this.details);
+    const add = modifierStackUiTextButton('New Curve', 'Add a new curve to the script', () => this.curveNew());
+    Object.assign(add.style, { alignSelf: 'flex-start', flex: '0 0 auto', width: 'auto' });
+    this.element.append(hint, add, this.files.host, this.message, this.details);
     this.dropBind();
   }
 
@@ -183,6 +188,19 @@ export class SolidScriptEditorResources {
     if (made.length === 0) return;
     this.chosen = made.at(-1)!.name;
     this.change((resources) => [...resources, ...made]);
+  }
+
+  /** Adds a flat curve with a free name, selects it and opens its editor. */
+  private curveNew(): void {
+    const curve = curveFromPolyline([
+      [0, 1],
+      [1, 1],
+    ]);
+    const resource = solidScriptResourceCurve(solidScriptResourceNameFree(this.resources(), 'Curve'), curve);
+    this.chosen = resource.name;
+    this.change((resources) => [...resources, resource]);
+    this.files.select(`${SOLID_SCRIPT_RESOURCE_TILE_PREFIX}${resource.name}`);
+    this.shown?.open();
   }
 
   /**

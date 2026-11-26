@@ -10,9 +10,9 @@ import type { SolidScriptCommandParameter } from '@/solid_script/commands/solid_
 
 /** Names of a script with one texture resource and two curve resources. */
 const NAMES: SolidScriptName[] = [
-  { name: '$Resource.Brick', category: 'Resources', line: 0, detail: 'texture resource', kinds: ['Texture'] },
-  { name: '$Resource.Arch', category: 'Resources', line: 0, detail: 'curve resource', kinds: ['Curve'] },
-  { name: '$Resource.Ramp', category: 'Resources', line: 0, detail: 'curve resource', kinds: ['Curve'] },
+  { name: '$Resources.Brick', category: 'Resources', line: 0, detail: 'texture resource', kinds: ['Texture'] },
+  { name: '$Resources.Arch', category: 'Resources', line: 0, detail: 'curve resource', kinds: ['Curve'] },
+  { name: '$Resources.Ramp', category: 'Resources', line: 0, detail: 'curve resource', kinds: ['Curve'] },
 ];
 
 /**
@@ -39,31 +39,31 @@ function curveParameter(): SolidScriptCommandParameter {
 
 describe('SolidScript fields picking resources', () => {
   it('lists texture resources in texture pickers and keeps picking them', () => {
-    const field = build(solidScriptCommandFind('texture')!.parameters[0]!, '[$Resource.Brick]');
+    const field = build(solidScriptCommandFind('texture')!.parameters[0]!, '[$Resources.Brick]');
     const select = field.element.querySelector<HTMLSelectElement>('select')!;
     expect(select.hidden).toBe(false);
-    expect([...select.options].map((option) => option.textContent)).toContain('Resource.Brick');
-    expect(select.value).toBe('[$Resource.Brick]');
-    expect(field.read()).toBe('[$Resource.Brick]');
+    expect([...select.options].map((option) => option.textContent)).toContain('[$Resources.Brick]');
+    expect(select.value).toBe('[$Resources.Brick]');
+    expect(field.read()).toBe('[$Resources.Brick]');
   });
 
   it('lists only curve resources in the curve resource picker and stores the picked one', () => {
     const field = build(curveParameter(), '');
     const select = field.element.querySelector<HTMLSelectElement>('select[aria-label$="resource"]')!;
-    expect([...select.options].map((option) => option.value)).toEqual(['', '[$Resource.Arch]', '[$Resource.Ramp]']);
-    select.value = '[$Resource.Ramp]';
+    expect([...select.options].map((option) => option.value)).toEqual(['', '[$Resources.Arch]', '[$Resources.Ramp]']);
+    select.value = '[$Resources.Ramp]';
     select.dispatchEvent(new Event('change'));
-    expect(field.read()).toBe('[$Resource.Ramp]');
+    expect(field.read()).toBe('[$Resources.Ramp]');
     select.value = '';
     select.dispatchEvent(new Event('change'));
     expect(field.read()).toBe('');
   });
 
   it('opens a stored curve resource in Pick mode with the resource selected', () => {
-    const field = build(curveParameter(), '[$Resource.Arch]');
+    const field = build(curveParameter(), '[$Resources.Arch]');
     const select = field.element.querySelector<HTMLSelectElement>('select[aria-label$="resource"]')!;
     expect(select.hidden).toBe(false);
-    expect(select.value).toBe('[$Resource.Arch]');
+    expect(select.value).toBe('[$Resources.Arch]');
   });
 
   it('gives the names of the script resources with their kinds', () => {
@@ -73,6 +73,6 @@ describe('SolidScript fields picking resources', () => {
     ]);
     const document = { ...solidScriptDocumentCreate([]), resources: [solidScriptResourceCurve('Arch', curve)] };
     const names = solidScriptDocumentNamesAt(document, 0).filter((name) => name.category === 'Resources');
-    expect(names).toEqual([expect.objectContaining({ name: '$Resource.Arch', kinds: ['Curve'] })]);
+    expect(names).toEqual([expect.objectContaining({ name: '$Resources.Arch', kinds: ['Curve'] })]);
   });
 });

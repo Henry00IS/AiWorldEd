@@ -59,11 +59,11 @@ function script(type: string, fallback: string, ...more: SolidScriptLine[]) {
 describe('Input Defaults that pick a resource', () => {
   it('give the resource value when the inspector has not set one', () => {
     const echo = (value: string) => ({ command: 'echo', values: { value } });
-    expect(solidScriptProgramRun(script('Curve', '[$Resource.Arch]', echo('[Shape.Length]'))).messages).toEqual(['3']);
-    expect(solidScriptProgramRun(script('Path', '[$Resource.Rail]', echo('[Shape.Points]'))).messages).toEqual([
+    expect(solidScriptProgramRun(script('Curve', '[$Resources.Arch]', echo('[Shape.Length]'))).messages).toEqual(['3']);
+    expect(solidScriptProgramRun(script('Path', '[$Resources.Rail]', echo('[Shape.Points]'))).messages).toEqual([
       '[[0, 0, 0], [4, 0, 0]]',
     ]);
-    expect(solidScriptProgramRun(script('Texture', '[$Resource.Brick]', echo('[Shape]'))).messages).toEqual([
+    expect(solidScriptProgramRun(script('Texture', '[$Resources.Brick]', echo('[Shape]'))).messages).toEqual([
       'embedded:brick',
     ]);
   });
@@ -73,10 +73,10 @@ describe('Input Defaults that pick a resource', () => {
       const item = solidScriptDocumentInputLayout(script(type, text))[0];
       return item?.kind === 'input' ? item.input.fallback : '';
     };
-    expect(curveDecode(fallback('Curve', '[$Resource.Arch]'))?.points).toHaveLength(3);
-    expect(pathAssetDecode(fallback('Path', '[$Resource.Rail]'))?.points[1]).toEqual([4, 0, 0]);
-    expect(fallback('Texture', '[$Resource.Brick]')).toBe('embedded:brick');
-    expect(fallback('Curve', '[$Resource.Rail]')).toBe('[$Resource.Rail]');
+    expect(curveDecode(fallback('Curve', '[$Resources.Arch]'))?.points).toHaveLength(3);
+    expect(pathAssetDecode(fallback('Path', '[$Resources.Rail]'))?.points[1]).toEqual([4, 0, 0]);
+    expect(fallback('Texture', '[$Resources.Brick]')).toBe('embedded:brick');
+    expect(fallback('Curve', '[$Resources.Rail]')).toBe('[$Resources.Rail]');
   });
 
   it('offer the resources of the Input type in the Default field', () => {
@@ -84,9 +84,9 @@ describe('Input Defaults that pick a resource', () => {
     const parameter = solidScriptCommandFind('input')!.parameters.find((each) => each.key === 'default')!;
     const words = (type: string) =>
       solidScriptConfiguratorResourceWords(parameter, { type }, names).map((word) => word.word);
-    expect(words('Curve')).toEqual(['[$Resource.Arch]']);
-    expect(words('path')).toEqual(['[$Resource.Rail]']);
-    expect(words('Texture')).toEqual(['[$Resource.Brick]']);
+    expect(words('Curve')).toEqual(['[$Resources.Arch]']);
+    expect(words('path')).toEqual(['[$Resources.Rail]']);
+    expect(words('Texture')).toEqual(['[$Resources.Brick]']);
     expect(words('Number')).toEqual([]);
   });
 });
@@ -96,7 +96,7 @@ describe('Edit Mode and Path resources', () => {
     const owner = new THREE.Object3D();
     const document = solidScriptDocumentResourcesWith(
       solidScriptDocumentCreate([
-        { command: 'input', values: { name: 'Track', type: 'Path', default: '[$Resource.Rail]' } },
+        { command: 'input', values: { name: 'Track', type: 'Path', default: '[$Resources.Rail]' } },
         { command: 'cube' },
       ]),
       [...RESOURCES, { ...RESOURCES[1]!, name: 'Other' } as SolidScriptResource],

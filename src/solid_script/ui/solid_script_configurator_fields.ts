@@ -122,7 +122,7 @@ function solidScriptConfiguratorVectorSize(parameter: SolidScriptCommandParamete
 
 /**
  * Lists the resources of one kind the script has, as fields write them, such as
- * $Resource.Wall.
+ * $Resources.Wall.
  *
  * @param names Names the line sees.
  * @param kind Texture, Curve or Path.
@@ -137,7 +137,7 @@ const SOLID_SCRIPT_CONFIGURATOR_RESOURCE_TYPES: readonly string[] = ['Curve', 'P
 
 /**
  * Lists the resources an Input's Default can pick: those of the Input's type,
- * such as [$Resource.Arch] for a Curve.
+ * such as [$Resources.Arch] for a Curve.
  *
  * @param parameter Field.
  * @param values Current values of the line.
@@ -490,7 +490,7 @@ class SolidScriptConfiguratorTextureField {
     this.select = textureSelectCreate(
       label,
       () => this.changed(),
-      resources.map((name) => ({ value: `[${name}]`, label: name.slice(1) })),
+      resources.map((name) => ({ value: `[${name}]`, label: `[${name}]` })),
     );
     this.select.element.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.input);
     this.picking = this.pickable(input.value);

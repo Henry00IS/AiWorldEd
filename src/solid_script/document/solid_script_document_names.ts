@@ -316,14 +316,14 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
 
 /**
  * Lists the resources of a script as the names fields read them, such as
- * $Resource.Wall, each with its kind.
+ * $Resources.Wall, each with its kind.
  *
  * @param document Script.
  * @returns Names.
  */
 export function solidScriptNamesResources(document: SolidScriptDocument): SolidScriptName[] {
   return (document.resources ?? []).map((resource) => ({
-    name: `$Resource.${resource.name}`,
+    name: `$Resources.${resource.name}`,
     category: 'Resources',
     line: 0,
     detail: `${resource.kind.toLowerCase()} resource`,

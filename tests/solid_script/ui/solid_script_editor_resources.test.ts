@@ -64,7 +64,7 @@ function drop(resources: SolidScriptEditorResources, files: File[]): void {
  * @returns Tile.
  */
 function tileOf(resources: SolidScriptEditorResources, name: string): HTMLElement {
-  return resources.element.querySelector<HTMLElement>(`[data-file-path="$Resource.${name}"]`)!;
+  return resources.element.querySelector<HTMLElement>(`[data-file-path="$Resources.${name}"]`)!;
 }
 
 describe('Resources tab', () => {
@@ -87,7 +87,7 @@ describe('Resources tab', () => {
     ]);
     expect(kept[0]).toMatchObject({ textureId: expect.stringMatching(/^embedded:[0-9a-f]{64}\.png$/) });
     expect(resources.element.querySelectorAll('[data-file-path]')).toHaveLength(3);
-    expect(tileOf(resources, 'Ramp').title).toBe('[$Resource.Ramp]');
+    expect(tileOf(resources, 'Ramp').title).toBe('[$Resources.Ramp]');
   });
 
   it('tells which dropped files do not fit, and adds the rest', async () => {
@@ -135,5 +135,21 @@ describe('Resources tab', () => {
     expect(solidScriptResourceNameOfFile('textures/old-brick 2.jpg')).toBe('Old_brick_2');
     expect(solidScriptResourceNameOfFile('01.png')).toBe('Resource01');
     expect(solidScriptResourceNameOfFile('.png')).toBe('Resource');
+  });
+});
+
+describe('Resources tab New Curve', () => {
+  it('adds a curve with a free name and selects it', () => {
+    const script = solidScriptDocumentResourcesWith(solidScriptDocumentCreate([]), [
+      solidScriptResourceCurve('Curve', RAMP),
+    ]);
+    const { resources, stored } = tab(script);
+    const button = [...resources.element.querySelectorAll('button')].find((each) => each.textContent === 'New Curve')!;
+    button.click();
+    expect(stored.at(-1)?.resources?.map((resource) => resource.name)).toEqual(['Curve', 'Curve2']);
+    expect(resources.element.querySelector<HTMLInputElement>('input[aria-label="Resource name"]')?.value).toBe(
+      'Curve2',
+    );
+    expect(tileOf(resources, 'Curve2').getAttribute('aria-selected')).toBe('true');
   });
 });

@@ -60,28 +60,28 @@ function echo(...values: string[]): string[] | string {
 }
 
 describe('Script resources', () => {
-  it('reads a curve, a path and a texture as $Resource.Name, in any case', () => {
-    expect(echo('[$Resource.Ramp.Length]', '[$resource.rail.Points]', '[$Resource.Brick]')).toEqual([
+  it('reads a curve, a path and a texture as $Resources.Name, in any case', () => {
+    expect(echo('[$Resources.Ramp.Length]', '[$resources.rail.Points]', '[$Resources.Brick]')).toEqual([
       '2',
       '[[0, 0, 0], [2, 0, 0]]',
       'tex-brick',
     ]);
-    expect(Number(echo('[=CurveAt([$Resource.Ramp], 0.5)]')[0])).toBeCloseTo(0.5, 6);
+    expect(Number(echo('[=CurveAt([$Resources.Ramp], 0.5)]')[0])).toBeCloseTo(0.5, 6);
   });
 
   it('feeds a resource curve to functions that take a curve', () => {
-    expect(echo('[=Len(CurveProfile([$Resource.Ramp], 1, 0.2, "Normal", 4)) > 2]')).toEqual(['Yes']);
+    expect(echo('[=Len(CurveProfile([$Resources.Ramp], 1, 0.2, "Normal", 4)) > 2]')).toEqual(['Yes']);
   });
 
   it('works on a copy, so the stored resource never changes', () => {
-    const document = script({ command: 'variable', values: { name: 'Mine', value: '[$Resource.Ramp]' } });
+    const document = script({ command: 'variable', values: { name: 'Mine', value: '[$Resources.Ramp]' } });
     solidScriptProgramRun(document);
     expect(document.resources).toEqual(RESOURCES);
   });
 
   it('says which resources there are when a name is wrong, and refuses to set one', () => {
-    expect(echo('[$Resource.Nope]')).toContain('add it in the Resources tab, or use one of Ramp, Rail, Brick');
-    const run = solidScriptProgramRun(script({ command: 'variable', values: { name: '$Resource.Ramp', value: '1' } }));
+    expect(echo('[$Resources.Nope]')).toContain('add it in the Resources tab, or use one of Ramp, Rail, Brick');
+    const run = solidScriptProgramRun(script({ command: 'variable', values: { name: '$Resources.Ramp', value: '1' } }));
     expect(run.error?.message).toContain('can only be read');
   });
 
@@ -113,7 +113,7 @@ describe('Script resources', () => {
     );
     const document = solidScriptDocumentResourcesWith(
       solidScriptDocumentCreate([
-        ...many.map((resource) => ({ command: 'echo', values: { value: `[$Resource.${resource.name}.Length]` } })),
+        ...many.map((resource) => ({ command: 'echo', values: { value: `[$Resources.${resource.name}.Length]` } })),
         { command: 'cube' },
       ]),
       many,
