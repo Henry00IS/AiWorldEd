@@ -79,6 +79,23 @@ describe('SolidScript persistent value codec', () => {
     expect(echo('[$Persistent.Note]', stored as Record<string, unknown>)).toBe(text);
   });
 
+  it('round-trips text that holds Solid Script $[ escapes', () => {
+    const text = 'Say $[Hi] and $$5';
+    expect(roundTrip(text)).toBe(text);
+    const stored = press([
+      {
+        command: 'variable',
+        values: { name: '$Persistent.Note', value: '[="Say $$$[Hi$] and $$$$5"]' },
+      },
+    ]);
+    expect(stored).toEqual({ note: text });
+    expect(echo('[$Persistent.Note]', stored as Record<string, unknown>)).toBe(text);
+    const prices = press([
+      { command: 'add_entry', values: { dictionary: '$Persistent.Prices', key: 'Label', value: '[="Say $$$[Hi$]"]' } },
+    ]);
+    expect(echo('[$Persistent.Prices.Label]', prices as Record<string, unknown>)).toBe('Say $[Hi]');
+  });
+
   it('round-trips a Dictionary, a nested Dictionary and a list of Dictionaries', () => {
     const prices = press([
       {

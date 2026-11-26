@@ -30,6 +30,18 @@ describe('SolidScript persistent record', () => {
     expect(values.has('width')).toBe(false);
   });
 
+  it('reads older JSON text that holds Solid Script $[ escapes, and keeps raw $[ text', () => {
+    const values = solidScriptPersistentRecordRead(
+      {},
+      {
+        '$persistent.note': '"Say $[Hi] and $$5"',
+        '$persistent.raw': '$[Hi]',
+      },
+    );
+    expect(values.get('note')).toBe('Say $[Hi] and $$5');
+    expect(values.get('raw')).toBe('$[Hi]');
+  });
+
   it('reads an older Rotation object that kept its degrees, and skips a broken Dictionary', () => {
     const values = solidScriptPersistentRecordRead(
       {},

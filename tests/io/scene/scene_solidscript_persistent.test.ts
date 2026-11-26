@@ -125,6 +125,17 @@ describe('Solid Script persistent values in a saved level', () => {
     });
   });
 
+  it('keeps Solid Script $[ escapes in a saved and loaded persistent text', () => {
+    const note = 'Say $[Hi] and $$5';
+    const { world } = worldOf({}, { count: 4, note });
+    const loaded = load(world);
+    expect(printed(loaded)).toBe('4 Say $[Hi] and $$5');
+    expect(ModifierVolume.read(loaded).modifiers[0]?.parameters[MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY]).toEqual({
+      count: 4,
+      note,
+    });
+  });
+
   it('loads older $persistent keys from a saved map into the structured record', () => {
     const { world } = worldOf({
       '$persistent.count': '4',
