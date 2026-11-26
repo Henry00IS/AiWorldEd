@@ -1,4 +1,9 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import {
+  modifierStackPathsRecord,
+  modifierStackPathsRecorded,
+} from '@/modifier/stack/widgets/modifier_stack_path_record.js';
 import { curveDecode } from '@/curve/model/curve_codec.js';
 import { curveFromPolyline } from '@/curve/model/curve_model.js';
 import { pathAssetDecode } from '@/path/model/path_asset.js';
@@ -83,5 +88,25 @@ describe('Input Defaults that pick a resource', () => {
     expect(words('path')).toEqual(['[$Resource.Rail]']);
     expect(words('Texture')).toEqual(['[$Resource.Brick]']);
     expect(words('Number')).toEqual([]);
+  });
+});
+
+describe('Edit Mode and Path resources', () => {
+  it('draws the Path resource an Input picks, and no other resource', () => {
+    const owner = new THREE.Object3D();
+    const document = solidScriptDocumentResourcesWith(
+      solidScriptDocumentCreate([
+        { command: 'input', values: { name: 'Track', type: 'Path', default: '[$Resource.Rail]' } },
+        { command: 'cube' },
+      ]),
+      [...RESOURCES, { ...RESOURCES[1]!, name: 'Other' } as SolidScriptResource],
+    );
+    modifierStackPathsRecord(owner, 'step', document, undefined, new THREE.Matrix4());
+    const paths = modifierStackPathsRecorded(owner, 'step');
+    expect(paths.map((path) => path.name)).toEqual(['Track']);
+    expect(paths[0]!.path.points).toEqual([
+      [0, 0, 0],
+      [4, 0, 0],
+    ]);
   });
 });

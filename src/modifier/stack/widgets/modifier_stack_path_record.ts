@@ -1,3 +1,4 @@
+import { solidScriptInputResourceResolved } from '@/solid_script/language/solid_script_input_resource.js';
 import type * as THREE from 'three';
 import { PATH_ASSET_DEFAULT, type PathAsset } from '@/path/model/path_asset.js';
 import { solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';
@@ -28,8 +29,10 @@ const MODIFIER_STACK_PATHS = new ModifierStackStepRecord<ModifierStackPath>();
 
 /**
  * Keeps the Path inputs of a script step as it ran: the stored path of each
- * Path input whose line is on, or the default path when none is stored. Inputs
- * that follow a Path object are left out: they are edited on that object.
+ * Path input whose line is on, or the default path when none is stored (the
+ * Path resource its Default picks, if any; other resources are not shown).
+ * Inputs that follow a Path object are left out: they are edited on that
+ * object.
  *
  * @param owner Stack owner.
  * @param stepId Step id.
@@ -46,6 +49,7 @@ export function modifierStackPathsRecord(
 ): void {
   const paths = solidScriptInputsList(document.blocks.filter((block) => !block.off))
     .filter((input) => input.type === 'Path')
+    .map((input) => solidScriptInputResourceResolved(input, document.resources ?? []))
     .map((input) => ({ input, value: solidScriptInputEffectiveValue(input, inputs?.[input.name]) }))
     .filter(({ value }) => pathReferenceRead(value) === null)
     .map(({ input, value }) =>
