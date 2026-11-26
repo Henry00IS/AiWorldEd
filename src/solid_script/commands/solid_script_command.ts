@@ -163,7 +163,10 @@ export interface SolidScriptCommandEntry {
   value: string;
 }
 
-/** Curve editor settings for a field holding an encoded curve. */
+/**
+ * Curve editor settings for a field holding a curve: a resource, a preset name,
+ * a number or points.
+ */
 export interface SolidScriptCommandCurve {
   /** Presets offered by the curve editor. */
   readonly presets: readonly CurvePreset[];
@@ -207,7 +210,7 @@ export interface SolidScriptCommandParameter {
   words?: readonly SolidScriptCommandWord[];
   /** True for a library texture: the window offers the texture picker or typing. */
   texture?: boolean;
-  /** Curve editor settings when this field holds an encoded curve. */
+  /** Curve editor settings when this field holds a curve. */
   curve?: SolidScriptCommandCurve;
   /**
    * True for a vector field that takes a direction its label does not name,
