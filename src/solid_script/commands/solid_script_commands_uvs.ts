@@ -7,7 +7,6 @@ import {
   solidScriptParameter,
   solidScriptParameterOf,
   solidScriptParameterOptional,
-  solidScriptParameterWhen,
   solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
 import { solidScriptFaceGroups, solidScriptFaceTargets } from './solid_script_face_of.js';
@@ -20,26 +19,12 @@ import {
   solidScriptFaceUvMatrix,
   solidScriptFaceUvRecord,
   solidScriptFaceUvsFit,
-  solidScriptLeafCenter,
   solidScriptFaceUvsWorldLock,
   solidScriptMeshFaceUvsWrite,
   solidScriptMeshUvsWorldLock,
   solidScriptSolidFaceUvsWrite,
 } from '@/solid_script/language/solid_script_uvs.js';
-import {
-  TEXTURE_UV_PROJECT_FRONT,
-  TEXTURE_UV_PROJECT_OVERHEAD,
-  TEXTURE_UV_PROJECT_SIDE,
-  textureUvProjectAxis,
-  textureUvProjectPoint,
-  textureUvProjectView,
-} from '@/texture/uv_project/texture_uv_project_view.js';
-import { textureUvProjectPlanar } from '@/texture/uv_project/texture_uv_project_planar.js';
-import {
-  textureUvProjectCylinderPoint,
-  textureUvProjectFitFace,
-  textureUvProjectSpherePoint,
-} from '@/texture/uv_project/texture_uv_project_radial.js';
+import { textureUvProjectPoint } from '@/texture/uv_project/texture_uv_project_view.js';
 import { textureUvUnwrapFace } from '@/texture/uv_project/texture_uv_unwrap.js';
 import { solidScriptUvUnfold } from '@/solid_script/language/solid_script_uv_unfold.js';
 import { solidScriptUvConformal } from '@/solid_script/language/solid_script_uv_conformal.js';
@@ -72,105 +57,6 @@ import {
 
 /** Commands that project, unwrap, pack and transform texture coordinates. */
 export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
-  new SolidScriptCommand({
-    id: 'project_uvs',
-    edits: true,
-    label: 'Project UVs',
-    category: 'UVs',
-    description: 'Give faces texture coordinates from a box, plane, cylinder or sphere',
-    manual:
-      "Gives faces texture coordinates projected from a Mode: Box (the Overhead, Front or Side view each face faces most), Planar (one plane, From Face, Overhead, Front or Side), Cylinder or Sphere. Size is metres of one texture repeat. Space is Local (from the shape's center, so a move keeps the mapping) or World (from the script origin, along the world axes). Cylinder and Sphere take Axis and an optional Center (empty uses the shape's center); a solid face gets a fitted planar map, a mesh face gets exact corner coordinates. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Cube, Select Faces, Project UVs Mode Box Size 1 wraps each side from the way it faces.",
-    stops: [
-      'No faces.',
-      'A Size of 0 or less.',
-      'A Mode other than Box, Planar, Cylinder or Sphere.',
-      'A Space other than Local or World.',
-      'A From other than Face, Overhead, Front or Side.',
-    ],
-    parameters: [
-      solidScriptParameterWords(
-        'mode',
-        'Mode',
-        'text',
-        'Box',
-        'How the coordinates are projected. Type one word, such as Box.',
-        [
-          { word: 'Box', detail: 'Each face uses the Overhead, Front or Side view it faces most' },
-          { word: 'Planar', detail: 'Every face uses one plane' },
-          { word: 'Cylinder', detail: 'Around an axis, height along it' },
-          { word: 'Sphere', detail: 'Around a center, from the +axis pole' },
-        ],
-      ),
-      solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat, such as 1.'),
-      solidScriptParameterWhen(
-        solidScriptParameterWords(
-          'space',
-          'Space',
-          'text',
-          'Local',
-          'Local follows the shape; World stays fixed to the script. Type Local or World, such as Local on a swinging door and World on wallpaper that stays put.',
-          [
-            { word: 'Local', detail: 'Follows the shape, from its center' },
-            { word: 'World', detail: 'Stays fixed to the script origin' },
-          ],
-        ),
-        'mode',
-        ['Box', 'Planar'],
-      ),
-      solidScriptParameterWhen(
-        solidScriptParameterWords(
-          'from',
-          'From',
-          'text',
-          'Face',
-          'The plane Planar projects from. Type one word, such as Overhead, or a face such as [Front].',
-          [
-            { word: 'Face', detail: "Each face's own plane" },
-            { word: 'Overhead', detail: 'From above, along X and Z, such as looking down on a floor' },
-            { word: 'Front', detail: 'From the front, along X and Y, such as looking at a wall' },
-            { word: 'Side', detail: 'From the side, along Z and Y, such as looking from the right' },
-          ],
-        ),
-        'mode',
-        ['Planar'],
-      ),
-      solidScriptParameterWhen(
-        solidScriptParameter(
-          'axis',
-          'Axis',
-          'vector3',
-          '0, 1, 0',
-          'The cylinder or sphere axis, such as 0, 1, 0 for upright.',
-        ),
-        'mode',
-        ['Cylinder', 'Sphere'],
-      ),
-      solidScriptParameterWhen(
-        solidScriptParameterOptional(
-          'center',
-          'Center',
-          'vector3',
-          "A point on the axis, or the sphere center, such as 0, 0, 0; left off uses the shape's center.",
-        ),
-        'mode',
-        ['Cylinder', 'Sphere'],
-      ),
-      solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
-      solidScriptParameterOf('faces or objects', '$Selected.Faces'),
-    ],
-    listing: (read) => [
-      'Project UVs',
-      ' ',
-      read.value('mode'),
-      ' Size ',
-      read.value('size'),
-      ...solidScriptListingOf(read),
-    ],
-    execute: (run) => {
-      solidScriptUvsProject(run, solidScriptFaceTargets(run, 'Project UVs'));
-      return [];
-    },
-  }),
   new SolidScriptCommand({
     id: 'unwrap',
     edits: true,
@@ -328,7 +214,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'UVs',
     description: 'Move, scale or rotate texture coordinates',
     manual:
-      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is tiles added to U and V (Z is ignored); on solids from Input Objects it shifts the texture of that copy. It is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, such as 0.5, 0.5), Origin (0, 0) or Each Face (the middle of each face's own UVs, so every face turns and scales in place). Readable Text Yes keeps lettering readable when a later Mirror or a mirrored copy would otherwise reverse it, No lets the reflection reverse it, and left off the solid keeps the Readable Text it already has. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; left off, the solid keeps the Textures it already has. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
+      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is tiles added to U and V (Z is ignored); on solids from Input Objects it shifts the texture of that copy. It is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, such as 0.5, 0.5), Origin (0, 0) or Each Face (the middle of each face's own UVs, so every face turns and scales in place). Readable Text Yes keeps lettering readable when a later Mirror or a mirrored copy would otherwise reverse it, No lets the reflection reverse it, and left off the solid keeps the Readable Text it already has. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; left off, the solid keeps the Textures it already has. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Project Box UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
     stops: [
       'No faces.',
       'A Pivot other than Center, Tile, Origin or Each Face.',
@@ -508,149 +394,11 @@ function solidScriptUvsTransformBakesReceived(
  * @param label Command, for messages.
  * @returns Size in metres.
  */
-function solidScriptUvsSize(run: SolidScriptBlockRun, label: string): number {
+export function solidScriptUvsSize(run: SolidScriptBlockRun, label: string): number {
   const size = solidScriptValueNumber(run.value('size'));
   if (size === undefined) throw new Error(`${label} needs a Size in metres, such as 1`);
   if (!(size > 0)) throw new Error(`Size must be greater than 0, not ${size}`);
   return size;
-}
-
-/**
- * Projects the given faces and writes the mapping onto each leaf.
- *
- * @param run Running line.
- * @param faces Faces to project.
- */
-function solidScriptUvsProject(run: SolidScriptBlockRun, faces: readonly SolidScriptFaceFacts[]): void {
-  const size = solidScriptUvsSize(run, 'Project UVs');
-  const mode = solidScriptValueText(run.value('mode')).trim() || 'Box';
-  const folded = mode.toLowerCase();
-  for (const [leaf, group] of solidScriptFaceGroups(faces, (face) => face.leaf)) {
-    const origin = solidScriptUvsOrigin(run, mode, leaf);
-    if ((folded === 'cylinder' || folded === 'sphere') && leaf.kind === 'mesh') {
-      const project = solidScriptUvsRadialProject(run, folded, size, origin);
-      solidScriptUvsWriteCorners(
-        run,
-        leaf,
-        group.map((face) => ({ face, uvs: face.corners.map(project) })),
-      );
-      continue;
-    }
-    solidScriptUvsWriteLeaf(run, leaf, group, (face) => solidScriptUvsProjectFace(run, face, mode, size, origin));
-  }
-}
-
-/**
- * Chooses the origin of a Local mapping, or the script origin for World.
- *
- * @param run Running line.
- * @param mode Mode word.
- * @param leaf Solid or mesh.
- * @returns Origin in script space.
- */
-function solidScriptUvsOrigin(run: SolidScriptBlockRun, mode: string, leaf: SolidScriptGeometryLeaf): THREE.Vector3 {
-  const folded = mode.toLowerCase();
-  if (folded === 'cylinder' || folded === 'sphere') {
-    const text = solidScriptValueText(run.value('center')).trim();
-    return text === '' ? solidScriptLeafCenter(leaf) : solidScriptUvsVector(run, 'center', [0, 0, 0], 'Center');
-  }
-  const space = solidScriptValueText(run.value('space')).trim() || 'Local';
-  if (space.toLowerCase() === 'world') return new THREE.Vector3();
-  if (space.toLowerCase() !== 'local') throw new Error(`Space must be Local or World, not ${space}`);
-  return solidScriptLeafCenter(leaf);
-}
-
-/**
- * Builds the UV matrix of one face for Project UVs.
- *
- * @param run Running line.
- * @param face Face facts.
- * @param mode Mode word.
- * @param size Metres per repeat.
- * @param origin Projection origin.
- * @returns Matrix for a brush face, or null to write corner UVs on a mesh only.
- */
-function solidScriptUvsProjectFace(
-  run: SolidScriptBlockRun,
-  face: SolidScriptFaceFacts,
-  mode: string,
-  size: number,
-  origin: THREE.Vector3,
-): SurfaceUvMatrix {
-  const folded = mode.toLowerCase();
-  if (folded === 'box') return textureUvProjectAxis(face.normal, size, origin);
-  if (folded === 'planar') return solidScriptUvsPlanar(run, face, size, origin);
-  if (folded === 'cylinder' || folded === 'sphere') return solidScriptUvsRadial(run, face, folded, size, origin);
-  throw new Error(`Mode must be Box, Planar, Cylinder or Sphere, not ${mode}`);
-}
-
-/**
- * Builds a Planar mapping from From and the face.
- *
- * @param run Running line.
- * @param face Face facts.
- * @param size Metres per repeat.
- * @param origin Projection origin.
- * @returns Matrix.
- */
-function solidScriptUvsPlanar(
-  run: SolidScriptBlockRun,
-  face: SolidScriptFaceFacts,
-  size: number,
-  origin: THREE.Vector3,
-): SurfaceUvMatrix {
-  const from = solidScriptValueText(run.value('from')).trim() || 'Face';
-  const folded = from.toLowerCase();
-  if (folded === 'face') return textureUvProjectPlanar(face.normal, size, origin);
-  if (folded === 'overhead') return textureUvProjectView(TEXTURE_UV_PROJECT_OVERHEAD, size, origin);
-  if (folded === 'front') return textureUvProjectView(TEXTURE_UV_PROJECT_FRONT, size, origin);
-  if (folded === 'side') return textureUvProjectView(TEXTURE_UV_PROJECT_SIDE, size, origin);
-  throw new Error(`From must be Face, Overhead, Front or Side, not ${from}`);
-}
-
-/**
- * Projects one point for Cylinder or Sphere mode.
- *
- * @param run Running line.
- * @param mode Cylinder or sphere, folded.
- * @param size Metres per repeat.
- * @param origin Center.
- * @returns Projector.
- */
-function solidScriptUvsRadialProject(
-  run: SolidScriptBlockRun,
-  mode: string,
-  size: number,
-  origin: THREE.Vector3,
-): (point: THREE.Vector3) => [number, number] {
-  const axis = solidScriptUvsVector(run, 'axis', [0, 1, 0], 'Axis');
-  if (axis.lengthSq() <= 1e-16) throw new Error('Axis must not be a zero vector');
-  axis.normalize();
-  return mode === 'sphere'
-    ? (point: THREE.Vector3) => textureUvProjectSpherePoint(point, axis, origin, size, 1)
-    : (point: THREE.Vector3) => textureUvProjectCylinderPoint(point, axis, origin, size, 1);
-}
-
-/**
- * Fits a cylinder or sphere mapping to a face's corners.
- *
- * @param run Running line.
- * @param face Face facts.
- * @param mode Cylinder or sphere, folded.
- * @param size Metres per repeat.
- * @param origin Center.
- * @returns Fitted matrix.
- */
-function solidScriptUvsRadial(
-  run: SolidScriptBlockRun,
-  face: SolidScriptFaceFacts,
-  mode: string,
-  size: number,
-  origin: THREE.Vector3,
-): SurfaceUvMatrix {
-  const fitted = textureUvProjectFitFace(face.corners, solidScriptUvsRadialProject(run, mode, size, origin));
-  if (!fitted) throw new Error('Cylinder and Sphere need a face with at least three corners');
-  return fitted;
 }
 
 /**
@@ -661,7 +409,7 @@ function solidScriptUvsRadial(
  * @param faces Faces of this leaf.
  * @param matrix Of one face.
  */
-function solidScriptUvsWriteLeaf(
+export function solidScriptUvsWriteLeaf(
   run: SolidScriptBlockRun,
   leaf: SolidScriptGeometryLeaf,
   faces: readonly SolidScriptFaceFacts[],
@@ -803,7 +551,7 @@ function solidScriptUvsPack(
  * @param leaf Solid or mesh.
  * @param faces Faces and their corner UVs.
  */
-function solidScriptUvsWriteCorners(
+export function solidScriptUvsWriteCorners(
   run: SolidScriptBlockRun,
   leaf: SolidScriptGeometryLeaf,
   faces: readonly { face: SolidScriptFaceFacts; uvs: readonly [number, number][] }[],

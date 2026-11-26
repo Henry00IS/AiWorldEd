@@ -38,7 +38,7 @@ describe('SolidScript empty fields show their default as placeholder text', () =
 
   it('shows the same default on other choice and number fields when they are empty', () => {
     expect(shown('select_objects', 'which', '').placeholder).toBe('All');
-    expect(shown('project_uvs', 'mode', '').placeholder).toBe('Box');
+    expect(shown('project_planar_uvs', 'from', '').placeholder).toBe('Face');
     expect(shown('cube', 'size', '').placeholder).toBe('1, 1, 1');
     expect(shown('cube', 'anchor', '').placeholder).toBe('Center, Center, Center');
   });

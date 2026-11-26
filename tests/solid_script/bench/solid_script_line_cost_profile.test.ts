@@ -121,8 +121,8 @@ const SCATTER: SolidScriptLine = {
   values: { count: '10', seed: '0', into: 'Points' },
 };
 
-/** Project UVs Mode Box, the other last line Henry compared. */
-const PROJECT: SolidScriptLine = { command: 'project_uvs', values: { mode: 'Box', size: '1' } };
+/** Project Box UVs, the other last line Henry compared. */
+const PROJECT: SolidScriptLine = { command: 'project_box_uvs', values: { size: '1' } };
 
 describe('SolidScript line cost on a heavy scene', () => {
   it('keeps a cheap last line cheap after many faces, and Project UVs too', () => {

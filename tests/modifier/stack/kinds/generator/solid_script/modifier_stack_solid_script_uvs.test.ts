@@ -147,7 +147,7 @@ describe('SolidScript generator UVs', () => {
       END,
       { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
-      { command: 'project_uvs', values: { mode: 'Box', size: '1', space: 'Local' } },
+      { command: 'project_box_uvs', values: { size: '1', space: 'Local' } },
     ];
     const origin = compiled(boxed('0, 0, 0'));
     const moved = compiled(boxed('4, 0, 0'));
@@ -164,7 +164,7 @@ describe('SolidScript generator UVs', () => {
       { command: 'cube', values: { size: '2, 1, 3' } },
       { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
-      { command: 'project_uvs', values: { mode: 'Planar', from: 'Overhead', size: '1' } },
+      { command: 'project_planar_uvs', values: { from: 'Overhead', size: '1' } },
       END,
       END,
     ]);
@@ -174,7 +174,7 @@ describe('SolidScript generator UVs', () => {
       END,
       { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
-      { command: 'project_uvs', values: { mode: 'Planar', from: 'Overhead', size: '1' } },
+      { command: 'project_planar_uvs', values: { from: 'Overhead', size: '1' } },
     ]);
     expect(projectThenRotate).toHaveLength(1);
     expect(rotateThenProject).toHaveLength(1);
@@ -188,7 +188,7 @@ describe('SolidScript generator UVs', () => {
       { command: 'cube', values: { size: '0.4, 0.4, 0.4' } },
       { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
-      { command: 'project_uvs', values: { mode: 'Box', size: '1' } },
+      { command: 'project_box_uvs', values: { size: '1' } },
       END,
     ];
     const host: SolidScriptLine[] = [
@@ -207,7 +207,7 @@ describe('SolidScript generator UVs', () => {
         { command: 'cube', values: { size: '0.4, 0.4, 0.4' } },
         { command: 'select_objects' },
         { command: 'select_faces', values: { which: 'All' } },
-        { command: 'project_uvs', values: { mode: 'Box', size: '1' } },
+        { command: 'project_box_uvs', values: { size: '1' } },
         END,
         END,
       ]),

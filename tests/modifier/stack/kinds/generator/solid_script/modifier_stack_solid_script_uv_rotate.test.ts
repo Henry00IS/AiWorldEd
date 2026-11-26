@@ -218,7 +218,7 @@ describe('SolidScript Rotate keeps UVs like the editor rotate tool', () => {
       CYLINDER,
       { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
-      { command: 'project_uvs', values: { mode: 'Box', size: '0.5' } },
+      { command: 'project_box_uvs', values: { size: '0.5' } },
       END,
     ];
     expect(rotateGap(projected, 0, 0, 60)).toBeLessThan(1e-6);

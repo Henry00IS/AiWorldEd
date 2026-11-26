@@ -28,7 +28,6 @@ import {
   solidScriptParameter,
   solidScriptParameterInto,
   solidScriptParameterOf,
-  solidScriptParameterWhen,
   solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
@@ -181,21 +180,19 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
           { word: 'Spacing', detail: 'One point every Spacing metres' },
         ],
       ),
-      solidScriptParameterWhen(
-        solidScriptParameter(
-          'count',
-          'Count',
-          'count',
-          '10',
-          'How many points, such as 10; at least 2, so both ends of the path get one.',
-        ),
-        'by',
-        ['Count'],
+      solidScriptParameter(
+        'count',
+        'Count',
+        'count',
+        '10',
+        'How many points when By is Count, such as 10; at least 2, so both ends of the path get one.',
       ),
-      solidScriptParameterWhen(
-        solidScriptParameter('spacing', 'Spacing', 'number', '0.5', 'Metres between points, such as 0.5.'),
-        'by',
-        ['Spacing'],
+      solidScriptParameter(
+        'spacing',
+        'Spacing',
+        'number',
+        '0.5',
+        'Metres between points when By is Spacing, such as 0.5.',
       ),
       {
         ...solidScriptParameterInto('the points, a list of vectors', 'Vector List', 'what is made', 'label'),

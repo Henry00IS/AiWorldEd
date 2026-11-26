@@ -234,7 +234,7 @@ describe('SolidScript meshes', () => {
         { command: 'select_objects' },
         { command: 'select_faces', values: { which: 'All' } },
         { command: 'select_objects' },
-        { command: 'project_uvs', values: { mode: 'Box', size: '0.5' } },
+        { command: 'project_box_uvs', values: { size: '0.5' } },
       ),
     );
     expect(mapped.uvs.every((uv) => uv !== null && uv.every(([u, v]) => Math.abs(u) === 1 && Math.abs(v) === 1))).toBe(
@@ -248,7 +248,7 @@ describe('SolidScript meshes', () => {
       { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
       { command: 'select_objects' },
-      { command: 'project_uvs', values: { size: '0.5' } },
+      { command: 'project_box_uvs', values: { size: '0.5' } },
     );
     expect(result.error).toBeNull();
     expect(solidScriptShapeMeshes(result.shapes)).toHaveLength(0);

@@ -62,7 +62,8 @@ describe('Direction fields', () => {
       ['spiral_path', 'normal'],
       ['place_at_points', 'directions'],
       ['raycast', 'direction'],
-      ['project_uvs', 'axis'],
+      ['project_cylinder_uvs', 'axis'],
+      ['project_sphere_uvs', 'axis'],
       ['widget_slider', 'along'],
       ['sweep_along_path', 'up'],
     ] as const)
@@ -70,7 +71,7 @@ describe('Direction fields', () => {
     for (const [id, key] of [
       ['scale_to', 'to'],
       ['resize', 'size'],
-      ['project_uvs', 'center'],
+      ['project_cylinder_uvs', 'center'],
       ['arc_path', 'center'],
       ['raycast', 'normal'],
       ['find_closest', 'from'],

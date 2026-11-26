@@ -125,7 +125,7 @@ describe('SolidScript generator meshes', () => {
     ];
     const selectBrushes: SolidScriptLine = { command: 'select_objects' };
     const select: SolidScriptLine = { command: 'select_faces', values: { which: 'All' } };
-    const project: SolidScriptLine = { command: 'project_uvs', values: { size: '1' } };
+    const project: SolidScriptLine = { command: 'project_box_uvs', values: { size: '1' } };
     const orders: SolidScriptLine[][] = [
       [texture, fromBrushes, ...torus, END, selectBrushes, select, project, END],
       [fromBrushes, texture, ...torus, END, END, selectBrushes, select, project],

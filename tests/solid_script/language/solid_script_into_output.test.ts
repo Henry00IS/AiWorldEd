@@ -35,7 +35,10 @@ const FACE_TOOLS = new Set([
   'scale_faces',
   'scale_edges',
   'select_shortest_paths',
-  'project_uvs',
+  'project_box_uvs',
+  'project_planar_uvs',
+  'project_cylinder_uvs',
+  'project_sphere_uvs',
   'unwrap',
   'pack_islands',
   'transform_uvs',
@@ -210,7 +213,7 @@ function toolHost(command: SolidScriptCommand): SolidScriptLine[] {
   if (command.id === 'bevel_edges')
     return [CUBE, { command: 'select_objects' }, { command: 'select_edges', values: { which: 'All' } }];
   const faces = FACE_TOOLS.has(command.id) ? [{ command: 'select_faces', values: { which: 'All' } }] : [];
-  const uvs = command.id === 'unwrap' || command.id === 'pack_islands' ? [{ command: 'project_uvs' }] : [];
+  const uvs = command.id === 'unwrap' || command.id === 'pack_islands' ? [{ command: 'project_box_uvs' }] : [];
   return [CUBE, { command: 'select_objects' }, ...faces, ...uvs];
 }
 

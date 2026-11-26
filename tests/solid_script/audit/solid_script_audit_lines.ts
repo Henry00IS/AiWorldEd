@@ -194,7 +194,15 @@ export function solidScriptAuditLine(
   if (command.id === 'select_faces' && (filled['of'] ?? '') === '') filled['of'] = '[B]';
   if (command.id === 'select_objects' && (filled['of'] ?? '') === '') filled['of'] = '[B]';
   if (
-    ['project_uvs', 'unwrap', 'pack_islands', 'transform_uvs'].includes(command.id) &&
+    [
+      'project_box_uvs',
+      'project_planar_uvs',
+      'project_cylinder_uvs',
+      'project_sphere_uvs',
+      'unwrap',
+      'pack_islands',
+      'transform_uvs',
+    ].includes(command.id) &&
     'of' in filled &&
     (filled['of'] ?? '') === ''
   )

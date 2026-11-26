@@ -20,7 +20,7 @@ function middles(mesh: boolean, ...lines: SolidScriptLine[]): number[][] {
       ...built,
       { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
-      { command: 'project_uvs', values: { space: 'World' } },
+      { command: 'project_box_uvs', values: { space: 'World' } },
       ...lines,
     ]),
   );

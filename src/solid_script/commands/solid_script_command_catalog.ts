@@ -29,6 +29,7 @@ import { SOLID_SCRIPT_COMMANDS_DATA_KEYS } from './solid_script_commands_data_ke
 import { SOLID_SCRIPT_COMMANDS_DICTIONARY } from './solid_script_commands_dictionary.js';
 import { SOLID_SCRIPT_COMMANDS_TAGS } from './solid_script_commands_tags.js';
 import { SOLID_SCRIPT_COMMANDS_UVS } from './solid_script_commands_uvs.js';
+import { SOLID_SCRIPT_COMMANDS_UV_PROJECT } from './solid_script_commands_uv_project.js';
 import { SOLID_SCRIPT_COMMANDS_SELECT } from './solid_script_commands_select.js';
 import { SOLID_SCRIPT_COMMANDS_PATHS } from './solid_script_commands_paths.js';
 import { SOLID_SCRIPT_COMMANDS_PATH_SHAPES } from './solid_script_commands_path_shapes.js';
@@ -104,6 +105,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_DATA_KEYS,
   ...SOLID_SCRIPT_COMMANDS_MESH_DUAL,
   ...SOLID_SCRIPT_COMMANDS_TAGS,
+  ...SOLID_SCRIPT_COMMANDS_UV_PROJECT,
   ...SOLID_SCRIPT_COMMANDS_UVS,
   ...SOLID_SCRIPT_COMMANDS_LOGIC,
   ...SOLID_SCRIPT_COMMANDS_LISTS,

@@ -178,7 +178,7 @@ describe('SolidScript generator UVs when the node moves', () => {
       ...HENRY,
       { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
-      { command: 'project_uvs', values: { mode: 'Box', size: '0.5' } },
+      { command: 'project_box_uvs', values: { size: '0.5' } },
     ]);
     const before = fixture.fresh();
     const frameBefore = fixture.toNode();

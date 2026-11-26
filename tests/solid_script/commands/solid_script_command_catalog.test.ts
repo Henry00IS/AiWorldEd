@@ -259,13 +259,20 @@ describe('solid script command catalog', () => {
     }
   });
 
-  it('has no Box UVs command; Project UVs Mode Box maps faces in a box', () => {
-    expect(solidScriptCommands.map((command) => command.id)).not.toContain('box_uvs');
-    expect(solidScriptCommands.some((command) => command.label.toLowerCase() === 'box uvs')).toBe(false);
-    expect(
-      solidScriptCommandFind('project_uvs')?.parameters.find((parameter) => parameter.key === 'mode')?.default,
-    ).toBe('Box');
-    expect(solidScriptCommandFind('project_uvs')?.valuesDefault()['mode']).toBe('');
+  it('projects UVs with one block per shape, none with a Mode field', () => {
+    const ids = ['project_box_uvs', 'project_planar_uvs', 'project_cylinder_uvs', 'project_sphere_uvs'];
+    expect(solidScriptCommandFind('project_uvs')).toBeUndefined();
+    for (const id of ids) {
+      const keys = solidScriptCommandFind(id)?.parameters.map((parameter) => parameter.key);
+      expect(keys?.[0], id).toBe('size');
+      expect(keys, id).not.toContain('mode');
+    }
+    expect(solidScriptCommandFind('project_box_uvs')?.parameters.map((parameter) => parameter.key)).not.toContain(
+      'from',
+    );
+    expect(solidScriptCommandFind('project_cylinder_uvs')?.parameters.map((parameter) => parameter.key)).not.toContain(
+      'space',
+    );
   });
 
   it('has no Select In Box command; InBox in Where picks items in a box', () => {
@@ -465,7 +472,7 @@ describe('solid script command catalog', () => {
       'mesh',
       'mesh_from_solids',
     ]);
-    const projectUvs = solidScriptCommandFind('project_uvs');
+    const projectUvs = solidScriptCommandFind('project_box_uvs');
     expect(projectUvs && projectUvs.category === 'UVs').toBe(true);
     expect(projectUvs && solidScriptCommandPreservesBrushes(projectUvs)).toBe(true);
     const hint = /no longer be a convex solid.+Mesh From Solids first/;

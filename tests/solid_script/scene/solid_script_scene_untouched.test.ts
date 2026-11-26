@@ -60,7 +60,7 @@ const BRUSH_WRITES: SolidScriptLine[] = [
   { command: 'variable', values: { name: 'B(0).Data.Mark', value: '7' } },
   { command: 'move_by', values: { by: '1, 2, 3', of: '[B]' } },
   { command: 'scale_by', values: { by: '2, 1, 1', of: '[B]' } },
-  { command: 'project_uvs', values: { mode: 'Box', size: '3', of: '[B]' } },
+  { command: 'project_box_uvs', values: { size: '3', of: '[B]' } },
   { command: 'transform_uvs', values: { offset: '0.5, 0.25, 0', rotate: '30', of: '[B]' } },
   { command: 'output', values: { of: '[B]' } },
 ];

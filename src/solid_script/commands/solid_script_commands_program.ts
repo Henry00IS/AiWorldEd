@@ -8,7 +8,6 @@ import {
   solidScriptParameterInto,
   solidScriptParameterOptional,
   solidScriptParameterSides,
-  solidScriptParameterWhen,
   solidScriptParameterWords,
   solidScriptParameterWrites,
 } from './solid_script_command_parameters.js';
@@ -100,15 +99,11 @@ const SOLID_SCRIPT_INPUT_PARAMETERS: readonly SolidScriptCommandParameter[] = [
     'text',
     'Values a choice offers, separated by commas, such as Low, Medium, High.',
   ),
-  solidScriptParameterWhen(
-    solidScriptParameterOptional(
-      'follows',
-      'Follows',
-      'text',
-      'Optional: name of a Path object in the scene to follow, such as Room Wall.',
-    ),
-    'type',
-    ['Path'],
+  solidScriptParameterOptional(
+    'follows',
+    'Follows',
+    'text',
+    'Optional, for a Path input: name of a Path object in the scene to follow, such as Room Wall.',
   ),
   solidScriptParameterOptional(
     'tooltip',
