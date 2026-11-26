@@ -34,7 +34,7 @@ const SWEEP: SolidScriptLine[] = [
 /** A fixed Free normal facing the scene's depth axis. */
 const FREE: SolidScriptLine = {
   command: 'set_path_normal',
-  values: { path: '[P]', mode: 'Free', normal: '0, 0, 2', into: 'P' },
+  values: { path: '[P]', normal: '0, 0, 2', into: 'P' },
 };
 
 describe('Set Path Normal', () => {
@@ -42,7 +42,7 @@ describe('Set Path Normal', () => {
     expect(ran([FREE], '[P.Normals]')).toBe('[[0, 0, 1], [0, 0, 1]]');
     expect(
       ran(
-        [FREE, { command: 'set_path_normal', values: { path: '[P]', mode: 'Minimum Twist', into: 'P' } }],
+        [FREE, { command: 'set_path_normal_mode', values: { path: '[P]', mode: 'Minimum Twist', into: 'P' } }],
         '[P.Normals]',
       ),
     ).toBe('[[0, 1, 0], [0, 1, 0]]');
@@ -65,5 +65,14 @@ describe('Set Path Normal', () => {
 
   it('rejects a zero Free normal', () => {
     expect(ran([{ ...FREE, values: { ...FREE.values, normal: '0, 0, 0' } }], '[P.Normals]')).toContain('not 0, 0, 0');
+  });
+
+  it('keeps Set Path Normal Mode to Minimum Twist and Up, and stops on any other word', () => {
+    const mode = (word: string): SolidScriptLine => ({
+      command: 'set_path_normal_mode',
+      values: { path: '[P]', mode: word, into: 'P' },
+    });
+    expect(ran([FREE, mode('Up')], '[P.Normals]')).toBe('[[0, 1, 0], [0, 1, 0]]');
+    expect(ran([mode('Free')], '[P.Normals]')).toContain('Minimum Twist');
   });
 });
