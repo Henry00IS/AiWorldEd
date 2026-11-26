@@ -10,6 +10,7 @@ import {
   MODIFIER_BEVEL_OPTION_FIELDS,
   type ModifierBevelOptionField,
 } from '@/modifier/volume/modifier_volume_bevel_option_fields.js';
+import { modifierCurvesShown } from './editor_api_modifier_values.js';
 import { MODIFIER_STACK_KIND_BEVEL } from '@/modifier/volume/modifier_volume_record.js';
 
 /** Plain description of one modifier parameter, as MCP lists it. */
@@ -153,7 +154,7 @@ export function modifierKindDescribe(kind: ModifierStackKind, detailed: boolean)
             id: preset.id,
             label: preset.label,
             hint: preset.tooltip,
-            parameters: preset.parameters,
+            parameters: modifierCurvesShown(kind, preset.parameters),
           })),
         }
       : { parameterCount: modifierKindParametersDescribe(kind).length, presetCount: kind.presets.length }),

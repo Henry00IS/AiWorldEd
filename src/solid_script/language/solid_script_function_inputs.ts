@@ -46,31 +46,21 @@ function solidScriptFunctionInputsSplit(text: string): string[] {
 
 /**
  * Reads a default as a value: a number, true or false, Yes or No, a quoted
- * text, a bracket list of those, or else the text as typed.
+ * text, a bracket list of those such as [1, 2], or else the text as typed.
  *
  * @param fallback Default as typed.
  * @returns Value.
  */
 export function solidScriptFunctionInputDefault(fallback: string): SolidScriptValue {
-  const folded = fallback.toLowerCase();
-  if (folded === 'yes' || folded === 'no') return folded === 'yes';
-  try {
-    const parsed: unknown = JSON.parse(fallback);
-    if (solidScriptFunctionInputPlain(parsed)) return parsed;
-  } catch {
-    return fallback;
+  const text = fallback.trim();
+  const folded = text.toLowerCase();
+  if (folded === 'yes' || folded === 'true') return true;
+  if (folded === 'no' || folded === 'false') return false;
+  if (text !== '' && Number.isFinite(Number(text))) return Number(text);
+  if (text.length >= 2 && text.startsWith('"') && text.endsWith('"')) return text.slice(1, -1);
+  if (text.startsWith('[') && text.endsWith(']')) {
+    const items = solidScriptFunctionInputsSplit(text.slice(1, -1)).filter((item) => item.trim() !== '');
+    return items.map(solidScriptFunctionInputDefault);
   }
   return fallback;
-}
-
-/**
- * Tells whether a parsed default is a number, text, true or false, or a list of
- * those.
- *
- * @param value Parsed default.
- * @returns True when it is.
- */
-function solidScriptFunctionInputPlain(value: unknown): value is SolidScriptValue {
-  if (Array.isArray(value)) return value.every(solidScriptFunctionInputPlain);
-  return typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean';
 }

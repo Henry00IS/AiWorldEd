@@ -189,7 +189,7 @@ export class McpToolsModifier extends McpToolGroup {
     const modifier = this.parts.modifier;
     const parameters: McpToolSchema = {
       type: 'object',
-      description: 'Parameter values by key as modifier_kind_list describes them; objects by id, curves as curve data.',
+      description: 'Parameter values by key as modifier_kind_list describes them; objects by id, curves as curve data or Solid Script curve text such as "Classic Column" or "[0, 1], [1, 0]".',
     };
     return [
       {

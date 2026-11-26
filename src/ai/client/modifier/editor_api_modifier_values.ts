@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { curveEncode, curveFromData, curveDecode } from '@/curve/model/curve_codec.js';
+import { curveDecode, curveEncode, curveFromData, curveToData } from '@/curve/model/curve_codec.js';
+import { solidScriptCurveFromText } from '@/solid_script/language/solid_script_curve_read.js';
 import type { ModifierStackKind } from '@/modifier/stack/kinds/modifier_stack_kind.js';
 import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
 import { ModifierVolumeBevel, type ModifierBevelVolumeSettings } from '@/modifier/volume/modifier_volume_bevel.js';
@@ -33,12 +34,30 @@ export function modifierParametersRead(
   kind: ModifierStackKind,
   stored: Record<string, unknown>,
 ): Record<string, unknown> {
-  const parameters = kind.normalizeParameters(stored);
+  const parameters = modifierCurvesShown(kind, kind.normalizeParameters(stored));
   if (kind.id !== MODIFIER_STACK_KIND_BEVEL) return parameters;
   const carrier = new THREE.Object3D();
   carrier.userData = { ...parameters };
   const { blacklist: _ignored, ...settings } = ModifierVolumeBevel.readSettings(carrier);
   return settings;
+}
+
+/**
+ * Shows each curve parameter as curve data, the same shape curve_get returns,
+ * instead of the encoded text the inspector stores.
+ *
+ * @param kind Modifier kind.
+ * @param parameters Stored parameters.
+ * @returns Parameters with curve data.
+ */
+export function modifierCurvesShown(kind: ModifierStackKind, parameters: Record<string, unknown>): Record<string, unknown> {
+  const shown = { ...parameters };
+  for (const field of kind.fields.filter((candidate) => candidate.type === 'curve')) {
+    const text = shown[field.key];
+    const curve = typeof text === 'string' && text.trim().startsWith('{') ? curveDecode(text) : null;
+    if (curve) shown[field.key] = curveToData(curve);
+  }
+  return shown;
 }
 
 /**
@@ -145,15 +164,22 @@ function modifierChoiceCheck(key: string, value: unknown, choices: readonly { va
 }
 
 /**
- * Accepts a curve as encoded text or as plain curve data.
+ * Accepts a curve as curve data like curve_get returns, or as Solid Script
+ * curve text: a number, a preset name or points such as "[0, 1], [1, 0]".
  *
  * @param key Parameter key.
  * @param value Requested value.
  * @returns Encoded curve.
  */
 function modifierCurveCheck(key: string, value: unknown): string {
-  const curve = typeof value === 'string' ? curveDecode(value) : curveFromData(value);
-  if (!curve) throw new Error(`${key} must be curve data like curve_get returns; the curve_* tools edit single points`);
+  const curve =
+    typeof value === 'string' || typeof value === 'number'
+      ? solidScriptCurveFromText(String(value))
+      : curveFromData(value);
+  if (!curve)
+    throw new Error(
+      `${key} must be curve data like curve_get returns, a number, a preset name or points such as "[0, 1], [1, 0]"; the curve_* tools edit single points`,
+    );
   return curveEncode(curve);
 }
 

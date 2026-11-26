@@ -1,5 +1,5 @@
 import { curveEncode } from '@/curve/model/curve_codec.js';
-import { solidScriptCurveFromText } from '@/solid_script/language/solid_script_curve_read.js';
+import { solidScriptCurveFromStored, solidScriptCurveFromText } from '@/solid_script/language/solid_script_curve_read.js';
 import { curveFromPolyline, type Curve } from '@/curve/model/curve_model.js';
 import { CurveField } from '@/curve/ui/curve_field.js';
 import { MODIFIER_STACK_CURVE_MARKER_STYLE } from '@/modifier/stack/ui/modifier_stack_curve_row.js';
@@ -245,7 +245,7 @@ class SolidScriptConfiguratorCurveField {
   private writePreview(text: string): void {
     const decoded =
       solidScriptCurveStoredDecode(text, this.curve.raw === true) ??
-      solidScriptCurveFromText(this.curve.fallback) ??
+      solidScriptCurveFromStored(this.curve.fallback) ??
       solidScriptCurveDefault();
     this.curveField.setCurve(decoded);
   }

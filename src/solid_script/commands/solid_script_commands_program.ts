@@ -40,7 +40,12 @@ import {
 import { solidScriptInputBrushesBuild } from '@/solid_script/language/solid_script_input_brushes.js';
 import { solidScriptCurveOrFlat } from '@/solid_script/language/solid_script_curve_of.js';
 import { SolidScriptCurveValue } from '@/solid_script/language/solid_script_curve_value.js';
-import { solidScriptInputPath } from '@/solid_script/language/solid_script_input_path.js';
+import {
+  solidScriptInputPath,
+  solidScriptPathAssetFromStored,
+  solidScriptPathAssetFromText,
+} from '@/solid_script/language/solid_script_input_path.js';
+import { solidScriptCurveFromStored } from '@/solid_script/language/solid_script_curve_read.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 
 /** Fields of an Input line. */
@@ -132,9 +137,7 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
     const defaultText = read.text('default').trim();
     const follows = type === 'Path' ? read.text('follows').trim() : '';
     const hideDefault =
-      type === 'Button' ||
-      ((type === 'Curve' || type === 'Path') &&
-        (defaultText === '' || defaultText === '1' || defaultText.startsWith('{')));
+      type === 'Button' || ((type === 'Curve' || type === 'Path') && (defaultText === '' || defaultText === '1'));
     return [
       'Input',
       read.value('name'),
@@ -160,12 +163,15 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
       return [];
     }
     if (input.type === 'Path') {
-      run.inputDefine(input.name, solidScriptInputPath(run, given ?? input.fallback));
+      const asset =
+        given === undefined ? solidScriptPathAssetFromText(input.fallback) : solidScriptPathAssetFromStored(given);
+      run.inputDefine(input.name, solidScriptInputPath(run, asset));
       return [];
     }
     if (input.type === 'Curve') {
       const text = given ?? input.fallback;
-      const curve = solidScriptCurveOrFlat(text);
+      const curve =
+        given === undefined || given.trim() === '' ? solidScriptCurveOrFlat(text) : solidScriptCurveFromStored(given);
       run.inputDefine(input.name, curve ? new SolidScriptCurveValue(curve) : text);
       return [];
     }

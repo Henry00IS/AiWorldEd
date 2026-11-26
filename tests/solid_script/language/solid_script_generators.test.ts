@@ -240,7 +240,7 @@ describe('SolidScript generator blocks', () => {
     );
   });
 
-  it('exposes Column Profile curve and passes a Curve input or encoded curve to the real Column generator', () => {
+  it('exposes Column Profile curve and passes a Curve input to the real Column generator', () => {
     const column = solidScriptCommandFind('column');
     const profileParam = column?.parameters.find((entry) => entry.key === 'profile');
     expect(profileParam?.curve?.markers).toBe(true);
@@ -253,7 +253,7 @@ describe('SolidScript generator blocks', () => {
       ]),
     );
     const viaInput = run(
-      { command: 'input', values: { name: 'Profile', type: 'Curve', default: slim } },
+      { command: 'input', values: { name: 'Profile', type: 'Curve', default: '0.4' } },
       { command: 'column', values: { size: '2, 4, 2', sides: '8', profile: '[Profile]' } },
     );
     expect(viaInput.error).toBeNull();

@@ -16,13 +16,12 @@ import { solidScriptPathAssetFromText } from './solid_script_input_path.js';
  */
 export function solidScriptInputEffectiveValue(input: SolidScriptInput, stored: string | undefined): string {
   if (stored !== undefined) return stored;
+  if (input.fromResource) return input.fallback;
   if (input.type === 'Path') {
-    if (input.fallback.trim().startsWith('{')) return input.fallback;
     const asset = solidScriptPathAssetFromText(input.fallback) ?? PATH_ASSET_DEFAULT;
     return input.follows !== '' ? pathReferenceEncode(input.follows, asset) : pathAssetEncode(asset);
   }
   if (input.type === 'Curve') {
-    if (input.fallback.trim().startsWith('{')) return input.fallback;
     const curve = solidScriptCurveFromText(input.fallback);
     return curve ? curveEncode(curve) : input.fallback;
   }

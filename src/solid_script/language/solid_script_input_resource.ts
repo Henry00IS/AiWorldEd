@@ -35,7 +35,7 @@ export function solidScriptInputResourceResolved(
   const name = solidScriptInputResourceName(input.fallback);
   const resource = name === null ? null : solidScriptResourceFind(resources, name);
   if (!resource || resource.kind !== input.type) return input;
-  return { ...input, fallback: solidScriptInputResourceText(resource) };
+  return { ...input, fallback: solidScriptInputResourceText(resource), fromResource: true };
 }
 
 /**

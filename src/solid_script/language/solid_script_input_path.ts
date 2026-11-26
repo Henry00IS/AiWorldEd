@@ -6,8 +6,7 @@ import type { SolidScriptPathElement } from './solid_script_value.js';
 
 /**
  * Reads a PathAsset from Solid Script point-list syntax such as "[-2, 0, 1.5],
- * [-2, 0, -1.5], [2, 0, -1.5], [2, 0, 1.5]" (optionally ending with "Closed"),
- * or from encoded path JSON used by the inspector PathField.
+ * [-2, 0, -1.5], [2, 0, -1.5], [2, 0, 1.5]", optionally ending with "Closed".
  *
  * @param text Path text.
  * @returns PathAsset, or null when empty or invalid.
@@ -15,7 +14,6 @@ import type { SolidScriptPathElement } from './solid_script_value.js';
 export function solidScriptPathAssetFromText(text: string): PathAsset | null {
   const trimmed = text.trim();
   if (trimmed === '') return null;
-  if (trimmed.startsWith('{')) return pathAssetDecode(trimmed);
   const parts = solidScriptVectorTextItems(trimmed);
   const closed = parts[parts.length - 1]?.toLowerCase() === 'closed';
   if (closed) parts.pop();
@@ -29,16 +27,28 @@ export function solidScriptPathAssetFromText(text: string): PathAsset | null {
 }
 
 /**
- * Reads a Path input: the path drawn in the scene, a Solid Script point list,
- * or a two metre line when the text holds no path.
+ * Reads a path the inspector stored on a generator: the encoded path drawn in
+ * the scene, or a Solid Script point list such as a Default.
+ *
+ * @param text Stored path value.
+ * @returns PathAsset, or null when empty or invalid.
+ */
+export function solidScriptPathAssetFromStored(text: string): PathAsset | null {
+  const trimmed = text.trim();
+  return trimmed.startsWith('{') ? pathAssetDecode(trimmed) : solidScriptPathAssetFromText(trimmed);
+}
+
+/**
+ * Reads a Path input: the path drawn in the scene, or a two metre line when
+ * there is no path.
  *
  * @param run Running Input line.
- * @param text Stored path text.
+ * @param asset Path read from the stored value or the Default, or null.
  * @returns Path element.
  */
-export function solidScriptInputPath(run: SolidScriptBlockRun, text: string): SolidScriptPathElement {
+export function solidScriptInputPath(run: SolidScriptBlockRun, asset: PathAsset | null): SolidScriptPathElement {
   const [made] = run.pathsMake([{ points: [], closed: false }]);
   if (!made) throw new Error('the Path input could not be read');
-  made.path = pathAssetScriptPath(solidScriptPathAssetFromText(text) ?? PATH_ASSET_DEFAULT);
+  made.path = pathAssetScriptPath(asset ?? PATH_ASSET_DEFAULT);
   return made;
 }

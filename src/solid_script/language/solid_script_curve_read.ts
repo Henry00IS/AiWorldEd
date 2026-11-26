@@ -43,10 +43,9 @@ function solidScriptCurvePresetRead(text: string): Curve | null {
 
 /**
  * Reads a curve from Solid Script text: a number for a flat line, a preset name
- * such as "Classic Column", points in brackets such as "[0, 1], [1, 0]", or
- * encoded curve JSON from the inspector CurveField.
+ * such as "Classic Column", or points in brackets such as "[0, 1], [1, 0]".
  *
- * @param text Stored or typed curve text.
+ * @param text Typed curve text.
  * @returns Curve, or null when empty or invalid.
  */
 export function solidScriptCurveFromText(text: string): Curve | null {
@@ -58,7 +57,6 @@ export function solidScriptCurveFromText(text: string): Curve | null {
       [0, number],
       [1, number],
     ]);
-  if (trimmed.startsWith('{')) return curveDecode(trimmed);
   return (
     solidScriptCurvePresetRead(trimmed) ??
     (() => {
@@ -66,4 +64,16 @@ export function solidScriptCurveFromText(text: string): Curve | null {
       return points ? curveFromPolyline(points) : null;
     })()
   );
+}
+
+/**
+ * Reads a curve the inspector stored on a generator or a modifier: the encoded
+ * curve its curve editor writes, or Solid Script text such as a Default.
+ *
+ * @param text Stored curve value.
+ * @returns Curve, or null when empty or invalid.
+ */
+export function solidScriptCurveFromStored(text: string): Curve | null {
+  const trimmed = text.trim();
+  return trimmed.startsWith('{') ? curveDecode(trimmed) : solidScriptCurveFromText(trimmed);
 }

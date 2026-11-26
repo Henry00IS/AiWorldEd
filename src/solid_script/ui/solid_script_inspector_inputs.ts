@@ -11,7 +11,7 @@ import {
   modifierStackUiToggleRow,
 } from '@/modifier/stack/ui/modifier_stack_ui_style.js';
 import { curveEncode } from '@/curve/model/curve_codec.js';
-import { solidScriptCurveFromText } from '@/solid_script/language/solid_script_curve_read.js';
+import { solidScriptCurveFromStored } from '@/solid_script/language/solid_script_curve_read.js';
 import { curveFromPolyline } from '@/curve/model/curve_model.js';
 import { curvePresetCatalog } from '@/curve/model/curve_preset_catalog.js';
 import { CURVE_PRESETS_ARCHITECTURE } from '@/curve/model/curve_preset_architecture.js';
@@ -432,7 +432,7 @@ function solidScriptInspectorCurveRow(
   });
   const write = (text: string): void => {
     field.setCurve(
-      solidScriptCurveFromText(text.trim() === '' ? '1' : text) ??
+      solidScriptCurveFromStored(text.trim() === '' ? '1' : text) ??
         curveFromPolyline([
           [0, 1],
           [1, 1],

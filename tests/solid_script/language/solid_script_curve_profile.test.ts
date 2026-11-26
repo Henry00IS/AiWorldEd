@@ -1,10 +1,17 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { curveEncode } from '@/curve/model/curve_codec.js';
 import { curveFromPolyline, type Curve } from '@/curve/model/curve_model.js';
 import { curveEvaluate } from '@/curve/model/curve_sample.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
-import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
+import {
+  solidScriptDocumentCreate,
+  type SolidScriptDocument,
+  type SolidScriptLine,
+} from '@/solid_script/document/solid_script_document.js';
+import {
+  solidScriptDocumentResourcesWith,
+  solidScriptResourceCurve,
+} from '@/solid_script/document/solid_script_resource.js';
 import { SOLID_SCRIPT_EXAMPLES } from '@/solid_script/examples/solid_script_examples.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptKindCheck } from '@/solid_script/document/solid_script_document_kind_check.js';
@@ -42,6 +49,19 @@ function mouldingCurve(): Curve {
   ]);
 }
 
+/**
+ * Makes a script whose resource Moulding holds a curve.
+ *
+ * @param curve Curve.
+ * @param lines Lines.
+ * @returns Script.
+ */
+function withCurve(curve: Curve, lines: SolidScriptLine[]): SolidScriptDocument {
+  return solidScriptDocumentResourcesWith(solidScriptDocumentCreate(lines), [
+    solidScriptResourceCurve('Moulding', curve),
+  ]);
+}
+
 describe('CurveProfile function and Curve Profile 2D Shape', () => {
   it('registers Curve Profile under 2D Shapes with Curve, Height, Depth, Side and Segments', () => {
     const command = solidScriptCommandFind('curve_profile');
@@ -67,15 +87,14 @@ describe('CurveProfile function and Curve Profile 2D Shape', () => {
 
   it('samples curve points rotated -90° (t=0 bottom, t=1 top) for Normal, Flipped and Mirrored', () => {
     const curve = mouldingCurve();
-    const encoded = curveEncode(curve);
     const height = 0.4;
     const depth = 0.1;
     const segments = 4;
 
     const runPoints = (side: string): [number, number][] => {
       const result = solidScriptProgramRun(
-        solidScriptDocumentCreate([
-          { command: 'input', values: { name: 'ProfileCurve', type: 'Curve', default: encoded } },
+        withCurve(curve, [
+          { command: 'input', values: { name: 'ProfileCurve', type: 'Curve', default: '[$Resources.Moulding]' } },
           {
             command: 'echo',
             values: { value: `[=CurveProfile([ProfileCurve], ${height}, ${depth}, "${side}", ${segments})]` },
@@ -117,11 +136,11 @@ describe('CurveProfile function and Curve Profile 2D Shape', () => {
   });
 
   it('produces a closed 2D XY profile from Curve Profile block usable directly by Sweep Along Path in both Solid and Mesh modes', () => {
-    const encoded = curveEncode(mouldingCurve());
+    const curve = mouldingCurve();
 
     const solidSweep = solidScriptProgramRun(
-      solidScriptDocumentCreate([
-        { command: 'input', values: { name: 'Moulding', type: 'Curve', default: encoded } },
+      withCurve(curve, [
+        { command: 'input', values: { name: 'Moulding', type: 'Curve', default: '[$Resources.Moulding]' } },
         {
           command: 'curve_profile',
           values: { curve: '[Moulding]', height: '0.2', depth: '0.05', side: 'Normal', segments: '8', into: 'Shape' },
@@ -146,8 +165,8 @@ describe('CurveProfile function and Curve Profile 2D Shape', () => {
     expect(Math.max(...allY)).toBeCloseTo(0.2, 5);
 
     const meshSweep = solidScriptProgramRun(
-      solidScriptDocumentCreate([
-        { command: 'input', values: { name: 'Moulding', type: 'Curve', default: encoded } },
+      withCurve(curve, [
+        { command: 'input', values: { name: 'Moulding', type: 'Curve', default: '[$Resources.Moulding]' } },
         {
           command: 'line_path',
           values: { from: '0, 0, 0', to: '3, 0, 0', count: '2', into: 'Wall' },

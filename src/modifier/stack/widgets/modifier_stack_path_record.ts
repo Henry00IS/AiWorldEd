@@ -3,7 +3,7 @@ import type * as THREE from 'three';
 import { PATH_ASSET_DEFAULT, type PathAsset } from '@/path/model/path_asset.js';
 import { solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';
 import { solidScriptInputEffectiveValue } from '@/solid_script/language/solid_script_input_effective.js';
-import { solidScriptPathAssetFromText } from '@/solid_script/language/solid_script_input_path.js';
+import { solidScriptPathAssetFromStored } from '@/solid_script/language/solid_script_input_path.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import { pathReferenceRead } from '@/path/model/path_reference.js';
 import { ModifierStackStepRecord } from './modifier_stack_step_record.js';
@@ -53,7 +53,7 @@ export function modifierStackPathsRecord(
     .map((input) => ({ input, value: solidScriptInputEffectiveValue(input, inputs?.[input.name]) }))
     .filter(({ value }) => pathReferenceRead(value) === null)
     .map(({ input, value }) =>
-      modifierStackPathOf(stepId, input, solidScriptPathAssetFromText(value) ?? PATH_ASSET_DEFAULT, frame),
+      modifierStackPathOf(stepId, input, solidScriptPathAssetFromStored(value) ?? PATH_ASSET_DEFAULT, frame),
     );
   MODIFIER_STACK_PATHS.record(owner, stepId, paths);
 }
