@@ -1,6 +1,9 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
+import {
+  solidScriptDocumentCreate,
+  solidScriptDocumentNormalize,
+} from '@/solid_script/document/solid_script_document.js';
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import type { SolidScriptExample } from '@/solid_script/examples/solid_script_examples.js';
@@ -116,7 +119,8 @@ function sampleMs(task: () => void, warm: number, rounds: number): number[] {
 }
 
 /**
- * A runner that builds a document once and times only the run.
+ * A runner that loads a document once, as a saved script loads, and times only
+ * the run.
  *
  * @param lines Script.
  * @returns Task that runs the script.
@@ -125,7 +129,7 @@ function exampleRunner(
   lines: readonly SolidScriptLine[],
   options: ReturnType<typeof solidScriptExampleRunOptions> = {},
 ): () => void {
-  const document = solidScriptDocumentCreate(lines);
+  const document = solidScriptDocumentNormalize(solidScriptDocumentCreate(lines));
   return () => {
     const result = solidScriptProgramRun(document, options);
     if (result.error) throw result.error;
