@@ -20,7 +20,7 @@ export class GeneratorTool extends Tool {
   private readonly sliders = new GeneratorSliderWidget();
   /** Paths of the edited object. */
   private readonly paths = new GeneratorPathWidget();
-  /** Debug Draw drawings of the edited object. */
+  /** Debug drawings of the edited object. */
   private readonly drawings = new GeneratorDrawWidget();
   /** Widget Buttons and Widget Toggles of the edited object. */
   private readonly buttons = new GeneratorButtonWidget();

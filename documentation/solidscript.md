@@ -95,7 +95,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 
   Picking one turns the others off because each Shows compares the same Persistent value. The **Widget Showcase** example builds on this.
 
-- **Debug Draw** draws a **Shape** in the scene while the object is selected, in Bounds or while editing, and builds nothing: **Line** and **Arrow** go from **Position** to **To**, **Ray** goes from Position along **Normal** for **Distance**, **Box** shows the edges of a box of **Size**, **Circle** has a **Radius** and faces Normal, **Sphere** shows three circles, and **Text** shows **Text** at Position. **Color** takes a name or a hex colour, or pick one with the colour picker beside the field. **Space** is **Global** by default, read from the origin like everything else, so Transform blocks around the line are ignored; **Local** follows them, so a line inside a Transform starts where the solids inside it start.
+- The **Debug** blocks draw in the scene while the object is selected, in Bounds or while editing, and build nothing: **Debug Line** and **Debug Arrow** go from **Position** to **To**, **Debug Ray** goes from Position along **Normal** for **Distance**, **Debug Box** shows the edges of a box of **Size**, **Debug Circle** has a **Radius** and faces Normal, **Debug Sphere** shows three circles, and **Debug Text** shows **Text** at Position. **Color** takes a name or a hex colour, or pick one with the colour picker beside the field. **Space** is **Global** by default, read from the origin like everything else, so Transform blocks around the line are ignored; **Local** follows them, so a line inside a Transform starts where the solids inside it start.
 
 ## Solids, faces and points
 

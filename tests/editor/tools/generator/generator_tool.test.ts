@@ -404,7 +404,7 @@ describe('Widget Button and Widget Toggle in the scene', () => {
   });
 });
 
-describe('Debug Draw in the scene', () => {
+describe('Debug drawings in the scene', () => {
   it('draws the lines and text of the selected object in Bounds and while editing', async () => {
     const { editor, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
     const line = { key: 'd', label: '', color: '#e0453a', at: new THREE.Vector3() };

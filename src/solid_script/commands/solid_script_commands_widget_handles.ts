@@ -315,7 +315,7 @@ export const SOLID_SCRIPT_COMMANDS_WIDGET_HANDLES: readonly SolidScriptCommand[]
     category: 'Widgets',
     description: 'Drag the tip of an arrow in the scene to change a direction',
     manual:
-      'Puts an arrow of Length from At along Shows while editing the generator, placed by the Transform around the line. Dragging its tip points it at the mouse, on the plane through the tip that faces the view, and writes the direction, made 1 long and rounded to three decimals, into the Vector Input named by Writes; the script runs and the arrow follows Shows. One drag is one undo step. Example: Input Facing, Type Vector, Default 0, 0, 1, then Widget Direction Shows [Facing] Writes Facing Length 2, then Debug Draw Shape Ray Normal [Facing].',
+      'Puts an arrow of Length from At along Shows while editing the generator, placed by the Transform around the line. Dragging its tip points it at the mouse, on the plane through the tip that faces the view, and writes the direction, made 1 long and rounded to three decimals, into the Vector Input named by Writes; the script runs and the arrow follows Shows. One drag is one undo step. Example: Input Facing, Type Vector, Default 0, 0, 1, then Widget Direction Shows [Facing] Writes Facing Length 2, then Debug Ray Normal [Facing].',
     stops: ['A Writes that names no Input above the line.', 'A Shows of 0, 0, 0.', 'A Color that is not a colour.'],
     parameters: [
       {

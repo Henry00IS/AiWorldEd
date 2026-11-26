@@ -5,7 +5,7 @@ import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 
 /**
- * The Debug Draw drawings of the selected object: solid lines and text over the
+ * The Debug drawings of the selected object: solid lines and text over the
  * panes, which never take the pointer.
  */
 export class GeneratorDrawWidget extends Widget {

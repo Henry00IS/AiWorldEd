@@ -72,9 +72,9 @@ describe('modifier stack buttons and drawings', () => {
     expect(pressed?.notices).toEqual(['Rails picked']);
   });
 
-  it('records Debug Draw in the world, also without an edit mode', () => {
+  it('records Debug Line in the world, also without an edit mode', () => {
     const { node, centre } = scene(
-      [{ command: 'debug_draw', values: { shape: 'Line', at: '0, 0, 0', to: '1, 0, 0' } }, { command: 'cube' }],
+      [{ command: 'debug_line', values: { at: '0, 0, 0', to: '1, 0, 0' } }, { command: 'cube' }],
       {},
       false,
     );

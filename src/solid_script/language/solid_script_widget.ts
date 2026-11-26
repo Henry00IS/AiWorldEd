@@ -49,8 +49,8 @@ export interface SolidScriptWidgetComponent {
 }
 
 /**
- * A drawing a Debug Draw line asked for, in script coordinates: line segments
- * and, for Text, a caption at a point.
+ * A drawing a Debug line asked for, in script coordinates: line segments and,
+ * for Text, a caption at a point.
  */
 export interface SolidScriptWidgetDraw {
   /** Kind of widget. */

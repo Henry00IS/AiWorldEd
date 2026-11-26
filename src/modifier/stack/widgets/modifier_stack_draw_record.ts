@@ -3,7 +3,7 @@ import { modifierStackParametersStackRead } from '@/modifier/stack/modifier_stac
 import type { SolidScriptWidget, SolidScriptWidgetDraw } from '@/solid_script/language/solid_script_widget.js';
 import { ModifierStackStepRecord } from './modifier_stack_step_record.js';
 
-/** A Debug Draw drawing of a step, in world coordinates. */
+/** A Debug drawing of a step, in world coordinates. */
 export interface ModifierStackDraw {
   /** Key that stays the same between evaluations of the step. */
   key: string;
@@ -21,7 +21,7 @@ export interface ModifierStackDraw {
 const MODIFIER_STACK_DRAWS = new ModifierStackStepRecord<ModifierStackDraw>();
 
 /**
- * Keeps the Debug Draw drawings of a script step as it ran, in the world.
+ * Keeps the Debug drawings of a script step as it ran, in the world.
  *
  * @param owner Stack owner.
  * @param stepId Step id.

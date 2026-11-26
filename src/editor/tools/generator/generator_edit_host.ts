@@ -62,8 +62,8 @@ export interface GeneratorEditHost {
    */
   paths(): ModifierStackPath[];
   /**
-   * Returns the Debug Draw drawings of the one selected object, with or without
-   * an edit mode.
+   * Returns the Debug drawings of the one selected object, with or without an
+   * edit mode.
    *
    * @returns Drawings in world coordinates; empty without such a selection.
    */

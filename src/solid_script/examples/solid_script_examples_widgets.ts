@@ -86,7 +86,7 @@ export const SOLID_SCRIPT_EXAMPLE_WIDGET_SHOWCASE: readonly SolidScriptLine[] = 
   ]),
   ...solidScriptExampleIf('[=[Page] == "Aim"]', [
     ...solidScriptExampleNote(
-      'Widget Direction points an arrow above the lid, and Debug Draw draws a Ray along it, twice as long, that builds nothing.',
+      'Widget Direction points an arrow above the lid, and Debug Ray draws an arrow along it, twice as long, that builds nothing.',
     ),
     solidScriptExampleLine('widget_direction', {
       shows: '[Facing]',
@@ -94,8 +94,7 @@ export const SOLID_SCRIPT_EXAMPLE_WIDGET_SHOWCASE: readonly SolidScriptLine[] = 
       at: '[=Vector(0, [BoxSize.Y] / 2 + [Lid] + 0.6, 0)]',
       length: '1.5',
     }),
-    solidScriptExampleLine('debug_draw', {
-      shape: 'Ray',
+    solidScriptExampleLine('debug_ray', {
       at: '[=Vector(0, [BoxSize.Y] / 2 + [Lid] + 0.6, 0)]',
       normal: '[Facing]',
       distance: '3',
