@@ -16,6 +16,7 @@ import {
 } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
 import { solidScriptMistakeCheck, solidScriptUseCheck } from '@/solid_script/language/solid_script_use_check.js';
+import type { SolidScriptEditorResources } from './solid_script_editor_resources.js';
 import type { SolidScriptEditorSettings } from './solid_script_editor_settings.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptSelectFix, solidScriptSelectFixLabel } from '@/solid_script/language/solid_script_select.js';
@@ -30,20 +31,22 @@ export const SOLID_SCRIPT_EDITOR_CHECK_DELAY_MS = 400;
 const SOLID_SCRIPT_EDITOR_CHECK_IDLE_MS = 1000;
 
 /** Tabs of the output area. */
-type SolidScriptEditorOutputTab = 'output' | 'variables' | 'settings';
+type SolidScriptEditorOutputTab = 'output' | 'variables' | 'settings' | 'resources';
 
 /** Captions of the output tabs. */
 const SOLID_SCRIPT_EDITOR_OUTPUT_TABS: readonly [SolidScriptEditorOutputTab, string][] = [
   ['output', 'Output'],
   ['variables', 'Variables'],
   ['settings', 'Settings'],
+  ['resources', 'Resources'],
 ];
 
 /**
  * The area under the script: the Output tab shows what the script builds, its
  * Echo lines or its first error; the Variables tab is the variable explorer,
  * with every name the script uses and its value at the debugger's step, or
- * after the last solid; the Settings tab holds Can Be Used As and the author.
+ * after the last solid; the Settings tab holds Can Be Used As and the author,
+ * and the Resources tab the textures, curves and paths kept with the script.
  */
 export class SolidScriptEditorOutput {
   /** Output area element. */
@@ -67,6 +70,10 @@ export class SolidScriptEditorOutput {
   private readonly checks = document.createElement('div');
   private checkTimer: ReturnType<typeof setTimeout> | null = null;
   private settings: SolidScriptEditorSettings | null = null;
+  /** Resources, scrolling inside the area like the other tabs. */
+  private readonly resourcesScroller = document.createElement('div');
+  private readonly resourcesHost: HTMLElement;
+  private resources: SolidScriptEditorResources | null = null;
 
   /** Shows a line of the script; set by the editor. */
   set reveal(reveal: (line: number) => void) {
@@ -95,6 +102,16 @@ export class SolidScriptEditorOutput {
   settingsSet(settings: SolidScriptEditorSettings): void {
     this.settings = settings;
     this.settingsScroller.replaceChildren(settings.element);
+  }
+
+  /**
+   * Fills the Resources tab; set by the editor.
+   *
+   * @param resources Resources tab.
+   */
+  resourcesSet(resources: SolidScriptEditorResources): void {
+    this.resources = resources;
+    this.resourcesScroller.replaceChildren(resources.element);
   }
 
   /** Builds the area. */
@@ -131,7 +148,9 @@ export class SolidScriptEditorOutput {
     this.variablesHost = this.explorer.element;
     Object.assign(this.settingsScroller.style, { overflowY: 'auto', padding: '5px 12px' });
     this.settingsHost = solidScriptScrollerWrap(this.settingsScroller, '1 1 0', 12);
-    this.element.append(bar, this.outputHost, this.variablesHost, this.settingsHost);
+    Object.assign(this.resourcesScroller.style, { overflowY: 'auto' });
+    this.resourcesHost = solidScriptScrollerWrap(this.resourcesScroller, '1 1 0', 12);
+    this.element.append(bar, this.outputHost, this.variablesHost, this.settingsHost, this.resourcesHost);
     this.tabShow('output');
   }
 
@@ -152,6 +171,7 @@ export class SolidScriptEditorOutput {
     result: SolidScriptRun,
   ): void {
     this.settings?.write(document);
+    this.resources?.write(document);
     this.checkSchedule(document);
     this.passed = result.passed;
     if (!result.error) {
@@ -290,6 +310,7 @@ export class SolidScriptEditorOutput {
     this.outputHost.hidden = id !== 'output';
     this.variablesHost.hidden = id !== 'variables';
     this.settingsHost.hidden = id !== 'settings';
+    this.resourcesHost.hidden = id !== 'resources';
   }
 
   /**

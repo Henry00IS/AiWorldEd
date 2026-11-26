@@ -45,6 +45,7 @@ import {
   solidScriptDocumentNamesAt,
 } from '@/solid_script/document/solid_script_document_names.js';
 import { SolidScriptEditorSettings } from './solid_script_editor_settings.js';
+import { SolidScriptEditorResources } from './solid_script_editor_resources.js';
 import {
   SOLID_SCRIPT_EDITOR_BOUNDS_KEY,
   solidScriptEditorSizesRead,
@@ -148,6 +149,7 @@ export class SolidScriptEditor extends PanelFloating {
         (ms) => this.debugger.stepMsSet(ms),
       ),
     );
+    this.output.resourcesSet(new SolidScriptEditorResources((document) => this.commit(document, null)));
     this.output.selectAbove = (command, line) => this.selectAbove(command, line);
     this.output.inputAdd = () => this.inputAdd();
     this.toolbar = new SolidScriptEditorToolbar({
