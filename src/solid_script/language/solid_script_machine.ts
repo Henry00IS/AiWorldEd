@@ -1261,6 +1261,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         }
         state.machine.variableSet(state.scope, name, change([]));
       },
+      dictionaryChange: (name, create, change) => state.machine.dictionaryChange(state.scope, name, create, change),
       variableDelete: (name) => state.machine.variableDeleteLine(state.scope, name),
       variableClear: (name) => state.machine.variableClearLine(state.scope, name),
       itemRemove: (target) => state.machine.variableItemRemove(state.scope, target),

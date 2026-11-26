@@ -12,7 +12,12 @@ import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
 import type { SolidScriptFrame, SolidScriptMachineCommand, SolidScriptVariable } from './solid_script_machine_types.js';
 import { solidScriptNameFind, solidScriptNameKey, solidScriptNameSpelling } from './solid_script_name_key.js';
 import { SolidScriptScope } from './solid_script_scope.js';
-import { solidScriptValueText, solidScriptValueType, type SolidScriptValue } from './solid_script_value.js';
+import {
+  SolidScriptDictionary,
+  solidScriptValueText,
+  solidScriptValueType,
+  type SolidScriptValue,
+} from './solid_script_value.js';
 import { solidScriptSelectFresh, solidScriptSelectIds } from './solid_script_select.js';
 import { SolidScriptElements } from './solid_script_elements.js';
 import { solidScriptMemberRead } from './solid_script_members.js';
@@ -754,6 +759,28 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
       throw new Error(
         `[${this.nameShown(solidScriptNameKey(name))}] is ${solidScriptKindNamed(value)}, not a list; Set it to a list first, such as 1, 2, 3`,
       );
+    return value;
+  }
+
+  /**
+   * Reads a Dictionary variable.
+   *
+   * @param scope Scope of the line.
+   * @param name Name.
+   * @returns The Dictionary itself, so a line can change it.
+   */
+  protected dictionaryRead(scope: SolidScriptScope, name: string): SolidScriptDictionary {
+    const where = this.variableWhere(name, scope);
+    this.nameCheck(where.name, 'a Dictionary');
+    if (!where.scope.variableHas(where.name))
+      throw new Error(`there is no Dictionary [${name.trim()}]; make one with Make Dictionary or Add Entry`);
+    const value = where.scope.variableGet(where.name);
+    if (!(value instanceof SolidScriptDictionary)) {
+      const shown = this.nameShown(solidScriptNameKey(name));
+      throw new Error(
+        `[${shown}] is ${solidScriptKindNamed(value)}, not a Dictionary; make one with Make Dictionary Into ${shown}`,
+      );
+    }
     return value;
   }
 

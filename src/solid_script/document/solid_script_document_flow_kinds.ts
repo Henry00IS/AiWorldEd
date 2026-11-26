@@ -269,9 +269,9 @@ export function solidScriptFlowKeyKinds(text: string, head: SolidScriptFlowHead)
 
 /**
  * Tells the kinds a variable holds after a line empties it or takes items out:
- * Clear Variable leaves a list [] (a List), a number 0, a Yes/No No and any
- * other value empty text; taking items out of a list may leave it empty, and
- * two or three numbers left make a Vector.
+ * Clear Variable leaves a list [] (a List), a Dictionary one with no keys, a
+ * number 0, a Yes/No No and any other value empty text; taking items out of a
+ * list may leave it empty, and two or three numbers left make a Vector.
  *
  * @param rule Emptied or shrunk.
  * @param kinds Kinds it held.
@@ -283,7 +283,7 @@ export function solidScriptFlowChanged(rule: 'emptied' | 'shrunk', kinds: readon
     return solidScriptFlowUnique([...kinds, ...(kinds.some(listed) ? ['List', 'Vector', 'Number List'] : [])]);
   return solidScriptFlowUnique(
     kinds.map((kind) =>
-      kind === SOLID_SCRIPT_FLOW_UNKNOWN || kind === 'Number' || kind === 'Yes/No'
+      kind === SOLID_SCRIPT_FLOW_UNKNOWN || kind === 'Number' || kind === 'Yes/No' || kind === 'Dictionary'
         ? kind
         : listed(kind)
           ? 'List'
@@ -332,6 +332,19 @@ export function solidScriptFlowTypedKeys(text: string): string[] {
   return solidScriptFieldSplit(text, ',')
     .map((item) => item.trim())
     .filter((item) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(item));
+}
+
+/**
+ * Tells the keys an Add Entry or Merge Dictionary line adds: the key typed in
+ * its field, such as Wood, or the keys of the Dictionary variable the field
+ * copies, such as [Extra].
+ *
+ * @param text Field text.
+ * @param keysOf Keys known for a variable, by name key.
+ * @returns Keys as written; none when the field shows none.
+ */
+export function solidScriptFlowEntryKeys(text: string, keysOf: (key: string) => readonly string[]): string[] {
+  return [...solidScriptFlowTypedKeys(text), ...solidScriptFlowValueKeys(text, keysOf)];
 }
 
 /**

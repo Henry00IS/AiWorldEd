@@ -139,6 +139,13 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
       : [];
     return [...meshFirst, { command: 'select_objects' }, ...tools, ...pick, line];
   }
+  if (['remove_entry', 'merge_dictionary'].includes(command.id))
+    return [
+      { command: 'make_dictionary', values: { into: 'Prices', keys: 'Wood', values: '5' } },
+      { command: 'make_dictionary', values: { into: 'Extra', keys: 'Stone', values: '7' } },
+      line,
+      { command: 'cube' },
+    ];
   if (SOLID_SCRIPT_SAMPLE_PICKED.includes(command.category) || command.id.startsWith('path_from_')) {
     if (command.id === 'select_objects') return [{ command: 'cube' }, line];
     const pick: SolidScriptLine[] = [{ command: 'cube' }, { command: 'select_objects' }, { command: 'select_faces' }];

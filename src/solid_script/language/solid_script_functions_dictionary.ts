@@ -1,6 +1,6 @@
 import { solidScriptExtraText } from './solid_script_functions_extra.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
-import { SOLID_SCRIPT_NAME } from './solid_script_machine_variables.js';
+import { solidScriptDictionaryAdd, solidScriptDictionaryKey } from './solid_script_dictionary_edit.js';
 import {
   SolidScriptDictionary,
   solidScriptValueShow,
@@ -56,12 +56,8 @@ export function solidScriptDictionaryFrom(
   if (!Array.isArray(keys) || !Array.isArray(values) || keys.length !== values.length)
     throw new Error(`${usage} needs two lists of the same length, such as List("Wood", "Stone") and List(5, 7)`);
   const made = new SolidScriptDictionary();
-  for (const [index, key] of keys.entries()) {
-    const name = solidScriptValueText(key).trim();
-    if (!SOLID_SCRIPT_NAME.test(name))
-      throw new Error(`${usage}: "${name}" cannot be a key; keys use letters, digits and _, not starting with a digit`);
-    made.entries.set(solidScriptNameKey(name), { name, value: values[index] });
-  }
+  for (const [index, key] of keys.entries())
+    solidScriptDictionaryAdd(made, solidScriptDictionaryKey(solidScriptValueText(key), usage), values[index]);
   return made;
 }
 

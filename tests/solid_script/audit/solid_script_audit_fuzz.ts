@@ -58,6 +58,11 @@ const PLAIN: readonly ((random: () => number, name: string) => SolidScriptLine)[
   (_random, name) => line('select_edges', { which: 'All', of: '[B]', into: name }),
   (random, name) => line('add_item', { list: name, value: VALUES(random) }),
   (_random, name) => line('clear_variable', { name }),
+  (_random, name) => line('make_dictionary', { into: name, keys: 'K, L', values: '1, 2' }),
+  (random, name) =>
+    line('add_entry', { dictionary: name, key: pick(random, ['K', 'L', 'Wood', '2x']), value: VALUES(random) }),
+  (random, name) => line('remove_entry', { dictionary: name, key: pick(random, ['K', 'L']) }),
+  (random, name) => line('merge_dictionary', { dictionary: name, from: `[${pick(random, NAMES)}]` }),
   (_random, name) => line('delete_variable', { name }),
   (_random, name) => line('remove_item', { target: `${name}()` }),
   (random, name) => line('remove_value', { list: name, value: VALUES(random) }),

@@ -20,7 +20,12 @@ import type {
 } from './solid_script_shape.js';
 import type { SolidScriptUseFacts } from './solid_script_system.js';
 import type { SolidScriptWidget, SolidScriptWidgetAdded } from './solid_script_widget.js';
-import type { SolidScriptElement, SolidScriptPathElement, SolidScriptValue } from './solid_script_value.js';
+import type {
+  SolidScriptDictionary,
+  SolidScriptElement,
+  SolidScriptPathElement,
+  SolidScriptValue,
+} from './solid_script_value.js';
 
 /** One field of a command, as the machine reads it. */
 export interface SolidScriptMachineField {
@@ -330,11 +335,17 @@ export interface SolidScriptBlockRun {
   listUpdate(name: string, change: (items: readonly SolidScriptValue[]) => SolidScriptValue[], create: boolean): void;
   /** Reads a list, failing with a plain message when the name is not a list. */
   listRead(name: string): readonly SolidScriptValue[];
+  /**
+   * Changes a Dictionary variable in place. With create, a missing name starts
+   * as an empty Dictionary.
+   */
+  dictionaryChange(name: string, create: boolean, change: (dictionary: SolidScriptDictionary) => void): void;
   /** Forgets a variable. */
   variableDelete(name: string): void;
   /**
    * Empties a variable with the empty value of the kind it holds: a list keeps
-   * no items, a number becomes 0, a Yes/No No and anything else empty text.
+   * no items, a Dictionary no keys, a number becomes 0, a Yes/No No and
+   * anything else empty text.
    */
   variableClear(name: string): void;
   /** Writes a line to the output. */

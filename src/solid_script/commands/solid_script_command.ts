@@ -53,10 +53,10 @@ export type SolidScriptCommandAccepts = 'Any' | readonly string[];
  * the names list: a fixed kind, the kinds of another field's value, its items
  * or its keys, the kind the word typed in another field gives, what the called
  * Function returns, a list for a name not set yet, the kind the variable
- * already holds, emptied (Clear Variable) or with items taken out, nothing
- * because the line forgets it, or the kind it holds because the line only reads
- * it. What describes it, with {key} for the text of another field and {command}
- * for the line's block.
+ * already holds, emptied (Clear Variable) or with items taken out, a Dictionary
+ * a line adds keys to, nothing because the line forgets it, or the kind it
+ * holds because the line only reads it. What describes it, with {key} for the
+ * text of another field and {command} for the line's block.
  */
 export type SolidScriptCommandGives =
   | {
@@ -73,6 +73,13 @@ export type SolidScriptCommandGives =
     }
   | { readonly rule: 'value' | 'item' | 'key' | 'word'; readonly field: string; readonly what: string }
   | { readonly rule: 'returned' | 'list'; readonly what: string }
+  | {
+      /** A Dictionary for a name not set yet, with the keys its line adds. */
+      readonly rule: 'entries';
+      readonly what: string;
+      /** Field whose typed items are keys, or whose value is a Dictionary. */
+      readonly keys: string;
+    }
   | { readonly rule: 'kept' | 'emptied' | 'shrunk' | 'forgotten' | 'read' | 'defines' };
 
 /**

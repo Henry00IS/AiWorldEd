@@ -191,7 +191,7 @@ Formulas know: numbers, text in double quotes, true, false, every name in bracke
 - Brick(position, scale, seed, output, mortar, width, height, offset, smooth) gives brick mortar or a per-brick Tint; Magic(position, scale, depth, distortion) gives swirling colour bands.
 - Rename Data moves a .Data value to a new key and Remove Data removes one key, on faces, edges, corners or dictionaries.
 - A Rotation is a whole turn kept as a quaternion, so turns combine without gimbal lock: Make Rotation Into Spin (How X Then Y Then Z with Degrees, or Axis And Angle with Axis and Angle) or Rotation(x, y, z) and RotationAround(axis, angle) make one, CombineRotations, MixRotation, InvertRotation, ApplyRotation and RotationDegrees work on it, and Rotate By, Rotate To and Transform Rotate take it as well as three numbers.
-- A Dictionary keeps values under keys: Make Dictionary Into Prices Keys Wood, Stone Values 5, 7 (or [=Dictionary(List("Wood", "Stone"), List(5, 7))]) makes one, and it works like .Data: [Prices.Data.Wood] reads, Set Prices.Data.Wood writes, For Each over [Prices] with a Key walks it, Keys(), Values() and Contains() read it, and setting it to another name copies it. The .Data of geometry is a Dictionary too.
+- A Dictionary keeps values under keys: Make Dictionary Into Prices Keys Wood, Stone Values 5, 7 (or [=Dictionary(List("Wood", "Stone"), List(5, 7))]) makes one, and it works like .Data: [Prices.Data.Wood] reads, Set Prices.Data.Wood or Add Entry Key Wood Value 5 To Prices writes (Add Entry makes the Dictionary when it is new), Remove Entry Key Wood From Prices takes a key out, Merge Dictionary [Extra] Into Prices adds every key of another Dictionary (its values win), Clear Variable empties it, For Each over [Prices] with a Key walks it, Keys(), Values() and Contains() read it, and setting it to another name copies it. The .Data of geometry is a Dictionary too.
 - PrincipalAxes(points, output, groups) gives the main axes, spread or middle of a point cloud, or of the group of each point with Groups; MatrixSvd(matrix, output) gives the stretches S and the turns U and V of a matrix.
 - Dual Mesh swaps the faces and corners of a mesh, with Keep Boundaries for open edges.
 - Find On How At UV finds the point on the faces whose texture coordinates are the U and V of From.
@@ -251,7 +251,7 @@ Formulas know: numbers, text in double quotes, true, false, every name in bracke
 - Strings in formulas escape with $ like field text: $" is a double quote and $$ a dollar sign, so "Say $"Hi$"" is Say "Hi"; a backslash is just a backslash. Inside the quotes only the formula reads a $, so each escape is written once: "costs $$5" is costs $5, and $[ and $] are brackets that stay text. For a new line or a tab use [$Text.NewLine] and [$Text.Tab].
 - Remove Item takes an item out of a list: "Points(1)" removes item 1 and moves the later items up, "Points()" removes the last one.
 - List blocks change a whole list in plain words: Add Item 5 to Heights (makes the list when it is new), Insert Item 4 into Heights at 1, Remove Value red from colors (Every Copy takes out all of them), Find Item blue in colors, result in where (-1 when it is not there), Filter List [Heights] Where [=[$Item] > 2] Into [Tall], Sort List Heights (numbers small to big, then words A to Z; Biggest First turns it around) and Reverse List Heights. [Heights.Count] is how many items there are.
-- Clear Variable empties a variable but keeps its name: a list or vector keeps no items, a number becomes 0, a Yes/No No, anything else empty text. Delete Variable forgets it, so reading it stops the script until a line sets it again.
+- Clear Variable empties a variable but keeps its name: a list or vector keeps no items, a Dictionary keeps no keys, a number becomes 0, a Yes/No No, anything else empty text. Delete Variable forgets it, so reading it stops the script until a line sets it again.
 - [$Persistent.Name] is a variable kept with the generator: it is saved with the level, shared in multiplayer and still there next run, stored like an input without a row in the inspector. When Button Pressed and When Input Changes blocks store what they set, such as Set $Persistent.Presses to [=[$Persistent.Presses] + 1]; the normal build may change it too, but only for that build, so every rebuild gives the same solid. A persistent value that was never set reads as nothing, so IsUndef([$Persistent.Presses]) checks for it. Delete Variable $Persistent.Presses forgets it.
 - Offset grows (Distance above 0) or shrinks (below 0) the flat paths inside it, with round or sharp corners; shrinking and sharp corners need convex paths for now.
 `;
@@ -388,7 +388,8 @@ function solidScriptReferenceKinds(command: SolidScriptCommand, parameter: Solid
 /** What a variable field does to a variable that no kind describes. */
 const SOLID_SCRIPT_REFERENCE_GIVES: Readonly<Record<'kept' | 'emptied' | 'shrunk' | 'forgotten' | 'read', string>> = {
   kept: 'the kinds it held, changed in place',
-  emptied: 'the empty form of what it held: a list [], a number 0, a Yes/No No, anything else empty text',
+  emptied:
+    'the empty form of what it held: a list [], a Dictionary with no keys, a number 0, a Yes/No No, anything else empty text',
   shrunk: 'the kinds it held with items taken out, which may leave an empty list',
   forgotten: 'nothing: the variable is forgotten',
   read: 'nothing new: the variable is only read',

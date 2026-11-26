@@ -541,9 +541,9 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
 
   /**
    * Empties a variable for a Clear Variable line with the empty value of the
-   * kind it holds: a list becomes an empty list, a number 0, a Yes/No No and
-   * anything else empty text; a name not set yet becomes an empty list, ready
-   * for Add Item.
+   * kind it holds: a list becomes an empty list, a Dictionary one with no keys,
+   * a number 0, a Yes/No No and anything else empty text; a name not set yet
+   * becomes an empty list, ready for Add Item.
    *
    * @param scope Scope of the line.
    * @param name Name as written.
@@ -552,6 +552,32 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     const where = this.variableWhere(name, scope);
     const old = where.scope.variableHas(where.name) ? where.scope.variableGet(where.name) : undefined;
     this.variableSet(scope, name, solidScriptValueEmpty(old));
+  }
+
+  /**
+   * Changes a Dictionary variable in place for an Add Entry, Remove Entry or
+   * Merge Dictionary line. With create, a name not set yet starts as an empty
+   * Dictionary.
+   *
+   * @param scope Scope of the line.
+   * @param name Name as written.
+   * @param create Whether a missing name becomes a Dictionary.
+   * @param change Changes the Dictionary; it checks before it changes, so a
+   *   line that stops leaves the Dictionary as it was.
+   */
+  dictionaryChange(
+    scope: SolidScriptScope,
+    name: string,
+    create: boolean,
+    change: (dictionary: SolidScriptDictionary) => void,
+  ): void {
+    const where = this.variableWhere(name, scope);
+    const made = create && !where.scope.variableHas(where.name);
+    const dictionary = made ? new SolidScriptDictionary() : this.dictionaryRead(scope, name);
+    if (!where.local) this.writableCheck(where.name);
+    change(dictionary);
+    if (made) this.variableSet(scope, name, dictionary);
+    else if (where.persistent) this.persistentKeep(where.name);
   }
 
   /**
@@ -576,14 +602,15 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
 
 /**
  * Gives the empty value of the kind a value holds, for Clear Variable: an empty
- * list for a list or nothing, 0 for a number, No for a Yes/No and empty text
- * for anything else.
+ * list for a list or nothing, an empty Dictionary for a Dictionary, 0 for a
+ * number, No for a Yes/No and empty text for anything else.
  *
  * @param old Value the variable holds, undefined when it is not set.
  * @returns Empty value.
  */
 function solidScriptValueEmpty(old: SolidScriptValue): SolidScriptValue {
   if (old === undefined || Array.isArray(old)) return [];
+  if (old instanceof SolidScriptDictionary) return new SolidScriptDictionary();
   if (typeof old === 'number') return 0;
   return typeof old === 'boolean' ? false : '';
 }

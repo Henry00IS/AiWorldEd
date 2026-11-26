@@ -8,6 +8,7 @@ import {
   solidScriptFlowValueKinds,
   solidScriptFlowDataWrite,
   solidScriptFlowTypedKeys,
+  solidScriptFlowEntryKeys,
   solidScriptFlowValueKeys,
   SOLID_SCRIPT_FLOW_UNKNOWN,
   type SolidScriptFlowHead,
@@ -475,6 +476,8 @@ class SolidScriptFlowAnalysis {
     const item = /^((?:\$local\.|\$persistent\.)?[A-Za-z_]\w*)\s*\(.*\)$/i.exec(name)?.[1];
     const line = this.lineOf.get(block) ?? -1;
     if (item !== undefined || gives.rule === 'list') return this.listWrite(item ?? name, state, line);
+    if (gives.rule === 'entries')
+      return this.entriesWrite(name, solidScriptFlowKeysGiven(block, gives, state), state, line);
     const data = solidScriptFlowDataWrite(name);
     if (data) return solidScriptFlowKeysAdd(state, solidScriptNameKey(data.owner), [data.key]);
     if (/\./.test(name.replace(/^\$(local|persistent)\./i, ''))) return state;
@@ -545,6 +548,29 @@ class SolidScriptFlowAnalysis {
   private listWrite(name: string, state: SolidScriptFlowState, line: number): SolidScriptFlowState {
     const held = state.get(solidScriptNameKey(name));
     return this.write(state, name, held ? solidScriptFlowUnique([...held.kinds, 'List']) : ['List'], line);
+  }
+
+  /**
+   * Follows a line that adds keys to a Dictionary: a name no line set becomes a
+   * Dictionary, and the keys the line adds are remembered for it.
+   *
+   * @param name Dictionary name.
+   * @param keys Keys the line adds, when it shows them.
+   * @param state Variables before.
+   * @param line 0-based line that writes it.
+   * @returns Variables after.
+   */
+  private entriesWrite(
+    name: string,
+    keys: readonly string[],
+    state: SolidScriptFlowState,
+    line: number,
+  ): SolidScriptFlowState {
+    const key = solidScriptNameKey(name);
+    const held = state.get(key);
+    if (!held) return this.write(state, name, ['Dictionary'], line, keys);
+    const kinds = solidScriptFlowUnique([...held.kinds, 'Dictionary']);
+    return solidScriptFlowKeysAdd(this.write(state, name, kinds, line, held.keys ?? []), key, keys);
   }
 
   /**
@@ -817,6 +843,8 @@ function solidScriptFlowKeysGiven(
   state: SolidScriptFlowState,
 ): string[] {
   if (gives.rule === 'kind') return gives.keys ? solidScriptFlowTypedKeys(block.values[gives.keys] ?? '') : [];
+  if (gives.rule === 'entries')
+    return solidScriptFlowEntryKeys(block.values[gives.keys] ?? '', (key) => state.get(key)?.keys ?? []);
   if (gives.rule !== 'value') return [];
   return solidScriptFlowValueKeys(block.values[gives.field] ?? '', (key) => state.get(key)?.keys ?? []);
 }

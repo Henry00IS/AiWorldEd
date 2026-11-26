@@ -29,6 +29,8 @@ export const SOLID_SCRIPT_AUDIT_PRELUDE: readonly SolidScriptLine[] = [
   line('variable', { name: 'Items', value: '1, 2, 3' }),
   line('variable', { name: 'Points', value: '[0, 0, 0], [1, 0, 0]' }),
   line('variable', { name: 'I', value: '2' }),
+  line('make_dictionary', { into: 'Prices', keys: 'Wood, Stone', values: '5, 7' }),
+  line('make_dictionary', { into: 'Extra', keys: 'Stone, Glass', values: '6, 12' }),
 ];
 
 /** Point lines of a closed solid. */
