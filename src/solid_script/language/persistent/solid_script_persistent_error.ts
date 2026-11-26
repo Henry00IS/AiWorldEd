@@ -1,6 +1,10 @@
-import { SolidScriptCurveValue } from '../solid_script_curve_value.js';
-import { solidScriptKindNamed } from '../solid_script_kinds.js';
-import { SolidScriptDictionary, SolidScriptRotation, type SolidScriptValue } from '../solid_script_value.js';
+import { SolidScriptCurveValue } from '@/solid_script/language/solid_script_curve_value.js';
+import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
+import {
+  SolidScriptDictionary,
+  SolidScriptRotation,
+  type SolidScriptValue,
+} from '@/solid_script/language/solid_script_value.js';
 
 /** What a persistent value may keep, for the message when it cannot. */
 const SOLID_SCRIPT_PERSISTENT_ALLOWED =

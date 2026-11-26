@@ -1,8 +1,12 @@
 import { curveFromData, curveToData } from '@/curve/model/curve_codec.js';
-import { SolidScriptCurveValue } from '../solid_script_curve_value.js';
-import { solidScriptRotationFromDegrees } from '../solid_script_functions_rotation.js';
-import { solidScriptNameKey } from '../solid_script_name_key.js';
-import { SolidScriptDictionary, SolidScriptRotation, type SolidScriptValue } from '../solid_script_value.js';
+import { SolidScriptCurveValue } from '@/solid_script/language/solid_script_curve_value.js';
+import { solidScriptRotationFromDegrees } from '@/solid_script/language/solid_script_functions_rotation.js';
+import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
+import {
+  SolidScriptDictionary,
+  SolidScriptRotation,
+  type SolidScriptValue,
+} from '@/solid_script/language/solid_script_value.js';
 import {
   SOLID_SCRIPT_PERSISTENT_CURVE_KIND,
   SOLID_SCRIPT_PERSISTENT_DICTIONARY_KIND,

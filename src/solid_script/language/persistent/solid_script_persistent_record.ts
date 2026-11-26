@@ -1,6 +1,6 @@
-import { SOLID_SCRIPT_PERSISTENT_PREFIX } from '../solid_script_name_key.js';
-import { solidScriptNameKey } from '../solid_script_name_key.js';
-import type { SolidScriptValue } from '../solid_script_value.js';
+import { SOLID_SCRIPT_PERSISTENT_PREFIX } from '@/solid_script/language/solid_script_name_key.js';
+import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
+import type { SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
 import {
   solidScriptPersistentValueEncode,
   solidScriptPersistentValueRead,
