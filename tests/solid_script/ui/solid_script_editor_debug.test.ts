@@ -200,8 +200,8 @@ describe('SolidScript editor runs and debugging', () => {
 
   it('pauses at a breakpoint inside a Function and shows the call stack with its locals', () => {
     const { root } = editorFixture([
-      { command: 'function', values: { name: 'post', parameters: 'h' } },
-      { command: 'cube', values: { size: '1, 1, [$local.h]' } },
+      { command: 'function', values: { name: 'post', parameters: 'H' } },
+      { command: 'cube', values: { size: '1, 1, [$Local.H]' } },
       { command: 'end' },
       { command: 'call', values: { name: 'post', values: '3' } },
     ]);
@@ -210,7 +210,7 @@ describe('SolidScript editor runs and debugging', () => {
     expect(root.textContent).toContain('Stopped at the breakpoint on line 2, before it runs');
     find<HTMLButtonElement>('[data-category="Call Stack"]').click();
     expect(find('.solid-script-editor-stack-frame').textContent).toBe('post()called on line 4');
-    expect(explorerRows()).toEqual(['$Local.h|3|Whole Number|1']);
+    expect(explorerRows()).toEqual(['$Local.H|3|Whole Number|1']);
   });
 
   it('keeps a breakpoint on its line when the line moves', () => {

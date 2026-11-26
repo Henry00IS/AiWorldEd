@@ -17,9 +17,9 @@ const SCRIPT = solidScriptDocumentCreate([
   { command: 'variable', values: { name: 'part[i]', value: '1' } },
   { command: 'repeat', values: { variable: 'i' } },
   { command: 'end' },
-  { command: 'function', values: { name: 'area', parameters: 'w, d' } },
-  { command: 'return', values: { value: '[=[$local.w] * [$local.d]]' } },
-  { command: 'variable', values: { name: '$local.sum', value: '1' } },
+  { command: 'function', values: { name: 'area', parameters: 'W, D' } },
+  { command: 'return', values: { value: '[=[$Local.W] * [$Local.D]]' } },
+  { command: 'variable', values: { name: '$Local.Sum', value: '1' } },
   { command: 'end' },
   { command: 'part', values: { name: 'column' } },
   { command: 'end' },
@@ -37,25 +37,25 @@ describe('SolidScript names', () => {
       ['points', 'Lists', 2],
       ['i', 'Counters', 4],
       ['area', 'Functions', 6],
-      ['$Local.w', 'Locals', 6],
-      ['$Local.d', 'Locals', 6],
-      ['$Local.sum', 'Locals', 8],
+      ['$Local.W', 'Locals', 6],
+      ['$Local.D', 'Locals', 6],
+      ['$Local.Sum', 'Locals', 8],
       ['column', 'Variables', 10],
       ['column', 'Parts', 10],
       ['steps', 'Handlers', 12],
       ['size', 'Variables', 14],
     ]);
-    expect(solidScriptDocumentNames(SCRIPT).find((entry) => entry.name === 'area')?.detail).toBe('area(w, d)');
+    expect(solidScriptDocumentNames(SCRIPT).find((entry) => entry.name === 'area')?.detail).toBe('area(W, D)');
   });
 
   it('offers a Function its own locals and a loop its counter only on the lines inside them', () => {
     const scoped = solidScriptDocumentCreate([
-      { command: 'function', values: { name: 'area', parameters: 'w, d' } },
-      { command: 'variable', values: { name: '$local.sum', value: '1' } },
-      { command: 'return', values: { value: '[$local.sum]' } },
+      { command: 'function', values: { name: 'area', parameters: 'W, D' } },
+      { command: 'variable', values: { name: '$Local.Sum', value: '1' } },
+      { command: 'return', values: { value: '[$Local.Sum]' } },
       { command: 'end' },
-      { command: 'function', values: { name: 'lift', parameters: 'h' } },
-      { command: 'variable', values: { name: '$local.sum', value: '2' } },
+      { command: 'function', values: { name: 'lift', parameters: 'H' } },
+      { command: 'variable', values: { name: '$Local.Sum', value: '2' } },
       { command: 'end' },
       { command: 'repeat', values: { variable: 'i' } },
       { command: 'for_each', values: { variable: 'P', list: '1, 2', key: 'N' } },
@@ -70,9 +70,9 @@ describe('SolidScript names', () => {
       solidScriptDocumentNamesAt(scoped, line)
         .filter((entry) => ['Locals', 'Counters', 'System'].includes(entry.category))
         .map((entry) => entry.name);
-    expect(at(2)).toEqual(['$Local.w', '$Local.d', '$Local.sum']);
-    expect(at(5)).toEqual(['$Local.h']);
-    expect(at(6)).toEqual(['$Local.h', '$Local.sum']);
+    expect(at(2)).toEqual(['$Local.W', '$Local.D', '$Local.Sum']);
+    expect(at(5)).toEqual(['$Local.H']);
+    expect(at(6)).toEqual(['$Local.H', '$Local.Sum']);
     expect(at(8)).toEqual(['i']);
     expect(at(9)).toEqual(['i', 'P', 'N']);
     expect(at(13)).toEqual(['i']);
@@ -85,7 +85,7 @@ describe('SolidScript names', () => {
       [
         { name: 'Width', category: 'Variables', line: 0, detail: '' },
         { name: 'i', category: 'Counters', line: 0, detail: '' },
-        { name: 'Area', category: 'Functions', line: 0, detail: 'Area(w)' },
+        { name: 'Area', category: 'Functions', line: 0, detail: 'Area(W)' },
       ],
       ['x'],
     );
@@ -125,13 +125,13 @@ describe('SolidScript origins', () => {
         { command: 'variable', values: { name: 'pts()', value: '0, 0' } },
         { command: 'variable', values: { name: 'w', value: '2' } },
         { command: 'remove_item', values: { target: 'pts(0)' } },
-        { command: 'function', values: { name: 'f', parameters: 'a, b' } },
+        { command: 'function', values: { name: 'f', parameters: 'A, B' } },
         { command: 'end' },
         { command: 'repeat', values: { variable: 'i' } },
         { command: 'end' },
       ]),
     );
-    expect(Object.fromEntries(origins)).toEqual({ w: [0, 2], pts: [1, 3], '$Local.a': [4], '$Local.b': [4], i: [6] });
+    expect(Object.fromEntries(origins)).toEqual({ w: [0, 2], pts: [1, 3], '$Local.A': [4], '$Local.B': [4], i: [6] });
   });
 
   it.each([

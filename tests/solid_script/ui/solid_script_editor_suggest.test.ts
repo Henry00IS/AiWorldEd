@@ -210,7 +210,7 @@ describe('SolidScript editor suggestions and variables', () => {
 
   it('suggests a Function its own locals, and no locals outside it', () => {
     editorFixture([
-      { command: 'function', values: { name: 'lift', parameters: 'h' } },
+      { command: 'function', values: { name: 'lift', parameters: 'H' } },
       { command: 'return', values: { value: '1' } },
       { command: 'end' },
       { command: 'cube' },
@@ -227,8 +227,8 @@ describe('SolidScript editor suggestions and variables', () => {
       tool('Cancel').click();
       return names;
     };
-    expect(offered(1)).toContain('$Local.h');
-    expect(offered(3)).not.toContain('$Local.h');
+    expect(offered(1)).toContain('$Local.H');
+    expect(offered(3)).not.toContain('$Local.H');
   });
 
   it('explores variables: search, lists by index, every Set line, and Insert into the open field', () => {
