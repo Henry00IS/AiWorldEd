@@ -97,8 +97,8 @@ export interface SolidScriptInput {
   /** Hover text in the inspector, or empty for the default. */
   tooltip: string;
   /**
-   * True when the Default names a resource and holds its value as the
-   * inspector stores values, such as a path drawn in the scene.
+   * True when the Default names a resource and holds its value as the inspector
+   * stores values, such as a path drawn in the scene.
    */
   fromResource?: true;
 }

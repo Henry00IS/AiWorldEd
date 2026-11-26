@@ -50,7 +50,10 @@ export function modifierParametersRead(
  * @param parameters Stored parameters.
  * @returns Parameters with curve data.
  */
-export function modifierCurvesShown(kind: ModifierStackKind, parameters: Record<string, unknown>): Record<string, unknown> {
+export function modifierCurvesShown(
+  kind: ModifierStackKind,
+  parameters: Record<string, unknown>,
+): Record<string, unknown> {
   const shown = { ...parameters };
   for (const field of kind.fields.filter((candidate) => candidate.type === 'curve')) {
     const text = shown[field.key];
