@@ -139,14 +139,21 @@ function solidScriptInspectorWrite(
   solidScriptInspectorDetail(parts.detail, parts.messages.fail, document, run);
 }
 
+/** One Can Be Used As checkbox: its use, its visible label and its hover text. */
+const SOLID_SCRIPT_USE_CHOICES = [
+  ['generator', 'Can Be Used As Generator', 'Makes new geometry from nothing, in a generator node'],
+  ['modifier', 'Can Be Used As Modifier', 'Works on the object or group it is added to'],
+] as const;
+
 /**
- * Builds the Can Be Used As checkboxes. The use of this step stays on, and at
- * least one stays on, so a script is never stored where it may not run.
+ * Builds the Can Be Used As checkboxes as a vertical list. The use of this step
+ * stays on, and at least one stays on, so a script is never stored where it may
+ * not run.
  *
  * @param use How this step uses its script.
  * @param show Writes the status line.
  * @param commit Stores the script with new uses.
- * @returns Row and how to show a script's uses.
+ * @returns List and how to show a script's uses.
  */
 export function solidScriptInspectorUses(
   use: SolidScriptUse,
@@ -155,36 +162,16 @@ export function solidScriptInspectorUses(
 ): { element: HTMLElement; write: (document: SolidScriptDocument) => void } {
   const element = document.createElement('div');
   element.dataset['solidScriptUses'] = 'true';
-  Object.assign(element.style, { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' });
-  const caption = modifierStackUiText('span', 'Can Be Used As', true);
-  element.append(caption);
+  Object.assign(element.style, { display: 'grid', gap: '6px', justifyItems: 'start' });
   const boxes = new Map<SolidScriptUse, HTMLInputElement>();
   const read = (): { generator: boolean; modifier: boolean } => ({
     generator: boxes.get('generator')!.checked,
     modifier: boxes.get('modifier')!.checked,
   });
-  for (const [each, label, hint] of [
-    ['generator', 'Generator', 'Makes new geometry from nothing, in a generator node'],
-    ['modifier', 'Modifier', 'Works on the object or group it is added to'],
-  ] as const) {
-    const box = document.createElement('input');
-    box.type = 'checkbox';
-    box.setAttribute('aria-label', `Can Be Used As ${label}`);
-    box.dataset['solidScriptUse'] = each;
-    box.addEventListener('change', () => {
-      if (!box.checked && each === use) {
-        box.checked = true;
-        show(`This script is used as a ${use} here, so ${label} stays on.`);
-        return;
-      }
-      commit(read());
-    });
-    boxes.set(each, box);
-    const wrap = document.createElement('label');
-    wrap.title = hint;
-    Object.assign(wrap.style, { display: 'flex', gap: '4px', alignItems: 'center' });
-    wrap.append(box, label);
-    element.append(wrap);
+  for (const [each, label, hint] of SOLID_SCRIPT_USE_CHOICES) {
+    const row = solidScriptInspectorUseBox(each, label, hint, use, show, () => commit(read()));
+    boxes.set(each, row.box);
+    element.append(row.wrap);
   }
   const write = (script: SolidScriptDocument): void => {
     const uses = solidScriptDocumentUses(script);
@@ -192,6 +179,62 @@ export function solidScriptInspectorUses(
     boxes.get('modifier')!.checked = uses.modifier;
   };
   return { element, write };
+}
+
+/**
+ * Builds one Can Be Used As checkbox and its label.
+ *
+ * @param use The use this box turns on.
+ * @param label Visible label.
+ * @param hint Hover text.
+ * @param locked The use of this step, which stays on.
+ * @param show Writes the status line.
+ * @param commit Stores the script with the box changed.
+ * @returns Box and its label.
+ */
+function solidScriptInspectorUseBox(
+  use: SolidScriptUse,
+  label: string,
+  hint: string,
+  locked: SolidScriptUse,
+  show: (text: string) => void,
+  commit: () => void,
+): { box: HTMLInputElement; wrap: HTMLLabelElement } {
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  box.setAttribute('aria-label', label);
+  box.dataset['solidScriptUse'] = use;
+  box.addEventListener('change', () => solidScriptInspectorUseChange(box, use, locked, show, commit));
+  const wrap = document.createElement('label');
+  wrap.title = hint;
+  Object.assign(wrap.style, { display: 'flex', gap: '4px', alignItems: 'center' });
+  wrap.append(box, label);
+  return { box, wrap };
+}
+
+/**
+ * Keeps the use of this step on, or stores the new uses.
+ *
+ * @param box Checkbox that changed.
+ * @param use The use this box turns on.
+ * @param locked The use of this step, which stays on.
+ * @param show Writes the status line.
+ * @param commit Stores the script with the box changed.
+ */
+function solidScriptInspectorUseChange(
+  box: HTMLInputElement,
+  use: SolidScriptUse,
+  locked: SolidScriptUse,
+  show: (text: string) => void,
+  commit: () => void,
+): void {
+  if (box.checked || use !== locked) {
+    commit();
+    return;
+  }
+  box.checked = true;
+  const kept = use === 'generator' ? 'Generator' : 'Modifier';
+  show(`This script is used as a ${use} here, so ${kept} stays on.`);
 }
 
 /**

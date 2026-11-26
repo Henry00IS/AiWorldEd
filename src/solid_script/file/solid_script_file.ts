@@ -42,7 +42,7 @@ interface SolidScriptFileJson {
 export async function solidScriptFileEncode(document: SolidScriptDocument): Promise<Blob> {
   const json: SolidScriptFileJson = {
     format: SOLID_SCRIPT_FILE_FORMAT,
-    version: SOLID_SCRIPT_DOCUMENT_VERSION,
+    version: document.version,
     name: document.name,
     blocks: document.blocks,
     ...(document.uses ? { uses: document.uses } : {}),
@@ -71,7 +71,7 @@ export async function solidScriptFileDecode(file: Blob): Promise<SolidScriptDocu
   if (!entry) throw new Error(`The file has no ${SOLID_SCRIPT_FILE_ENTRY}.`);
   const json = JSON.parse(await (await zip.read(entry)).text()) as Partial<SolidScriptFileJson> | null;
   if (json?.format !== SOLID_SCRIPT_FILE_FORMAT) throw new Error('The file is no Solid Script.');
-  if (typeof json.version !== 'number' || json.version > SOLID_SCRIPT_DOCUMENT_VERSION)
+  if (typeof json.version === 'number' && json.version > SOLID_SCRIPT_DOCUMENT_VERSION)
     throw new Error('The script was saved by a newer version of the editor.');
   const { resources, ...script } = json;
   return solidScriptDocumentNormalize({ ...script, resources: await solidScriptFileResourcesRead(zip, resources) });

@@ -6,6 +6,8 @@ import {
   solidScriptDocumentCreate,
   solidScriptDocumentDefault,
   solidScriptDocumentNormalize,
+  solidScriptDocumentVersionRead,
+  solidScriptDocumentVersionWith,
 } from '@/solid_script/document/solid_script_document.js';
 import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import { solidScriptDocumentDepths } from '@/solid_script/document/solid_script_document_indent.js';
@@ -90,5 +92,18 @@ describe('solid script document', () => {
     expect(result.shapes.length).toBeGreaterThan(0);
     for (const shape of result.shapes) expect(shapeCenter(shape).length()).toBeCloseTo(0, 6);
     expect(script.blocks.every((block) => block.id !== solidScriptBlockCreate('cube').id)).toBe(true);
+  });
+
+  it('reads a missing or unknown script version as 1 and keeps version 1 through a save', () => {
+    expect(solidScriptDocumentVersionRead(undefined)).toBe(1);
+    expect(solidScriptDocumentNormalize({ blocks: [{ id: 'a1', command: 'cube', values: {} }] }).version).toBe(1);
+    expect(solidScriptDocumentNormalize({ version: 1, name: 'Door', blocks: [] }).version).toBe(
+      SOLID_SCRIPT_DOCUMENT_VERSION,
+    );
+    const created = solidScriptDocumentCreate([{ command: 'cube' }], 'Door');
+    expect(created.version).toBe(1);
+    const kept = solidScriptDocumentNormalize(JSON.parse(JSON.stringify(created)));
+    expect(kept.version).toBe(1);
+    expect(solidScriptDocumentVersionWith(created, 1).version).toBe(1);
   });
 });

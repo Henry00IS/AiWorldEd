@@ -49,6 +49,21 @@ describe('.aiscript files', () => {
     expect(decoded).toMatchObject({ name: 'A', blocks: [] });
   });
 
+  it('loads a script file with no version as version 1', async () => {
+    const script = JSON.stringify({
+      format: 'aiworlded.solidscript',
+      name: 'Legacy',
+      blocks: [],
+      resources: [],
+    });
+    const decoded = await solidScriptFileDecode(await zipOf({ 'script.json': script }));
+    expect(decoded.version).toBe(1);
+    expect(decoded.name).toBe('Legacy');
+    const again = await solidScriptFileDecode(await solidScriptFileEncode(decoded));
+    expect(again.version).toBe(1);
+    expect(again.name).toBe('Legacy');
+  });
+
   it('rejects files that are no script, scripts from a newer editor and broken zips', async () => {
     await expect(solidScriptFileDecode(await zipOf({ 'other.json': '{}' }))).rejects.toThrow(/script\.json/);
     await expect(

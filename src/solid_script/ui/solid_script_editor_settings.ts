@@ -1,8 +1,12 @@
 import { modifierStackUiText } from '@/modifier/stack/ui/modifier_stack_ui_style.js';
 import {
+  SOLID_SCRIPT_DOCUMENT_VERSION,
+  SOLID_SCRIPT_VERSION_LABEL,
   solidScriptDocumentAuthorWith,
   solidScriptDocumentEditModeWith,
   solidScriptDocumentUsesWith,
+  solidScriptDocumentVersionRead,
+  solidScriptDocumentVersionWith,
   type SolidScriptDocument,
   type SolidScriptUse,
 } from '@/solid_script/document/solid_script_document.js';
@@ -24,15 +28,16 @@ import {
 } from './solid_script_editor_debug_speed.js';
 
 /**
- * The Settings tab of the script editor: Can Be Used As, the same switches as
- * the inspector, Has Edit Mode, and who wrote the script, which are saved with
- * the script; then how the editor shows code and how fast Debug steps, which
- * are kept on this computer.
+ * The Settings tab of the script editor: the script version, Can Be Used As
+ * Generator, Can Be Used As Modifier, Has Edit Mode, and who wrote the script,
+ * which are saved with the script; then how the editor shows code and how fast
+ * Debug steps, which are kept on this computer.
  */
 export class SolidScriptEditorSettings {
   /** Tab content. */
   readonly element = document.createElement('div');
   private readonly author = document.createElement('input');
+  private readonly version: { element: HTMLElement; write: (document: SolidScriptDocument) => void };
   private readonly uses: { element: HTMLElement; write: (document: SolidScriptDocument) => void };
   private readonly editMode = solidScriptInspectorEditMode((on) =>
     this.change((script) => solidScriptDocumentEditModeWith(script, on)),
@@ -59,23 +64,17 @@ export class SolidScriptEditorSettings {
   ) {
     this.element.dataset['solidScriptSettings'] = 'true';
     Object.assign(this.element.style, { display: 'grid', gap: '8px', padding: '8px 12px', alignContent: 'start' });
+    this.version = solidScriptEditorSettingsVersion((version) =>
+      this.change((script) => solidScriptDocumentVersionWith(script, version)),
+    );
     this.uses = solidScriptInspectorUses(use, notice, (uses) =>
       this.change((script) => solidScriptDocumentUsesWith(script, uses)),
     );
-    const row = document.createElement('div');
-    row.title = 'Who wrote the script; saved with it';
-    Object.assign(row.style, { display: 'flex', gap: '8px', alignItems: 'center' });
-    this.author.type = 'text';
-    this.author.setAttribute('aria-label', 'Author');
-    this.author.placeholder = 'Name';
-    this.author.addEventListener('change', () =>
-      this.change((script) => solidScriptDocumentAuthorWith(script, this.author.value)),
-    );
-    row.append(modifierStackUiText('span', 'Author', true), this.author);
     this.element.append(
-      this.uses.element,
-      this.editMode.element,
-      row,
+      solidScriptEditorSettingsList(this.version.element, this.uses.element, this.editMode.element),
+      solidScriptEditorSettingsAuthor(this.author, () =>
+        this.change((script) => solidScriptDocumentAuthorWith(script, this.author.value)),
+      ),
       solidScriptEditorSettingsView(viewChanged, storage),
       solidScriptEditorSettingsDebug(speedChanged, storage),
     );
@@ -88,6 +87,7 @@ export class SolidScriptEditorSettings {
    */
   write(script: SolidScriptDocument): void {
     this.current = script;
+    this.version.write(script);
     this.uses.write(script);
     this.editMode.write(script);
     if (this.author.ownerDocument.activeElement !== this.author) this.author.value = script.author ?? '';
@@ -101,6 +101,79 @@ export class SolidScriptEditorSettings {
   private change(edit: (script: SolidScriptDocument) => SolidScriptDocument): void {
     if (this.current) this.commit(edit(this.current));
   }
+}
+
+/**
+ * Builds the vertical list of script settings: the version, then the Can Be
+ * Used As and Has Edit Mode checkboxes.
+ *
+ * @param items Version row, uses list and Has Edit Mode checkbox.
+ * @returns List.
+ */
+function solidScriptEditorSettingsList(...items: HTMLElement[]): HTMLElement {
+  const list = document.createElement('div');
+  list.dataset['solidScriptSettingsList'] = 'true';
+  Object.assign(list.style, { display: 'grid', gap: '6px', justifyItems: 'start' });
+  list.append(...items);
+  return list;
+}
+
+/**
+ * Builds the Version dropdown: Solid Script 1, bound to the script's stored
+ * version.
+ *
+ * @param commit Stores the script with the chosen version.
+ * @returns Row and how to show a script's version.
+ */
+function solidScriptEditorSettingsVersion(commit: (version: typeof SOLID_SCRIPT_DOCUMENT_VERSION) => void): {
+  element: HTMLElement;
+  write: (document: SolidScriptDocument) => void;
+} {
+  const row = document.createElement('label');
+  row.title = 'Which Solid Script language this script uses. Later versions may read some lines differently.';
+  Object.assign(row.style, { display: 'flex', gap: '8px', alignItems: 'center' });
+  const select = solidScriptEditorSettingsVersionSelect(commit);
+  row.append(modifierStackUiText('span', 'Version', true), select);
+  return { element: row, write: (script) => void (select.value = String(script.version)) };
+}
+
+/**
+ * Builds the Version menu with Solid Script 1 as its only option.
+ *
+ * @param commit Stores the script with the chosen version.
+ * @returns Menu.
+ */
+function solidScriptEditorSettingsVersionSelect(
+  commit: (version: typeof SOLID_SCRIPT_DOCUMENT_VERSION) => void,
+): HTMLSelectElement {
+  const select = document.createElement('select');
+  select.setAttribute('aria-label', 'Version');
+  const option = document.createElement('option');
+  option.value = String(SOLID_SCRIPT_DOCUMENT_VERSION);
+  option.textContent = SOLID_SCRIPT_VERSION_LABEL[SOLID_SCRIPT_DOCUMENT_VERSION];
+  select.append(option);
+  select.value = String(SOLID_SCRIPT_DOCUMENT_VERSION);
+  select.addEventListener('change', () => commit(solidScriptDocumentVersionRead(Number(select.value))));
+  return select;
+}
+
+/**
+ * Builds the Author field, saved with the script.
+ *
+ * @param author Text field.
+ * @param commit Stores the script with the typed name.
+ * @returns Row.
+ */
+function solidScriptEditorSettingsAuthor(author: HTMLInputElement, commit: () => void): HTMLElement {
+  const row = document.createElement('div');
+  row.title = 'Who wrote the script; saved with it';
+  Object.assign(row.style, { display: 'flex', gap: '8px', alignItems: 'center' });
+  author.type = 'text';
+  author.setAttribute('aria-label', 'Author');
+  author.placeholder = 'Name';
+  author.addEventListener('change', commit);
+  row.append(modifierStackUiText('span', 'Author', true), author);
+  return row;
 }
 
 /**

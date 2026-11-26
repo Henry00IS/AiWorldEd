@@ -8,8 +8,13 @@ import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_sc
 
 import { SOLID_SCRIPT_WIDGET_COMMAND_PREFIX } from '@/solid_script/language/solid_script_widget.js';
 
-/** Version of the stored script format. */
+/** Version of the stored script format, shown as Solid Script 1 in Settings. */
 export const SOLID_SCRIPT_DOCUMENT_VERSION = 1;
+
+/** User-facing name of each stored script version. */
+export const SOLID_SCRIPT_VERSION_LABEL: Record<typeof SOLID_SCRIPT_DOCUMENT_VERSION, string> = {
+  1: 'Solid Script 1',
+};
 
 /** Name of a script that has none yet. */
 export const SOLID_SCRIPT_DOCUMENT_NAME_DEFAULT = 'Script';
@@ -45,7 +50,7 @@ export const SOLID_SCRIPT_USES_DEFAULT: Readonly<SolidScriptUses> = { generator:
 
 /** A script: its name and its lines in order. */
 export interface SolidScriptDocument {
-  /** Format version. */
+  /** Stored script version, shown as Solid Script 1 in Settings. */
   version: typeof SOLID_SCRIPT_DOCUMENT_VERSION;
   /** Script name, shown in the inspector and used for its file. */
   name: string;
@@ -123,6 +128,30 @@ export function solidScriptDocumentCreate(lines: readonly SolidScriptLine[], nam
 }
 
 /**
+ * Reads a stored script version. A missing or unknown value is version 1.
+ *
+ * @param input Stored value.
+ * @returns Version.
+ */
+export function solidScriptDocumentVersionRead(input: unknown): typeof SOLID_SCRIPT_DOCUMENT_VERSION {
+  return input === 1 ? 1 : SOLID_SCRIPT_DOCUMENT_VERSION;
+}
+
+/**
+ * Returns a copy of a script with another version.
+ *
+ * @param document Script.
+ * @param version Version to store.
+ * @returns Script.
+ */
+export function solidScriptDocumentVersionWith(
+  document: SolidScriptDocument,
+  version: typeof SOLID_SCRIPT_DOCUMENT_VERSION,
+): SolidScriptDocument {
+  return { ...document, version };
+}
+
+/**
  * Returns the script a new generator starts with: a ball cut out of a cube,
  * both centered in the generator.
  *
@@ -157,7 +186,7 @@ export function solidScriptDocumentNormalize(input: unknown): SolidScriptDocumen
     return [block];
   });
   const name = typeof record['name'] === 'string' ? record['name'] : '';
-  const document: SolidScriptDocument = { version: SOLID_SCRIPT_DOCUMENT_VERSION, name, blocks };
+  const document: SolidScriptDocument = { version: solidScriptDocumentVersionRead(record['version']), name, blocks };
   const author = typeof record['author'] === 'string' ? record['author'] : '';
   const used = solidScriptDocumentUsesWith(document, solidScriptUsesNormalize(record['uses']));
   const edited = solidScriptDocumentEditModeWith(
