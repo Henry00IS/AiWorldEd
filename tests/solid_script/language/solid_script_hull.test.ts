@@ -92,7 +92,7 @@ describe('SolidScript Hull', () => {
   it('wraps scatter points on a whole cube, together with the cube or instead of it', () => {
     const result = run(
       line('cube', { size: '2, 2, 2', into: 'Box' }),
-      line('scatter_points', { count: '16', seed: '3', of: '[Box]', into: 'Spots' }),
+      line('scatter_on_faces', { count: '16', seed: '3', of: '[Box]', into: 'Spots' }),
       line('hull', { points: '[Spots]', into: 'Rock' }),
       END,
       line('echo', { value: '[Rock.Size.x] [Spots.Count]' }),

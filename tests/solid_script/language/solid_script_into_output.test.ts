@@ -242,7 +242,7 @@ const SCRIPT_ONLY = [
 function listScript(command: SolidScriptCommand): SolidScriptLine[] | null {
   if (SCRIPT_ONLY.includes(command.id)) return [intoLine(command)];
   if (
-    command.id === 'scatter_points' ||
+    command.id.startsWith('scatter_') ||
     command.id.startsWith('points_from_') ||
     command.id.startsWith('path_from_') ||
     ['find_closest', 'raycast', 'find_at_uv'].includes(command.id) ||

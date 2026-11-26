@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
-import { SOLID_SCRIPT_COMMAND_SCATTER } from '@/solid_script/commands/solid_script_commands_scatter.js';
+import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 
 const END: SolidScriptLine = { command: 'end' };
 
@@ -10,7 +9,8 @@ const END: SolidScriptLine = { command: 'end' };
  * Scatters on a cube and gives the points, or the error.
  *
  * @param size Cube size.
- * @param values Scatter fields.
+ * @param values Scatter fields, with `command` naming a scatter block other
+ *   than Scatter On Faces.
  * @param which Faces to pick first.
  * @returns Points, or the error message.
  */
@@ -20,7 +20,7 @@ function scatter(size: string, values: Record<string, string>, which = 'Facing U
       { command: 'cube', values: { size, anchor: 'Center, Center, Center' } },
       { command: 'select_objects' },
       { command: 'select_faces', values: { which } },
-      { command: 'scatter_points', values: { into: 'Spots', ...values } },
+      { command: values['command'] ?? 'scatter_on_faces', values: { into: 'Spots', ...values } },
       { command: 'for_each', values: { variable: 'Spot', list: '[Spots]' } },
       { command: 'echo', values: { value: '[Spot]' } },
       END,
@@ -44,7 +44,7 @@ function count(size: string, values: Record<string, string>, which?: string): nu
   return points.length;
 }
 
-describe('Scatter Points By Density', () => {
+describe('Scatter By Density', () => {
   it('gives points per square metre, so a bigger face gets more', () => {
     expect(count('2, 2, 2', { by: 'Density', density: '10' })).toBeGreaterThanOrEqual(38);
     expect(count('2, 2, 2', { by: 'Density', density: '10' })).toBeLessThanOrEqual(42);
@@ -62,7 +62,7 @@ describe('Scatter Points By Density', () => {
   });
 
   it('fills a volume by points per cubic metre Inside', () => {
-    expect(count('2, 2, 2', { on: 'Inside', by: 'Density', density: '5' }, 'All')).toBe(40);
+    expect(count('2, 2, 2', { command: 'scatter_inside', by: 'Density', density: '5' }, 'All')).toBe(40);
   });
 
   it('keeps every point of a lower Density when Density goes up, each triangle drawing from its own stream', () => {
@@ -80,7 +80,7 @@ describe('Scatter Points By Density', () => {
   });
 });
 
-describe('Scatter Points Spacing', () => {
+describe('Scatter Spacing', () => {
   it('keeps points at least Spacing apart and gives as many as fit', () => {
     const points = scatter('2, 2, 2', { count: '500', spacing: '0.5' });
     if (typeof points === 'string') throw new Error(points);
@@ -101,17 +101,16 @@ describe('Scatter Points Spacing', () => {
   });
 });
 
-describe('Scatter Points fields', () => {
-  it('shows Count or Density by By, and hides both on a Grid', () => {
-    const shown = (values: Record<string, string>): string[] =>
-      SOLID_SCRIPT_COMMAND_SCATTER.parameters
-        .filter((parameter) => solidScriptParameterApplies(parameter, values, SOLID_SCRIPT_COMMAND_SCATTER.parameters))
-        .map((parameter) => parameter.key);
-    expect(shown({})).toEqual(expect.arrayContaining(['count', 'by', 'spacing']));
-    expect(shown({})).not.toContain('density');
-    expect(shown({ by: 'Density' })).toContain('density');
-    expect(shown({ by: 'Density' })).not.toContain('count');
-    expect(shown({ on: 'Grid', by: 'Density' })).not.toContain('density');
-    expect(shown({ on: 'Grid' })).not.toContain('count');
+describe('Scatter block fields', () => {
+  it('keeps Count and Density both on the random scatters, and neither on a grid', () => {
+    const keys = (id: string): string[] =>
+      solidScriptCommandFind(id)?.parameters.map((parameter) => parameter.key) ?? [];
+    for (const id of ['scatter_on_faces', 'scatter_inside', 'scatter_in_box'])
+      expect(keys(id)).toEqual(expect.arrayContaining(['by', 'count', 'density', 'spacing', 'seed', 'keep']));
+    expect(keys('scatter_in_grid')).toEqual(expect.arrayContaining(['size', 'counts', 'seed', 'keep']));
+    expect(keys('scatter_in_grid')).not.toEqual(expect.arrayContaining(['count']));
+    expect(keys('scatter_in_grid')).not.toContain('density');
+    expect(keys('scatter_in_box')).not.toContain('of');
+    expect(keys('scatter_on_faces')).toEqual(expect.arrayContaining(['where', 'of', 'normals', 'rotations']));
   });
 });

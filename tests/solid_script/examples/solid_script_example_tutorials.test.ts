@@ -34,7 +34,7 @@ const COVERAGE: Readonly<Record<string, string>> = {
   'Which Between': 'taperedBox',
   'Select Faces': 'taperedBox',
   'Which Facing Up': 'taperedBox',
-  'Scatter Points': 'irregularRock',
+  'Scatter In Box': 'irregularRock',
   'Into (a list)': 'irregularRock',
   Hull: 'irregularRock',
   'Set (variables)': 'steppingStones',

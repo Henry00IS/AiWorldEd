@@ -25,7 +25,7 @@ import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_m
 import { solidScriptPlaceAtMatrix, solidScriptPlaceMatrices } from '@/solid_script/language/solid_script_place.js';
 import { solidScriptFaceGroups, solidScriptFaceTargets, solidScriptFaceWrite } from './solid_script_face_of.js';
 import { solidScriptScaleFaces } from '@/solid_script/language/solid_script_scale_faces.js';
-import { SOLID_SCRIPT_COMMAND_SCATTER } from './solid_script_commands_scatter.js';
+import { SOLID_SCRIPT_COMMANDS_SCATTER } from './solid_script_commands_scatter.js';
 import {
   solidScriptGeometryFaces,
   solidScriptGeometryInset,
@@ -342,7 +342,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       return [];
     },
   }),
-  SOLID_SCRIPT_COMMAND_SCATTER,
+  ...SOLID_SCRIPT_COMMANDS_SCATTER,
   new SolidScriptCommand({
     id: 'place_on_face',
     builtKind: 'Object',
@@ -394,7 +394,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     builds: true,
     intoList: true,
     manual:
-      'Builds the objects between this line and its End at each point in At, a list of vectors such as the points Scatter Points writes. Directions, when given, turns up (Y) along one direction for all points, or along the matching entry of a list with one per point; leave it empty to keep world up. Forward, when given, also turns the front (Z) of each copy toward it, as far as it can while up stays, so a fence post stands up and faces along a path. Lift moves them out along that up. Align To Normal stands each copy the way Place On Face would, with Directions as the face normal. Directions, Forward, Lift, Align To Normal, Rotation and Scale can each change per point: [$Point] is the point, with its Position and Normal (the direction, or world up), [$Index] its number from 0, [$Count] how many points there are, and [$X], [$Y] and [$Z] its position; for example Lift [=[$Index] * 0.1] stacks the copies like stairs. Build One Line builds only one of the lines inside at each point, the one Choice picks (from 0, wrapping, so -1 is the last; lines that only set values do not count), to scatter variants such as three kinds of rock. Where is a 🔁 condition a point must pass before a copy is built; skipped points keep their place in the index and count, and all other fields still use the original index. Into is always a list of the objects it built, even when there is only one. Example: Scatter Points 20 Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs], Sphere, End, puts a ball on every point, standing on the face.',
+      'Builds the objects between this line and its End at each point in At, a list of vectors such as the points Scatter On Faces writes. Directions, when given, turns up (Y) along one direction for all points, or along the matching entry of a list with one per point; leave it empty to keep world up. Forward, when given, also turns the front (Z) of each copy toward it, as far as it can while up stays, so a fence post stands up and faces along a path. Lift moves them out along that up. Align To Normal stands each copy the way Place On Face would, with Directions as the face normal. Directions, Forward, Lift, Align To Normal, Rotation and Scale can each change per point: [$Point] is the point, with its Position and Normal (the direction, or world up), [$Index] its number from 0, [$Count] how many points there are, and [$X], [$Y] and [$Z] its position; for example Lift [=[$Index] * 0.1] stacks the copies like stairs. Build One Line builds only one of the lines inside at each point, the one Choice picks (from 0, wrapping, so -1 is the last; lines that only set values do not count), to scatter variants such as three kinds of rock. Where is a 🔁 condition a point must pass before a copy is built; skipped points keep their place in the index and count, and all other fields still use the original index. Into is always a list of the objects it built, even when there is only one. Example: Scatter Points 20 Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs], Sphere, End, puts a ball on every point, standing on the face.',
     stops: [
       'A point or direction that is not x, y or x, y, z.',
       'A Directions or Forward list with more than one entry whose length is not the number of points in At.',
@@ -417,14 +417,14 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'At',
         'points3',
         '0, 0, 0',
-        'Points to stand on, a list of vectors such as [Spots] from Scatter Points, or 0, 0, 0 for one point at the origin.',
+        'Points to stand on, a list of vectors such as [Spots] from Scatter On Faces, or 0, 0, 0 for one point at the origin.',
       ),
       solidScriptParameterEach(
         solidScriptParameterOptional(
           'directions',
           'Directions',
           'points3',
-          'Optional: the way up (Y) points, one direction for all points such as 1, 0, 0, one per point such as [Dirs] from Scatter Points Normals, or [=Vector(0, 1, [$X] * 0.1)]. Empty keeps world up.',
+          'Optional: the way up (Y) points, one direction for all points such as 1, 0, 0, one per point such as [Dirs] from Scatter On Faces Normals, or [=Vector(0, 1, [$X] * 0.1)]. Empty keeps world up.',
         ),
         'Point',
       ),

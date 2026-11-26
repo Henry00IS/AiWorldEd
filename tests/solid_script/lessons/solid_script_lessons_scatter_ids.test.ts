@@ -13,7 +13,7 @@ function scatter(count: number): { ids: string; points: string; error: string | 
     solidScriptDocumentCreate([
       { command: 'cube', values: { size: '4', label: 'C' } },
       { command: 'select_faces', values: { which: 'Facing Up', of: 'C' } },
-      { command: 'scatter_points', values: { count: String(count), into: 'P', ids: 'I' } },
+      { command: 'scatter_on_faces', values: { count: String(count), into: 'P', ids: 'I' } },
       { command: 'echo', values: { value: '[I]' } },
       { command: 'echo', values: { value: '[P]' } },
     ]),
@@ -21,7 +21,7 @@ function scatter(count: number): { ids: string; points: string; error: string | 
   return { ids: result.messages[0] ?? '', points: result.messages[1] ?? '', error: result.error?.message };
 }
 
-describe('Scatter Points Ids', () => {
+describe('Scatter Ids', () => {
   it('gives each point its own steady id that stays when more points come', () => {
     const few = scatter(4);
     const more = scatter(8);

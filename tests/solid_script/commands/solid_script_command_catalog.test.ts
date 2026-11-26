@@ -148,7 +148,11 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
     ];
   if (SOLID_SCRIPT_SAMPLE_PICKED.includes(command.category) || command.id.startsWith('path_from_')) {
     if (command.id === 'select_objects') return [{ command: 'cube' }, line];
-    const pick: SolidScriptLine[] = [{ command: 'cube' }, { command: 'select_objects' }, { command: 'select_faces' }];
+    const faces: SolidScriptLine = {
+      command: 'select_faces',
+      values: command.id === 'scatter_inside' ? { which: 'All' } : {},
+    };
+    const pick: SolidScriptLine[] = [{ command: 'cube' }, { command: 'select_objects' }, faces];
     if (command.id === 'select_faces') return [{ command: 'cube' }, { command: 'select_objects' }, line];
     return [...pick, ...started, ...(command.nesting === 'open' ? [{ command: 'end' }] : [])];
   }

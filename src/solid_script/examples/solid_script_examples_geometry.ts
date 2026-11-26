@@ -10,17 +10,16 @@ import {
   solidScriptExampleSet,
 } from './solid_script_example_lines.js';
 
-/** An irregular convex rock: Scatter Points in a box, then Hull around them. */
+/** An irregular convex rock: Scatter In Box, then Hull around the points. */
 export const SOLID_SCRIPT_EXAMPLE_IRREGULAR_ROCK: readonly SolidScriptLine[] = [
   ...solidScriptExampleNote(
-    'Scatter Points drops random points. On In Box fills a box of this Size and Height. Count is how many points, and Seed picks the layout: the same Seed is the same rock. Into writes the points to [Spots], a list you can use later.',
+    'Scatter In Box drops random points in a box of this Size and Height. Count is how many points, and Seed picks the layout: the same Seed is the same rock. Into writes the points to [Spots], a list you can use later.',
   ),
   solidScriptExampleInput('Size', 'Number', '2', { min: '0.5', max: '20', label: 'Size' }),
   solidScriptExampleInput('Height', 'Number', '1.2', { min: '0.2', max: '20', label: 'Height' }),
   solidScriptExampleInput('Count', 'Count', '16', { min: '4', max: '64', label: 'Points' }),
   solidScriptExampleInput('Seed', 'Number', '4', { label: 'Seed' }),
-  solidScriptExampleLine('scatter_points', {
-    on: 'In Box',
+  solidScriptExampleLine('scatter_in_box', {
     count: '[Count]',
     seed: '[Seed]',
     size: '[Size], [Height], [Size]',

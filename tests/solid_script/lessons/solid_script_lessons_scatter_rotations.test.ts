@@ -12,13 +12,13 @@ function numbers(text = ''): number[] {
   return text.replace(/[[\]]/g, '').split(',').map(Number);
 }
 
-describe('Scatter Points Rotations', () => {
+describe('Scatter On Faces Rotations', () => {
   it('writes per point the turn that stands up along the face under it', () => {
     const result = solidScriptProgramRun(
       solidScriptDocumentCreate([
         { command: 'cube', values: { size: '1', label: 'C' } },
         { command: 'select_faces', values: { which: 'Facing Right', of: 'C' } },
-        { command: 'scatter_points', values: { count: '3', into: 'P', normals: 'N', rotations: 'R' } },
+        { command: 'scatter_on_faces', values: { count: '3', into: 'P', normals: 'N', rotations: 'R' } },
         { command: 'echo', values: { value: '[R.Count]' } },
         {
           command: 'echo',

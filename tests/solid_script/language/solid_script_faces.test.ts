@@ -410,7 +410,7 @@ describe('SolidScript faces', () => {
         CUBE,
         SELECT_BRUSHES,
         select('Facing Up'),
-        { command: 'scatter_points', values: { count: '20', seed, into: 'Spots', normals: 'Ways' } },
+        { command: 'scatter_on_faces', values: { count: '20', seed, into: 'Spots', normals: 'Ways' } },
         { command: 'for_each', values: { variable: 'Spot', list: '[Spots]', key: 'I' } },
         { command: 'echo', values: { value: '[I] [Spot] [Ways([I])]' } },
         END,
@@ -434,7 +434,7 @@ describe('SolidScript faces', () => {
       { command: 'cube', values: { size: '4, 1, 1', anchor: 'Center, Center, Center' } },
       SELECT_BRUSHES,
       select('All'),
-      { command: 'scatter_points', values: { count: '600', seed: '1', into: 'Spots', normals: 'Ways' } },
+      { command: 'scatter_on_faces', values: { count: '600', seed: '1', into: 'Spots', normals: 'Ways' } },
       { command: 'for_each', values: { variable: 'Way', list: '[Ways]' } },
       { command: 'echo', values: { value: '[=Abs([Way.x])]' } },
       END,
@@ -442,12 +442,12 @@ describe('SolidScript faces', () => {
     expect(counts.error).toBeNull();
     const ends = counts.messages.filter((x) => x === '1').length;
     expect(counts.messages.length - ends).toBeGreaterThan(ends * 2.5 * 4 * 0.5);
-    expect(run(CUBE, { command: 'scatter_points', values: { count: '3', into: 'P' } }).error?.message).toMatch(
+    expect(run(CUBE, { command: 'scatter_on_faces', values: { count: '3', into: 'P' } }).error?.message).toMatch(
       /Select Faces/,
     );
     expect(
-      run(CUBE, SELECT_BRUSHES, select('All'), { command: 'scatter_points', values: { count: '-1', into: 'P' } }).error
-        ?.message,
+      run(CUBE, SELECT_BRUSHES, select('All'), { command: 'scatter_on_faces', values: { count: '-1', into: 'P' } })
+        .error?.message,
     ).toMatch(/Count/);
   });
 

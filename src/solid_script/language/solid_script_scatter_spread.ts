@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 import type { SolidScriptFaceFacts } from './solid_script_geometry.js';
 
-/** Most points one Scatter Points line may give. */
+/** Most points one scatter line may give. */
 export const SOLID_SCRIPT_SCATTER_MOST = 10000;
 
 /** Tries per wanted point before Spacing gives up on fitting more. */
 const SOLID_SCRIPT_SCATTER_TRIES = 30;
 
-/** One point Scatter Points gives, on its face. */
+/** One point Scatter On Faces gives, on its face. */
 export interface SolidScriptScatterPoint {
   position: THREE.Vector3;
   face: SolidScriptFaceFacts;
@@ -113,7 +113,7 @@ function solidScriptScatterPick(
     else high = middle;
   }
   const triangle = triangles[low] ?? triangles[0];
-  if (!triangle) throw new Error('Scatter Points found no faces with any area');
+  if (!triangle) throw new Error('Scatter On Faces found no faces with any area');
   return triangle;
 }
 

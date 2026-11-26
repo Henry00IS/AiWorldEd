@@ -119,9 +119,9 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
       '[=HitsBox([$Face], Vector(0, 0.2, 0), Vector(4, 0.3, 4), "Fully Inside") and InBox([$Face.Center], Vector(0, 0.2, 0), 1)]',
   }),
   ...solidScriptExampleNote(
-    'Scatter Points now drops points on the selected faces, more where a face is bigger. Into writes them to [Spots].',
+    'Scatter On Faces now drops points on the selected faces, more where a face is bigger. Into writes them to [Spots].',
   ),
-  solidScriptExampleLine('scatter_points', { count: '[Pebbles]', seed: '3', into: 'Spots' }),
+  solidScriptExampleLine('scatter_on_faces', { count: '[Pebbles]', seed: '3', into: 'Spots' }),
   ...solidScriptExampleNote(
     'Filter List keeps the items of a list that pass Where. [Index] is 0 for the first spot, then 1, and so on. This keeps every spot. Into writes them to [Kept].',
   ),
@@ -148,7 +148,7 @@ export const SOLID_SCRIPT_EXAMPLE_SPIKY_BALL: readonly SolidScriptLine[] = [
   ...solidScriptExampleNote('Every face of the ball is selected, so spikes can grow all around it.'),
   solidScriptExampleLine('select_faces', { which: 'All' }),
   ...solidScriptExampleNote("Scatter's Normals writes the face direction at each spot into [Ways]."),
-  solidScriptExampleLine('scatter_points', { count: '[Spikes]', seed: '5', into: 'Spots', normals: 'Ways' }),
+  solidScriptExampleLine('scatter_on_faces', { count: '[Spikes]', seed: '5', into: 'Spots', normals: 'Ways' }),
   ...solidScriptExampleBlock('for_each', { variable: 'Spot', list: '[Spots]', key: 'I' }, [
     ...solidScriptExampleBlock('transform', { move: '[Spot]' }, [
       ...solidScriptExampleNote(

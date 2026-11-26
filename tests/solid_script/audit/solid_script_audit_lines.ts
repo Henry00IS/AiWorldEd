@@ -109,7 +109,8 @@ const SOLID_SCRIPT_AUDIT_PLACES: Readonly<Record<string, (self: SolidScriptLine)
 
 /** Commands that work on faces or edges, which the prelude's faces feed. */
 const SOLID_SCRIPT_AUDIT_FACES = new Set([
-  'scatter_points',
+  'scatter_on_faces',
+  'scatter_inside',
   'place_on_face',
   'points_from_faces',
   'points_from_edges',

@@ -48,15 +48,17 @@ function pointsOf(messages: readonly string[]): [number, number, number][] {
 /**
  * Echoes each scattered point after optional setup lines.
  *
- * @param extra Scatter fields.
+ * @param extra Scatter fields, with `command` naming a scatter block other than
+ *   Scatter On Faces.
  * @param setup Lines to run first, such as a Cube and Select Faces.
  * @returns Points.
  */
 function scatter(extra: Record<string, string>, setup: SolidScriptLine[] = []): [number, number, number][] {
+  const { command = 'scatter_on_faces', ...values } = extra;
   return pointsOf(
     printed(
       ...setup,
-      { command: 'scatter_points', values: { into: 'Spots', ...extra } },
+      { command, values: { into: 'Spots', ...values } },
       { command: 'for_each', values: { variable: 'Spot', list: '[Spots]' } },
       { command: 'echo', values: { value: '[Spot]' } },
       END,
@@ -67,15 +69,17 @@ function scatter(extra: Record<string, string>, setup: SolidScriptLine[] = []): 
 /**
  * Echoes scattered points inside a Transform block.
  *
- * @param extra Scatter fields.
+ * @param extra Scatter fields, with `command` naming a scatter block other than
+ *   Scatter On Faces.
  * @param move Metres to translate by, as text.
  * @returns Points.
  */
 function scatterMoved(extra: Record<string, string>, move: string): [number, number, number][] {
+  const { command = 'scatter_on_faces', ...values } = extra;
   return pointsOf(
     printed(
       { command: 'transform', values: { move: move } },
-      { command: 'scatter_points', values: { into: 'Spots', ...extra } },
+      { command, values: { into: 'Spots', ...values } },
       { command: 'for_each', values: { variable: 'Spot', list: '[Spots]' } },
       { command: 'echo', values: { value: '[Spot]' } },
       END,
@@ -84,11 +88,11 @@ function scatterMoved(extra: Record<string, string>, move: string): [number, num
   );
 }
 
-describe('SolidScript Scatter Points On', () => {
+describe('Solid Script scatter blocks', () => {
   it('keeps the Faces listing and points when Where is left at its default', () => {
     const values = { count: '4', seed: '7', into: 'Spots', normals: 'Ways' };
-    const withWhere = { command: 'scatter_points', values: { on: 'On Faces', ...values } };
-    const without = { command: 'scatter_points', values };
+    const withWhere = { command: 'scatter_on_faces', values: { ...values, where: '' } };
+    const without = { command: 'scatter_on_faces', values };
     const script = (line: SolidScriptLine): SolidScriptLine[] => [
       CUBE,
       { command: 'select_objects' },
@@ -107,7 +111,7 @@ describe('SolidScript Scatter Points On', () => {
   });
 
   it('fills a brush or a mesh, staying inside, and keeps the same seed', () => {
-    const insideBrush = scatter({ on: 'Inside', count: '40', seed: '3' }, [
+    const insideBrush = scatter({ command: 'scatter_inside', count: '40', seed: '3' }, [
       CUBE,
       { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
@@ -119,13 +123,13 @@ describe('SolidScript Scatter Points On', () => {
       expect(Math.abs(z)).toBeLessThanOrEqual(1.0001);
     }
     expect(
-      scatter({ on: 'Inside', count: '40', seed: '3' }, [
+      scatter({ command: 'scatter_inside', count: '40', seed: '3' }, [
         CUBE,
         { command: 'select_objects' },
         { command: 'select_faces', values: { which: 'All' } },
       ]),
     ).toEqual(insideBrush);
-    const insideMesh = scatter({ on: 'Inside', count: '20', seed: '3' }, [
+    const insideMesh = scatter({ command: 'scatter_inside', count: '20', seed: '3' }, [
       { command: 'mesh_from_solids' },
       CUBE,
       END,
@@ -141,26 +145,30 @@ describe('SolidScript Scatter Points On', () => {
   });
 
   it('fills a box of Size, follows a Transform, and lays a grid', () => {
-    const box = scatter({ on: 'In Box', count: '30', seed: '2', size: '2, 2, 2' });
+    const box = scatter({ command: 'scatter_in_box', count: '30', seed: '2', size: '2, 2, 2' });
     expect(box).toHaveLength(30);
     for (const [x, y, z] of box) {
       expect(Math.abs(x)).toBeLessThanOrEqual(1.0001);
       expect(Math.abs(y)).toBeLessThanOrEqual(1.0001);
       expect(Math.abs(z)).toBeLessThanOrEqual(1.0001);
     }
-    expect(scatter({ on: 'In Box', count: '30', seed: '2', size: '2, 2, 2' })).toEqual(box);
-    expect(scatterMoved({ on: 'In Box', count: '1', seed: '0', size: '0, 0, 0' }, '4, 1, 0')).toEqual([[4, 1, 0]]);
-    expect(scatter({ on: 'Grid', counts: '2, 1, 1', size: '2, 2, 2' })).toEqual([
+    expect(scatter({ command: 'scatter_in_box', count: '30', seed: '2', size: '2, 2, 2' })).toEqual(box);
+    expect(scatterMoved({ command: 'scatter_in_box', count: '1', seed: '0', size: '0, 0, 0' }, '4, 1, 0')).toEqual([
+      [4, 1, 0],
+    ]);
+    expect(scatter({ command: 'scatter_in_grid', counts: '2, 1, 1', size: '2, 2, 2' })).toEqual([
       [-1, 0, 0],
       [1, 0, 0],
     ]);
-    expect(scatterMoved({ on: 'Grid', counts: '1, 1, 1', size: '2, 2, 2' }, '0, 3, 0')).toEqual([[0, 3, 0]]);
+    expect(scatterMoved({ command: 'scatter_in_grid', counts: '1, 1, 1', size: '2, 2, 2' }, '0, 3, 0')).toEqual([
+      [0, 3, 0],
+    ]);
   });
 
   it('stops when Counts would make too many points', () => {
-    expect(
-      run({ command: 'scatter_points', values: { on: 'Grid', counts: '25, 25, 25', into: 'P' } }).error?.text,
-    ).toMatch(/Line \d+: Counts needs three whole numbers from 1 to 100, and at most 10000 points in all/);
+    expect(run({ command: 'scatter_in_grid', values: { counts: '25, 25, 25', into: 'P' } }).error?.text).toMatch(
+      /Line \d+: Counts needs three whole numbers from 1 to 100, and at most 10000 points in all/,
+    );
   });
 
   it('spreads points over the outside of a Rotate Extrude ring, not the faces where its brushes meet', () => {
@@ -169,7 +177,7 @@ describe('SolidScript Scatter Points On', () => {
       { command: 'circle', values: { r: '2', label: 'Boing' } },
       { command: 'move_by', values: { by: '8, 0, 0', of: 'Boing' } },
       END,
-      { command: 'scatter_points', values: { count: '200', of: 'Boing', into: 'Spots', normals: 'Ways' } },
+      { command: 'scatter_on_faces', values: { count: '200', of: 'Boing', into: 'Spots', normals: 'Ways' } },
       { command: 'for_each', values: { variable: 'Spot', list: '[Spots]' } },
       { command: 'echo', values: { value: '[Spot]' } },
       END,

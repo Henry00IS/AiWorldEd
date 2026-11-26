@@ -46,7 +46,7 @@ function spheresThenSelect(count: number, tail: readonly SolidScriptLine[] = [])
 }
 
 /**
- * Several spheres, then Select Faces All, then a cheap Scatter Points line.
+ * Several spheres, then Select Faces All, then a cheap Scatter On Faces line.
  *
  * @param count How many spheres.
  * @returns Script lines.
@@ -54,7 +54,7 @@ function spheresThenSelect(count: number, tail: readonly SolidScriptLine[] = [])
 function spheresThenScatter(count: number): SolidScriptLine[] {
   return spheresThenSelect(count, [
     { command: 'select_objects' },
-    { command: 'scatter_points', values: { on: 'On Faces', count: '10', seed: '0', into: 'Points' } },
+    { command: 'scatter_on_faces', values: { count: '10', seed: '0', into: 'Points' } },
   ]);
 }
 
@@ -117,8 +117,8 @@ function profileText(lines: readonly SolidScriptLine[], result: ReturnType<typeo
 
 /** A cheap last line used on the heavy scene. */
 const SCATTER: SolidScriptLine = {
-  command: 'scatter_points',
-  values: { on: 'On Faces', count: '10', seed: '0', into: 'Points' },
+  command: 'scatter_on_faces',
+  values: { count: '10', seed: '0', into: 'Points' },
 };
 
 /** Project UVs Mode Box, the other last line Henry compared. */
@@ -143,13 +143,13 @@ describe('SolidScript line cost on a heavy scene', () => {
       profileText(base, baseRun),
       `with Project UVs ${projectMs.toFixed(3)} ms (extra ${(projectMs - baseMs).toFixed(3)} ms, line ${lineMs(projectRun, 8).toFixed(3)} ms)`,
       profileText(withProject, projectRun),
-      `with Scatter Points ${scatterMs.toFixed(3)} ms (extra ${(scatterMs - baseMs).toFixed(3)} ms, line ${lineMs(scatterRun, 8).toFixed(3)} ms)`,
+      `with Scatter On Faces ${scatterMs.toFixed(3)} ms (extra ${(scatterMs - baseMs).toFixed(3)} ms, line ${lineMs(scatterRun, 8).toFixed(3)} ms)`,
       profileText(withScatter, scatterRun),
     ].join('\n');
     writeFileSync('/tmp/geo-perf-after-lines.log', `${report}\n`);
-    expect(scatterMs - baseMs, 'Scatter Points extra').toBeLessThan(50);
+    expect(scatterMs - baseMs, 'Scatter On Faces extra').toBeLessThan(50);
     expect(projectMs - baseMs, 'Project UVs extra').toBeLessThan(80);
-    expect(lineMs(scatterRun, 8), 'Scatter Points line').toBeLessThan(50);
+    expect(lineMs(scatterRun, 8), 'Scatter On Faces line').toBeLessThan(50);
     expect(lineMs(projectRun, 8), 'Project UVs line').toBeLessThan(80);
   }, 120000);
 

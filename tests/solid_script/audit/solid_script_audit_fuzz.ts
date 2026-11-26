@@ -71,7 +71,7 @@ const PLAIN: readonly ((random: () => number, name: string) => SolidScriptLine)[
   (random, name) => line('find_item', { list: pick(random, NAMES), value: '2', result: name }),
   (random, name) => line('call', { name: 'F', values: VALUES(random), result: name }),
   (random, name) => line('extrude_face', { of: `[${pick(random, NAMES)}]`, top: name }),
-  (random, name) => line('scatter_points', { of: '[B]', count: '3', into: name, normals: pick(random, NAMES) }),
+  (random, name) => line('scatter_on_faces', { of: '[B]', count: '3', into: name, normals: pick(random, NAMES) }),
   (_random, name) => line('inset_face', { of: '[MF]', inner: name }),
   (random, name) => line('variable', { name: `${name}(0)`, value: VALUES(random) }),
   (random) => line('variable', { name: `${pick(random, NAMES)}.Data.K`, value: VALUES(random) }),

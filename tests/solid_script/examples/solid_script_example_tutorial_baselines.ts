@@ -143,7 +143,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     {
       command: 'note',
       values: {
-        text: 'Scatter Points fills a box; Hull wraps the points in one lumpy solid. Change Seed for another rock.',
+        text: 'Scatter In Box fills a box; Hull wraps the points in one lumpy solid. Change Seed for another rock.',
       },
     },
     {
@@ -181,9 +181,8 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     },
     { command: 'input', values: { name: 'Seed', type: 'Number', default: '4', label: 'Seed' } },
     {
-      command: 'scatter_points',
+      command: 'scatter_in_box',
       values: {
-        on: 'In Box',
         count: '[Count]',
         seed: '[Seed]',
         size: '[Size], [Height], [Size]',
@@ -229,7 +228,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'cube', values: { size: '3, 0.4, 3', anchor: 'Center, Center, Center' } },
     { command: 'select_objects' },
     { command: 'select_faces', values: { which: 'Facing Up' } },
-    { command: 'scatter_points', values: { count: '[Pebbles]', seed: '3', into: 'Spots' } },
+    { command: 'scatter_on_faces', values: { count: '[Pebbles]', seed: '3', into: 'Spots' } },
     { command: 'for_each', values: { variable: 'Spot', list: '[Spots]', key: 'I' } },
     { command: 'transform', values: { move: '[Spot]' } },
     { command: 'sphere', values: { r: '[=Random(0.05, 0.12, [I])]', anchor: 'Center, Center, Center' } },
@@ -406,7 +405,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'sphere', values: { r: '1', anchor: 'Center, Center, Center' } },
     { command: 'select_objects' },
     { command: 'select_faces', values: { which: 'All' } },
-    { command: 'scatter_points', values: { count: '[Spikes]', seed: '5', into: 'Spots', normals: 'Ways' } },
+    { command: 'scatter_on_faces', values: { count: '[Spikes]', seed: '5', into: 'Spots', normals: 'Ways' } },
     { command: 'for_each', values: { variable: 'Spot', list: '[Spots]', key: 'I' } },
     { command: 'transform', values: { move: '[Spot]' } },
     {

@@ -11,7 +11,7 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 function scatter(keep: string): string {
   const result = solidScriptProgramRun(
     solidScriptDocumentCreate([
-      { command: 'scatter_points', values: { on: 'Grid', size: '3, 0, 3', counts: '4, 1, 4', keep, into: 'Spots' } },
+      { command: 'scatter_in_grid', values: { size: '3, 0, 3', counts: '4, 1, 4', keep, into: 'Spots' } },
       { command: 'echo', values: { value: '[Spots]' } },
       { command: 'cube' },
     ]),
@@ -29,7 +29,7 @@ function points(printed: string): string[] {
   return printed === '[]' ? [] : (printed.slice(2, -2).split('], [') ?? []);
 }
 
-describe('Scatter Points Keep', () => {
+describe('Scatter Keep', () => {
   it('keeps every point at 1 and none at 0', () => {
     expect(points(scatter('1'))).toHaveLength(16);
     expect(points(scatter('0'))).toHaveLength(0);

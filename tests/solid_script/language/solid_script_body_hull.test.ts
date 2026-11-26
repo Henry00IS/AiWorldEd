@@ -179,7 +179,7 @@ describe('SolidScript solids keep their own faces', () => {
       CUBE,
       SELECT_BRUSHES,
       { command: 'select_faces', values: { which: 'All' } },
-      { command: 'scatter_points', values: { count: '30', seed: '2', into: 'Spots' } },
+      { command: 'scatter_on_faces', values: { count: '30', seed: '2', into: 'Spots' } },
       { command: 'hull', values: { points: '[Spots]' } },
       END,
     ];

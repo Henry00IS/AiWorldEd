@@ -543,7 +543,14 @@ const FIELD_CASES: readonly FieldCase[] = [
     blocks: ["Text 'Facing Up'"],
     edit: edit(0, T, 'All', 'All'),
   },
-  { kind: 'boolean', id: 'path_from_points', label: 'Closed', stored: 'Yes', blocks: ["Text 'Yes'"], edit: edit(0, T, 'No', 'No') },
+  {
+    kind: 'boolean',
+    id: 'path_from_points',
+    label: 'Closed',
+    stored: 'Yes',
+    blocks: ["Text 'Yes'"],
+    edit: edit(0, T, 'No', 'No'),
+  },
   {
     kind: 'name',
     id: 'call',

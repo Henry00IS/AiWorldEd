@@ -20,59 +20,44 @@ import {
 } from './solid_script_scatter_inside.js';
 import { solidScriptVectorThree } from './solid_script_vector.js';
 
-/** Where Scatter Points can put its points. */
-export const SOLID_SCRIPT_SCATTER_ON = ['On Faces', 'Inside', 'In Box', 'Grid'] as const;
-
-/** How Scatter Points decides how many points to give. */
+/** How the scatter blocks decide how many points to give. */
 export const SOLID_SCRIPT_SCATTER_BY = ['Count', 'Density'] as const;
 
-/** One of the On words. */
-export type SolidScriptScatterOn = (typeof SOLID_SCRIPT_SCATTER_ON)[number];
+/** Where a scatter block puts its points. */
+export type SolidScriptScatterOn = 'On Faces' | 'Inside' | 'In Box' | 'In Grid';
 
-/** Reads the Density of each face, given the faces Scatter Points works on. */
+/** Reads the Density of each face, given the faces a scatter block works on. */
 export type SolidScriptScatterDensity = (
   faces: readonly SolidScriptFaceFacts[],
 ) => (face: SolidScriptFaceFacts) => number;
 
-/** Points Scatter Points writes, and face directions when it is On Faces. */
+/** Points a scatter block writes, and face directions for Scatter On Faces. */
 export interface SolidScriptScatterResult {
   positions: THREE.Vector3[];
   normals: THREE.Vector3[] | null;
 }
 
 /**
- * Spreads points the way the On field says: on faces, inside brushes, in a box,
- * or on a grid.
+ * Spreads points the way the block says: on faces, inside brushes, in a box, or
+ * on a grid.
  *
  * @param run Running line.
+ * @param on Where the block puts its points.
  * @param faces Faces or brushes in Of, read only when that On needs them.
  * @param densityOf Reads Density per face, for On Faces By Density.
  * @returns Positions, and Normals for Faces.
  */
 export function solidScriptScatterRun(
   run: SolidScriptBlockRun,
+  on: SolidScriptScatterOn,
   faces: () => readonly SolidScriptFaceFacts[],
   densityOf: SolidScriptScatterDensity,
 ): SolidScriptScatterResult {
-  if (run.text('into').trim() === '') throw new Error('Scatter Points needs a variable in Into for the points');
-  const on = solidScriptScatterOn(run);
+  if (run.text('into').trim() === '') throw new Error('Scatter needs a variable in Into for the points');
   if (on === 'On Faces') return solidScriptScatterOnFaces(run, faces(), densityOf);
   if (on === 'Inside') return { positions: solidScriptScatterInside(run, faces()), normals: null };
   if (on === 'In Box') return { positions: solidScriptScatterInBox(run), normals: null };
   return { positions: solidScriptScatterGrid(run), normals: null };
-}
-
-/**
- * Reads On, or On Faces when the field is empty.
- *
- * @param run Running line.
- * @returns On word.
- */
-export function solidScriptScatterOn(run: SolidScriptBlockRun): SolidScriptScatterOn {
-  const text = run.text('on').trim() || 'On Faces';
-  const match = SOLID_SCRIPT_SCATTER_ON.find((word) => word.toLowerCase() === text.toLowerCase());
-  if (!match) throw new Error(`On needs On Faces, Inside, In Box or Grid, not ${text}`);
-  return match;
 }
 
 /**
