@@ -166,4 +166,57 @@ describe('SolidScript persistent value codec', () => {
     expect(back).toBeInstanceOf(SolidScriptDictionary);
     expect(solidScriptValueText(back)).toBe('');
   });
+
+  it('round-trips Add Entry, Remove Entry and Merge Dictionary on a persistent Dictionary', () => {
+    const made = press([
+      { command: 'add_entry', values: { dictionary: '$Persistent.Prices', key: 'Wood', value: '5' } },
+      { command: 'add_entry', values: { dictionary: '$Persistent.Prices', key: 'Stone', value: '7' } },
+    ]);
+    expect(made).toEqual({
+      prices: {
+        kind: 'dictionary',
+        entries: [
+          { name: 'Wood', value: 5 },
+          { name: 'Stone', value: 7 },
+        ],
+      },
+    });
+    expect(echo('[$Persistent.Prices]', made as Record<string, unknown>)).toBe('Wood: 5, Stone: 7');
+    const added = press(
+      [{ command: 'add_entry', values: { dictionary: '$Persistent.Prices', key: 'Glass', value: '12' } }],
+      made as Record<string, unknown>,
+    );
+    expect(echo('[$Persistent.Prices.Glass]', added as Record<string, unknown>)).toBe('12');
+    const removed = press(
+      [{ command: 'remove_entry', values: { dictionary: '$Persistent.Prices', key: 'Wood' } }],
+      added as Record<string, unknown>,
+    );
+    expect(echo('[$Persistent.Prices]', removed as Record<string, unknown>)).toBe('Stone: 7, Glass: 12');
+    const merged = press(
+      [
+        { command: 'add_entry', values: { dictionary: 'Extra', key: 'Stone', value: '9' } },
+        { command: 'add_entry', values: { dictionary: 'Extra', key: 'Gold', value: '3' } },
+        { command: 'merge_dictionary', values: { dictionary: '$Persistent.Prices', from: '[Extra]' } },
+      ],
+      removed as Record<string, unknown>,
+    );
+    expect(echo('[$Persistent.Prices]', merged as Record<string, unknown>)).toBe('Stone: 9, Glass: 12, Gold: 3');
+  });
+
+  it('clears a persistent Dictionary to one with no keys, and still keeps it', () => {
+    const first = press([
+      { command: 'add_entry', values: { dictionary: '$Persistent.Prices', key: 'Wood', value: '5' } },
+    ]);
+    const cleared = press(
+      [{ command: 'clear_variable', values: { name: '$Persistent.Prices' } }],
+      first as Record<string, unknown>,
+    );
+    expect(cleared).toEqual({ prices: { kind: 'dictionary', entries: [] } });
+    expect(
+      echo(
+        '[=IsDictionary([$Persistent.Prices])] [=Len(Keys([$Persistent.Prices]))]',
+        cleared as Record<string, unknown>,
+      ),
+    ).toBe('Yes 0');
+  });
 });
