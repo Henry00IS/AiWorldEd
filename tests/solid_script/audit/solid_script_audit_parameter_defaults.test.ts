@@ -7,7 +7,7 @@ import {
   solidScriptDocumentNormalize,
 } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptAuditDefaultProblem } from './solid_script_audit_default_run.js';
-import { solidScriptAuditScript } from './solid_script_audit_lines.js';
+import { solidScriptAuditFieldValues, solidScriptAuditScript } from './solid_script_audit_lines.js';
 
 /**
  * Checks that an empty declared-default field is accepted, stays empty when
@@ -41,7 +41,7 @@ function solidScriptAuditParameterDefaultStored(
   command: SolidScriptCommand,
   parameter: SolidScriptCommandParameter,
 ): string {
-  const script = solidScriptAuditScript(command, { [parameter.key]: '' });
+  const script = solidScriptAuditScript(command, solidScriptAuditFieldValues(command.id, parameter.key, ''));
   const document = solidScriptDocumentCreate(script.lines);
   const again = solidScriptDocumentNormalize(JSON.parse(JSON.stringify(document)));
   return (again.blocks[script.at]?.values[parameter.key] ?? '').trim();

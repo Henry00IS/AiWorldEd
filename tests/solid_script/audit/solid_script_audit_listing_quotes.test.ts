@@ -1,3 +1,4 @@
+import { solidScriptAuditFieldValues } from './solid_script_audit_lines.js';
 import { describe, expect, it } from 'vitest';
 import { solidScriptCommands } from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptCommand, SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
@@ -65,7 +66,7 @@ describe('every user value in a line summary is quoted', () => {
     const problems: string[] = [];
     for (const parameter of command.parameters) {
       const sample = solidScriptAuditListingSample(command, parameter);
-      const values = { ...command.valuesDefault(), ...{ [parameter.key]: sample } };
+      const values = { ...command.valuesDefault(), ...solidScriptAuditFieldValues(command.id, parameter.key, sample) };
       const problem = solidScriptAuditListingProblem(command, parameter, sample, values);
       if (problem) problems.push(problem);
     }

@@ -234,4 +234,30 @@ export function solidScriptAuditScript(
 }
 
 /** Every registered command. */
+/**
+ * Fields a line reads only when another of its fields picks them, with the
+ * value that does. Every field is always shown, but By Count leaves Density
+ * unread, so an audit of Density sets By to Density.
+ */
+const SOLID_SCRIPT_AUDIT_PICKED_BY: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  'scatter_on_faces.density': { by: 'Density' },
+  'scatter_inside.density': { by: 'Density' },
+  'scatter_in_box.density': { by: 'Density' },
+  'points_from_path.spacing': { by: 'Spacing' },
+  'place_at_points.choice': { build: 'One Line' },
+};
+
+/**
+ * Values that open a field for an audit: the field itself, plus the value of
+ * the field that makes the line read it, when there is one.
+ *
+ * @param command Command id.
+ * @param key Field under test.
+ * @param value Text to put in that field.
+ * @returns Values for the command line.
+ */
+export function solidScriptAuditFieldValues(command: string, key: string, value: string): Record<string, string> {
+  return { ...SOLID_SCRIPT_AUDIT_PICKED_BY[`${command}.${key}`], [key]: value };
+}
+
 export const SOLID_SCRIPT_AUDIT_COMMANDS = solidScriptCommands.map((command) => [command.id, command] as const);
