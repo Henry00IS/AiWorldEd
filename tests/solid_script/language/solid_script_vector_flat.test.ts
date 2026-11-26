@@ -211,6 +211,17 @@ describe('SolidScript flat vectors: [x, y] is [x, y, 0]', () => {
   });
 });
 
+describe('SolidScript flat vectors keep $[ escapes as written', () => {
+  it('leaves escaped brackets as text, never a vector', () => {
+    expect(printed(echo('$[1, 2$]'))).toEqual(['[1, 2]']);
+    expect(printed(echo('$[0, 0$], $[2, 0$]'))).toEqual(['[0, 0], [2, 0]']);
+    expect(formula('"$[1, 2$]"')).toBe('[1, 2]');
+    expect(formula('$[1, 2$]')).toBe('[1, 2]');
+    expect(formula('Len($[1, 2$])')).toBe('2');
+    expect(formula('$[1, 2$] + $[1, 2, 3$]')).toBe('[2, 4, 3]');
+  });
+});
+
 describe('SolidScript flat vectors in Curves', () => {
   /**
    * Corners of a Curve profile extruded.
