@@ -1,3 +1,8 @@
+import {
+  solidScriptDocumentResourcesWith,
+  solidScriptResourcesNormalize,
+  type SolidScriptResource,
+} from './solid_script_resource.js';
 import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 
@@ -55,6 +60,8 @@ export interface SolidScriptDocument {
    * edit mode.
    */
   editMode?: true;
+  /** Textures, curves and paths kept with the script, read as $Resource.Name. */
+  resources?: SolidScriptResource[];
 }
 
 /** A command line to create, by command id and the values replacing defaults. */
@@ -153,7 +160,11 @@ export function solidScriptDocumentNormalize(input: unknown): SolidScriptDocumen
   const document: SolidScriptDocument = { version: SOLID_SCRIPT_DOCUMENT_VERSION, name, blocks };
   const author = typeof record['author'] === 'string' ? record['author'] : '';
   const used = solidScriptDocumentUsesWith(document, solidScriptUsesNormalize(record['uses']));
-  return solidScriptDocumentEditModeWith(solidScriptDocumentAuthorWith(used, author), record['editMode'] === true);
+  const edited = solidScriptDocumentEditModeWith(
+    solidScriptDocumentAuthorWith(used, author),
+    record['editMode'] === true,
+  );
+  return solidScriptDocumentResourcesWith(edited, solidScriptResourcesNormalize(record['resources']));
 }
 
 /**

@@ -1,6 +1,11 @@
 import { ZipReader } from '@/io/zip/zip_reader.js';
 import { ZipWriter } from '@/io/zip/zip_writer.js';
 import {
+  solidScriptFileResourcesRead,
+  solidScriptFileResourcesWrite,
+  type SolidScriptFileResource,
+} from './solid_script_file_resources.js';
+import {
   SOLID_SCRIPT_DOCUMENT_VERSION,
   solidScriptDocumentNormalize,
   type SolidScriptDocument,
@@ -15,14 +20,6 @@ export const SOLID_SCRIPT_FILE_ENTRY = 'script.json';
 /** Format tag of script.json. */
 const SOLID_SCRIPT_FILE_FORMAT = 'aiworlded.solidscript';
 
-/** A resource embedded under resources/ in a script file. */
-export interface SolidScriptFileResource {
-  /** Zip entry path, under resources/. */
-  path: string;
-  /** MIME type. */
-  type: string;
-}
-
 /** Contents of script.json. */
 interface SolidScriptFileJson {
   format: typeof SOLID_SCRIPT_FILE_FORMAT;
@@ -36,8 +33,8 @@ interface SolidScriptFileJson {
 }
 
 /**
- * Writes a script file: a zip holding script.json with the lines, with room for
- * resources under resources/.
+ * Writes a script file: a zip holding script.json with the lines, and each
+ * resource as its own file under resources/, listed in script.json.
  *
  * @param document Script, its name included.
  * @returns File contents.
@@ -56,6 +53,7 @@ export async function solidScriptFileEncode(document: SolidScriptDocument): Prom
   const writer = new ZipWriter(async (chunk) => {
     chunks.push(chunk);
   });
+  json.resources = await solidScriptFileResourcesWrite(writer, document.resources ?? []);
   await writer.addText(SOLID_SCRIPT_FILE_ENTRY, JSON.stringify(json, null, 2));
   await writer.close();
   return new Blob(chunks as BlobPart[], { type: 'application/zip' });
@@ -75,5 +73,6 @@ export async function solidScriptFileDecode(file: Blob): Promise<SolidScriptDocu
   if (json?.format !== SOLID_SCRIPT_FILE_FORMAT) throw new Error('The file is no Solid Script.');
   if (typeof json.version !== 'number' || json.version > SOLID_SCRIPT_DOCUMENT_VERSION)
     throw new Error('The script was saved by a newer version of the editor.');
-  return solidScriptDocumentNormalize(json);
+  const { resources, ...script } = json;
+  return solidScriptDocumentNormalize({ ...script, resources: await solidScriptFileResourcesRead(zip, resources) });
 }

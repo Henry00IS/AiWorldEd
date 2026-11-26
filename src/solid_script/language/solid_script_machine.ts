@@ -1,3 +1,5 @@
+import type { SolidScriptResource } from '@/solid_script/document/solid_script_resource.js';
+import { SolidScriptResourceValues } from './solid_script_resource_value.js';
 import { solidScriptEachUsed, solidScriptEachUses } from './solid_script_each_uses.js';
 import type { SolidScriptWidget } from './solid_script_widget.js';
 import { solidScriptShapesNotConvex } from './solid_script_solid_validate.js';
@@ -165,6 +167,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   private readonly leafSwaps = new Map<SolidScriptGeometryLeaf, SolidScriptGeometryLeaf>();
   /** Paths of the run: written by Path lines, or drawn for a block to fill. */
   private readonly paths = new SolidScriptPaths();
+  private resources = new SolidScriptResourceValues([], (path, name) => this.paths.created(path, name));
   /** How many Group or Part blocks are around the running line. */
   private groupDepth = 0;
   /**
@@ -218,6 +221,27 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     persistentStored: unknown = {},
   ) {
     super(inputs, system, persistentStored);
+  }
+
+  /**
+   * Gives the run the resources of its script.
+   *
+   * @param resources Resources.
+   * @returns This machine.
+   */
+  resourcesUse(resources: readonly SolidScriptResource[]): this {
+    this.resources = new SolidScriptResourceValues(resources, (path, name) => this.paths.created(path, name));
+    return this;
+  }
+
+  /**
+   * Reads a resource of the script.
+   *
+   * @param name Name after $Resource.
+   * @returns The run's copy.
+   */
+  protected override resourceRead(name: string): SolidScriptValue {
+    return this.resources.value(name);
   }
 
   /**

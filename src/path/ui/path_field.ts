@@ -97,7 +97,16 @@ export class PathField {
    * @param text Stored text.
    */
   setText(text: string): void {
-    this.path = pathAssetDecode(text) ?? PATH_ASSET_DEFAULT;
+    this.setPath(pathAssetDecode(text) ?? PATH_ASSET_DEFAULT);
+  }
+
+  /**
+   * Shows a path.
+   *
+   * @param path Path.
+   */
+  setPath(path: PathAsset): void {
+    this.path = path;
     this.summary.textContent = pathFieldSummary(this.path);
     this.closed.checked = this.path.closed;
     this.point.show(this.path, this.selected);

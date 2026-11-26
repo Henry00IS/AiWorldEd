@@ -1,3 +1,4 @@
+import type { SolidScriptResource } from '@/solid_script/document/solid_script_resource.js';
 import { solidScriptDocumentActiveLines } from '@/solid_script/document/solid_script_document_active.js';
 import { solidScriptNameDotProblem } from './solid_script_name_rules.js';
 import { solidScriptFieldAsTyped, solidScriptFieldCheck } from './solid_script_field.js';
@@ -61,6 +62,8 @@ export interface SolidScriptProgramOptions {
 /** The lines of a script to run. */
 export interface SolidScriptProgram {
   blocks: readonly SolidScriptTreeLine[];
+  /** Textures, curves and paths the script reads as $Resource.Name. */
+  resources?: readonly SolidScriptResource[];
 }
 
 /**
@@ -169,7 +172,9 @@ function solidScriptProgramExecute(
     system,
     options.profile === true,
     options.persistent,
-  ).run(lines);
+  )
+    .resourcesUse(program.resources ?? [])
+    .run(lines);
 }
 
 /**
@@ -247,10 +252,9 @@ export function solidScriptProgramHandle(
   try {
     const lines = solidScriptProgramLines(program);
     const system = solidScriptSystemValues('handler', null);
-    return new SolidScriptMachine(Number.POSITIVE_INFINITY, null, inputs, system, false, persistent).handle(
-      lines,
-      event,
-    );
+    return new SolidScriptMachine(Number.POSITIVE_INFINITY, null, inputs, system, false, persistent)
+      .resourcesUse(program.resources ?? [])
+      .handle(lines, event);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {

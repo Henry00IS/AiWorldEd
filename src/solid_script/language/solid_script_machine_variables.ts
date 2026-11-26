@@ -151,6 +151,17 @@ function solidScriptSystemListed(name: string): string | undefined {
 }
 
 /**
+ * Reads the resource name of a built-in name such as Resource.Wall.
+ *
+ * @param name Name without $.
+ * @returns Resource name, or undefined when the name reads no resource itself.
+ */
+function solidScriptResourceNameOf(name: string): string | undefined {
+  const match = /^resource\.([A-Za-z_][A-Za-z0-9_]*)$/i.exec(name);
+  return match?.[1];
+}
+
+/**
  * Names already checked to be plain names, so setting them again skips the
  * checks.
  */
@@ -805,6 +816,8 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
    */
   protected systemRead(name: string): SolidScriptValue {
     if (!name.includes('.')) return undefined;
+    const resource = solidScriptResourceNameOf(name);
+    if (resource !== undefined) return this.resourceRead(resource);
     const value = this.system.get(name);
     if (value !== undefined) return value;
     const part = solidScriptVectorComponent(name);
@@ -816,6 +829,16 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     return part && solidScriptNameKey(part.name) === solidScriptNameKey(listed)
       ? solidScriptVectorComponentRead(part, missing)
       : missing;
+  }
+
+  /**
+   * Reads a resource of the script, written $Resource.Name.
+   *
+   * @param name Name after $Resource.
+   * @returns Value.
+   */
+  protected resourceRead(name: string): SolidScriptValue {
+    throw new Error(`there is no resource [$Resource.${name}]; add it in the Resources tab`);
   }
 
   /**
