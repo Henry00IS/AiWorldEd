@@ -64,7 +64,7 @@ export class SolidScriptEditorResources {
       },
       this.element,
     );
-    Object.assign(this.files.host.style, { flex: '1 1 auto', minHeight: '140px' });
+    Object.assign(this.files.host.style, { flex: '0 1 auto', minHeight: '120px' });
     const hint = modifierStackUiText(
       'div',
       'Drop textures, curves and paths here. The script reads each as [$Resource.Name].',
