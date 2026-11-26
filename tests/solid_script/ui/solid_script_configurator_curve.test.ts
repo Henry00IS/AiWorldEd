@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { curveEncode } from '@/curve/model/curve_codec.js';
 import { curveFromPolyline } from '@/curve/model/curve_model.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { curveEditorCloseActive } from '@/curve/ui/curve_editor.js';
 import { SolidScriptConfigurator } from '@/solid_script/ui/solid_script_configurator.js';
+import { SolidScriptConfiguratorCurves } from '@/solid_script/ui/solid_script_configurator_curves.js';
+import { solidScriptResourceCurve, type SolidScriptResource } from '@/solid_script/document/solid_script_resource.js';
 
 afterEach(() => {
   curveEditorCloseActive();
@@ -45,17 +46,51 @@ describe('SolidScript configurator curve field', () => {
     expect(input?.hidden).toBe(false);
     expect(input?.value).toBe('[MyCurve]');
 
-    const custom = curveEncode(
-      curveFromPolyline([
-        [0, 0.5],
-        [1, 0.5],
-      ]),
-    );
-    input!.value = custom;
+    input!.value = 'Classic Column';
     input!.dispatchEvent(new Event('input', { bubbles: true }));
     const ok = [...document.body.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent === 'OK');
     ok?.click();
-    expect(saved.at(-1)?.['profile']).toBe(custom.replace(/[$[\]]/g, (ch) => `${ch}`));
+    expect(saved.at(-1)?.['profile']).toBe('Classic Column');
+  });
+
+  it('keeps a New Curve as a resource of the script, given to the line on OK and not on Cancel', () => {
+    const command = solidScriptCommandFind('column')!;
+    const stored: (readonly SolidScriptResource[] | null)[] = [];
+    const open = (): HTMLSelectElement => {
+      const curves = new SolidScriptConfiguratorCurves([
+        solidScriptResourceCurve(
+          'Arch',
+          curveFromPolyline([
+            [0, 1],
+            [1, 0],
+          ]),
+        ),
+      ]);
+      new SolidScriptConfigurator(
+        document.body,
+        command,
+        {},
+        (_values, resources) => stored.push(resources),
+        [],
+        null,
+        [],
+        [],
+        null,
+        curves,
+      ).show();
+      return document.body.querySelector<HTMLSelectElement>('select[aria-label="Profile resource"]')!;
+    };
+    const select = open();
+    expect([...select.options].map((option) => option.textContent)).toEqual([
+      'No Resource',
+      '[$Resources.Arch]',
+      'New Curve',
+    ]);
+    select.value = '+';
+    select.dispatchEvent(new Event('change'));
+    expect(select.value).toBe('[$Resources.Profile]');
+    [...document.body.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent === 'OK')!.click();
+    expect(stored.at(-1)?.map((resource) => resource.name)).toEqual(['Arch', 'Profile']);
   });
 
   it('opens Curve Editor above the options window and its backdrop, keeps it interactive, and closes cleanly', () => {

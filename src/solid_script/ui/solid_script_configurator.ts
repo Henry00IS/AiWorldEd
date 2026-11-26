@@ -1,3 +1,5 @@
+import type { SolidScriptResource } from '@/solid_script/document/solid_script_resource.js';
+import type { SolidScriptConfiguratorCurves } from './solid_script_configurator_curves.js';
 import { solidScriptEachNote } from '@/solid_script/commands/solid_script_command_each.js';
 import type {
   SolidScriptCommand,
@@ -60,17 +62,20 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
    *   $Face for the blocks of a Where formula.
    * @param parent Dialog this one opens over, such as the formula window, or
    *   null.
+   * @param curves Curve resources of the script, which curve fields pick and
+   *   keep edited curves in, or null for none.
    */
   constructor(
     host: HTMLElement,
     private readonly command: SolidScriptCommand,
     values: SolidScriptCommandValues,
-    private readonly apply: (values: Record<string, string>) => void,
+    private readonly apply: (values: Record<string, string>, resources: readonly SolidScriptResource[] | null) => void,
     private readonly names: readonly SolidScriptName[] = [],
     private readonly cancelled: (() => void) | null = null,
     private readonly inputs: readonly SolidScriptInput[] = [],
     private readonly fills: readonly string[] = [],
     parent: SolidScriptDialog | null = null,
+    private readonly curves: SolidScriptConfiguratorCurves | null = null,
   ) {
     super(host, command.label, 'OK', parent);
     this.root.dataset['solidScriptConfigurator'] = command.id;
@@ -132,6 +137,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
         ? {}
         : { formula: (field, text, write) => this.formulaOpen(field, text, write) }),
       normal: (write) => new SolidScriptNormalPickWindow({ host: this.host, parent: this, write }).show(),
+      ...(this.curves ? { curves: this.curves } : {}),
     });
   }
 
@@ -150,7 +156,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
    * @returns True to close.
    */
   protected confirm(): boolean {
-    this.apply(solidScriptCommandValuesStored(this.command, this.values()));
+    this.apply(solidScriptCommandValuesStored(this.command, this.values()), this.curves?.changed() ?? null);
     return true;
   }
 
@@ -250,6 +256,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
       names: this.names,
       fills: this.fillsOf(parameter, values),
       inputs: this.inputs,
+      ...(this.curves ? { curves: this.curves } : {}),
       apply: (text) => write(solidScriptParameterValueStored(text, parameter.default)),
     }).show();
   }

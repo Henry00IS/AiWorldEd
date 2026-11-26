@@ -11,7 +11,13 @@ import {
 import { solidScriptBlockNesting } from '@/solid_script/document/solid_script_document_indent.js';
 import type { SolidScriptName } from '@/solid_script/document/solid_script_document_names.js';
 import type { SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
+import {
+  solidScriptDocumentResources,
+  solidScriptDocumentResourcesWith,
+  type SolidScriptResource,
+} from '@/solid_script/document/solid_script_resource.js';
 import { SolidScriptConfigurator } from './solid_script_configurator.js';
+import { SolidScriptConfiguratorCurves } from './solid_script_configurator_curves.js';
 import type { SolidScriptDialog } from './solid_script_dialog.js';
 
 /** Notice when another user deletes the line being configured. */
@@ -38,6 +44,11 @@ export interface SolidScriptEditorLineConfigureHost {
   mount: () => HTMLElement;
   /** Dialog the configurator windows open over, or null for the editor itself. */
   parent: () => SolidScriptDialog | null;
+  /**
+   * Curve resources of the window this one opens over, which keeps them; the
+   * windows work on the script's own resources when not given.
+   */
+  curves?: () => SolidScriptConfiguratorCurves | null;
 }
 
 /**
@@ -86,8 +97,8 @@ export class SolidScriptEditorLineConfigure {
     const found = this.host.catalog.find(command);
     if (!found) return;
     const wraps = selected !== null && this.wrapped(this.host.document(), command, selected) !== null;
-    const place = (values?: Record<string, string>): void => {
-      const document = this.host.document();
+    const place = (values?: Record<string, string>, resources?: readonly SolidScriptResource[] | null): void => {
+      const document = this.withResources(this.host.document(), resources ?? null);
       const inserted =
         (wraps && selected ? this.wrapped(document, command, selected, values) : null) ??
         solidScriptDocumentCommandInsert(document, command, line, mode, values, this.host.catalog);
@@ -113,9 +124,9 @@ export class SolidScriptEditorLineConfigure {
       return this.host.notice(
         `${solidScriptBlockNesting(block, this.host.catalog) === 'close' ? 'End' : command.label} has nothing to configure.`,
       );
-    const apply = (values: Record<string, string>): void => {
+    const apply = (values: Record<string, string>, resources: readonly SolidScriptResource[] | null): void => {
       this.open = null;
-      const document = this.host.document();
+      const document = this.withResources(this.host.document(), resources);
       const index = document.blocks.findIndex((candidate) => candidate.id === block.id);
       if (index < 0) return this.host.notice(SOLID_SCRIPT_EDITOR_CONFIGURED_GONE);
       const current = document.blocks[index] ?? block;
@@ -150,17 +161,19 @@ export class SolidScriptEditorLineConfigure {
    * @param command Command.
    * @param values Values it starts with.
    * @param line Line whose names the fields see.
-   * @param apply Stores the configured values.
+   * @param apply Stores the configured values and the curve resources they
+   *   made.
    * @param cancelled Runs when the window closes without storing, or null.
    */
   private window(
     command: SolidScriptCommand,
     values: Readonly<Record<string, string>>,
     line: number,
-    apply: (values: Record<string, string>) => void,
+    apply: (values: Record<string, string>, resources: readonly SolidScriptResource[] | null) => void,
     cancelled: (() => void) | null,
   ): void {
     const document = this.host.document();
+    const curves = this.host.curves?.() ?? new SolidScriptConfiguratorCurves(solidScriptDocumentResources(document));
     new SolidScriptConfigurator(
       this.host.mount(),
       command,
@@ -171,6 +184,23 @@ export class SolidScriptEditorLineConfigure {
       this.host.inputs(document),
       this.host.fills(),
       this.host.parent(),
+      curves,
     ).show();
+  }
+
+  /**
+   * Stores the curve resources a configurator window made or changed, unless
+   * the window it opened over keeps them.
+   *
+   * @param document Lines.
+   * @param resources Resources to store, or null when none changed.
+   * @returns Lines with the resources.
+   */
+  private withResources(
+    document: SolidScriptDocument,
+    resources: readonly SolidScriptResource[] | null,
+  ): SolidScriptDocument {
+    if (resources === null || this.host.curves) return document;
+    return solidScriptDocumentResourcesWith(document, resources);
   }
 }

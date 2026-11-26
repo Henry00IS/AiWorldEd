@@ -40,6 +40,7 @@ import {
 import { solidScriptParameterTakesDirection } from '@/solid_script/commands/solid_script_parameter_direction.js';
 import { textureSelectCreate } from '@/texture/ui/texture_select.js';
 import { solidScriptConfiguratorColorAttach } from './solid_script_configurator_color.js';
+import { SolidScriptConfiguratorCurves } from './solid_script_configurator_curves.js';
 import { solidScriptConfiguratorCurve } from './solid_script_configurator_curve.js';
 import { solidScriptSuggestionSelectedWords, type SolidScriptSuggestionScope } from './solid_script_suggestions.js';
 import {
@@ -99,6 +100,11 @@ export interface SolidScriptConfiguratorScope {
    * offer it among their suggestions.
    */
   normal?: (write: (text: string) => void) => void;
+  /**
+   * Curve resources of the script the window works on, which curve fields pick
+   * and keep edited curves in.
+   */
+  curves?: SolidScriptConfiguratorCurves;
 }
 
 /** How a field's inputs are read and checked. */
@@ -271,7 +277,7 @@ export function solidScriptConfiguratorFieldBuild(
   } else caption.textContent = parameter.label;
   const inputs = document.createElement('span');
   inputs.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldInputs;
-  const field = solidScriptConfiguratorInputs(parameter, value, inputs, scope.names);
+  const field = solidScriptConfiguratorInputs(parameter, value, inputs, scope.names, scope.curves);
   const wordsOf = (): readonly SolidScriptCommandWord[] => {
     const base = solidScriptConfiguratorWords(parameter, scope.names);
     if (base.length > 0 && parameter.words === undefined && parameter.type !== 'boolean') return base;
@@ -412,6 +418,8 @@ function solidScriptConfiguratorFormulaButton(
  * @param parameter Parameter.
  * @param value Stored value.
  * @param inputs Container.
+ * @param names Names the script defines, for resource pickers.
+ * @param curves Curve resources of the script the window works on.
  * @returns Reader and check.
  */
 function solidScriptConfiguratorInputs(
@@ -419,6 +427,7 @@ function solidScriptConfiguratorInputs(
   value: string,
   inputs: HTMLElement,
   names: readonly SolidScriptName[],
+  curves?: SolidScriptConfiguratorCurves,
 ): SolidScriptConfiguratorFieldReader {
   const switched = parameter.type === 'boolean' ? solidScriptFieldBoolean(value) : value;
   const shown = typeof switched === 'boolean' ? (switched ? 'Yes' : 'No') : value;
@@ -433,7 +442,7 @@ function solidScriptConfiguratorInputs(
       parameter,
       inputs,
       () => solidScriptConfiguratorProblem(parameter, input.value),
-      solidScriptConfiguratorResources(names, 'Curve'),
+      curves ?? new SolidScriptConfiguratorCurves([], solidScriptConfiguratorResources(names, 'Curve')),
     );
   if (parameter.color === true) solidScriptConfiguratorColorAttach(input, inputs);
   else inputs.append(input);

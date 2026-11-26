@@ -50,7 +50,12 @@ describe('SolidScript fields picking resources', () => {
   it('lists only curve resources in the curve resource picker and stores the picked one', () => {
     const field = build(curveParameter(), '');
     const select = field.element.querySelector<HTMLSelectElement>('select[aria-label$="resource"]')!;
-    expect([...select.options].map((option) => option.value)).toEqual(['', '[$Resources.Arch]', '[$Resources.Ramp]']);
+    expect([...select.options].map((option) => option.value)).toEqual([
+      '',
+      '[$Resources.Arch]',
+      '[$Resources.Ramp]',
+      '+',
+    ]);
     select.value = '[$Resources.Ramp]';
     select.dispatchEvent(new Event('change'));
     expect(field.read()).toBe('[$Resources.Ramp]');

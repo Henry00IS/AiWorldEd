@@ -1,5 +1,7 @@
-import { curveEncode } from '@/curve/model/curve_codec.js';
-import { solidScriptCurveFromStored, solidScriptCurveFromText } from '@/solid_script/language/solid_script_curve_read.js';
+import {
+  solidScriptCurveFromStored,
+  solidScriptCurveFromText,
+} from '@/solid_script/language/solid_script_curve_read.js';
 import { curveFromPolyline, type Curve } from '@/curve/model/curve_model.js';
 import { CurveField } from '@/curve/ui/curve_field.js';
 import { MODIFIER_STACK_CURVE_MARKER_STYLE } from '@/modifier/stack/ui/modifier_stack_curve_row.js';
@@ -10,17 +12,10 @@ import type {
 import { solidScriptFieldEscapes, solidScriptFieldUnescape } from '@/solid_script/language/solid_script_field.js';
 import { solidScriptEditorToolButton } from './solid_script_editor_icons.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
+import { SolidScriptConfiguratorCurves } from './solid_script_configurator_curves.js';
 
-/**
- * Escapes field-special characters ($, [, ]) in encoded curve JSON so field
- * parsing keeps it as literal text.
- *
- * @param raw Encoded curve JSON.
- * @returns Field-safe text.
- */
-function solidScriptCurveEscape(raw: string): string {
-  return raw.replace(/[$[]]/g, (ch) => `$${ch}`);
-}
+/** Value of the picker choice that makes a new curve resource. */
+const SOLID_SCRIPT_CURVE_NEW = '+';
 
 /**
  * Tells whether stored text contains an unescaped [variable] or [=formula].
@@ -37,38 +32,16 @@ function solidScriptCurveHasBracket(text: string): boolean {
 }
 
 /**
- * Decodes stored curve text with or without field bracket escaping.
- *
- * @param text Stored text.
- * @param raw True when the field holds unescaped JSON.
- * @returns Decoded curve, or null.
- */
-function solidScriptCurveStoredDecode(text: string, raw: boolean): Curve | null {
-  return solidScriptCurveFromText(raw ? text.trim() : solidScriptFieldUnescape(text.trim()));
-}
-
-/**
- * Returns whether the field should open in Pick mode for its stored value.
- *
- * @param text Stored text.
- * @param raw True when the field holds unescaped JSON.
- * @returns True to open in Pick mode.
- */
-function solidScriptCurveShouldPick(text: string, raw: boolean): boolean {
-  if (solidScriptCurveStoredDecode(text, raw)) return true;
-  return !solidScriptCurveHasBracket(text);
-}
-
-/**
- * Builds a curve field: the shared curve editor strip with presets and markers,
- * or typing for a variable or formula. It opens in Pick mode unless the stored
- * text uses an unescaped [ ], and keeps unedited stored text unchanged.
+ * Builds a curve field: a picker of the script's curve resources with the
+ * shared curve editor strip below, or typing for a variable or formula. A curve
+ * edited in the strip is kept in the resource the field names, or in a new
+ * resource named after the field, so the field never holds curve data.
  *
  * @param input Text input holding the stored text.
  * @param parameter Parameter with curve settings.
  * @param inputs Container element.
  * @param problem Checks typed text when not picking.
- * @param resources Curve resources of the script, such as $Resources.Wall.
+ * @param curves Curve resources of the script the window works on.
  * @returns Reader and validation check.
  */
 export function solidScriptConfiguratorCurve(
@@ -76,21 +49,14 @@ export function solidScriptConfiguratorCurve(
   parameter: SolidScriptCommandParameter,
   inputs: HTMLElement,
   problem: () => string,
-  resources: readonly string[] = [],
+  curves: SolidScriptConfiguratorCurves = new SolidScriptConfiguratorCurves([]),
 ): { read: () => string; problem: () => string } {
-  const curve = parameter.curve!;
-  const field = new SolidScriptConfiguratorCurveField(input, parameter.label, curve, inputs, resources);
+  const field = new SolidScriptConfiguratorCurveField(input, parameter.label, parameter.curve!, inputs, curves);
   return {
-    read: () => {
-      if (field.picking) return field.readPicked();
-      const typed = input.value.trim();
-      return !curve.raw && typed.startsWith('{') && solidScriptCurveFromText(typed)
-        ? solidScriptCurveEscape(typed)
-        : typed;
-    },
+    read: () => input.value.trim(),
     problem: () => {
-      if (field.picking) return '';
-      return solidScriptCurveFromText(input.value.trim()) ? '' : problem();
+      if (field.picking || curves.curve(input.value) !== null) return '';
+      return solidScriptCurveFromText(solidScriptFieldUnescape(input.value)) ? '' : problem();
     },
   };
 }
@@ -103,19 +69,17 @@ function solidScriptCurveDefault(): Curve {
   ]);
 }
 
-/** A curve field switching between the curve editor strip and text typing. */
+/** A curve field switching between picking a curve resource and typing. */
 class SolidScriptConfiguratorCurveField {
-  /** True while the curve preview shows, false while the text input does. */
+  /** True while the picker and strip show, false while the text input does. */
   picking: boolean;
-  /** Escaped encoded curve chosen in Pick mode, or null while unedited. */
-  private picked: string | null = null;
   private readonly curveField: CurveField;
   private readonly host = document.createElement('div');
   private readonly modes: HTMLButtonElement[];
-  /** Picks a curve resource of the script, or the curve edited here. */
+  /** Picks a curve resource of the script, or makes a new one. */
   private readonly resource = document.createElement('select');
-  /** Text of the curve edited here, kept while a resource is picked. */
-  private own = '';
+  /** Field text that names no resource, kept while a resource is picked. */
+  private own: string;
 
   /**
    * Builds the curve field into its container.
@@ -124,77 +88,92 @@ class SolidScriptConfiguratorCurveField {
    * @param label Caption of the field.
    * @param curve Curve editor settings.
    * @param inputs Container.
-   * @param resources Curve resources of the script.
+   * @param curves Curve resources of the script.
    */
   constructor(
     private readonly input: HTMLInputElement,
     private readonly label: string,
     private readonly curve: SolidScriptCommandCurve,
     private readonly inputs: HTMLElement,
-    private readonly resources: readonly string[],
+    private readonly curves: SolidScriptConfiguratorCurves,
   ) {
-    this.picking =
-      this.resourceOf(input.value) !== '' || solidScriptCurveShouldPick(input.value, this.curve.raw === true);
-    this.own = this.resourceOf(input.value) === '' ? input.value : '';
-    this.resourceBuild();
-    this.curveField = new CurveField({
-      label,
-      presets: curve.presets,
-      fileName: label,
-      onPreview: () => undefined,
-      onCommit: (next) => {
-        const encoded = curveEncode(next);
-        const escaped = curve.raw ? encoded : solidScriptCurveEscape(encoded);
-        this.picked = escaped;
-        this.own = escaped;
-        this.input.value = escaped;
-        this.changed();
-      },
-      ...(curve.markers ? { markers: MODIFIER_STACK_CURVE_MARKER_STYLE } : {}),
-    });
-    this.host.style.flex = '1 1 0';
-    this.host.style.minWidth = '0';
-    this.host.append(this.curveField.getElement());
+    this.picking = this.named(input.value) || !solidScriptCurveHasBracket(input.value);
+    this.own = this.named(input.value) ? '' : input.value;
+    this.resource.setAttribute('aria-label', `${label} resource`);
+    this.resource.className = SOLID_SCRIPT_EDITOR_CLASSES.input;
+    this.resource.addEventListener('change', () => this.chosen());
+    this.curveField = this.stripBuild();
     this.modes = (['Pick', 'Type'] as const).map((mode) => this.modeButton(mode));
-    this.writePreview(input.value);
+    this.resourceFill();
+    this.writePreview();
     this.show();
     input.addEventListener('input', () => this.follow());
     inputs.append(...this.modes, this.resource, this.host, input);
   }
 
-  /** Fills the resource picker: the curve edited here, then each curve resource. */
-  private resourceBuild(): void {
-    this.resource.setAttribute('aria-label', `${this.label} resource`);
-    this.resource.className = SOLID_SCRIPT_EDITOR_CLASSES.input;
-    const own = new Option('Edit Here', '');
-    this.resource.append(own, ...this.resources.map((name) => new Option(`[${name}]`, `[${name}]`)));
-    this.resource.value = this.resourceOf(this.input.value);
-    this.resource.addEventListener('change', () => {
-      this.picked = this.resource.value === '' ? this.own : this.resource.value;
-      this.input.value = this.picked;
-      this.show();
-      this.changed();
+  /**
+   * Builds the curve strip, whose edits go into a resource.
+   *
+   * @returns Strip.
+   */
+  private stripBuild(): CurveField {
+    const strip = new CurveField({
+      label: this.label,
+      presets: this.curve.presets,
+      fileName: this.label,
+      onPreview: () => undefined,
+      onCommit: (next) => this.write(this.curves.write(this.input.value, this.label, next)),
+      ...(this.curve.markers ? { markers: MODIFIER_STACK_CURVE_MARKER_STYLE } : {}),
     });
+    this.host.style.flex = '1 1 0';
+    this.host.style.minWidth = '0';
+    this.host.append(strip.getElement());
+    return strip;
+  }
+
+  /** Fills the picker: no resource, each curve resource, then New Curve. */
+  private resourceFill(): void {
+    const names = this.curves.names().map((name) => new Option(`[${name}]`, `[${name}]`));
+    this.resource.replaceChildren(
+      new Option('No Resource', ''),
+      ...names,
+      new Option('New Curve', SOLID_SCRIPT_CURVE_NEW),
+    );
+    this.resource.value = this.named(this.input.value) ? this.input.value.trim() : '';
+  }
+
+  /** Follows the picker: a resource, the text before, or a new curve. */
+  private chosen(): void {
+    const value = this.resource.value;
+    if (value === SOLID_SCRIPT_CURVE_NEW) {
+      const curve = this.previewCurve();
+      return this.write(this.curves.write('', this.label, curve));
+    }
+    this.write(value === '' ? this.own : value);
   }
 
   /**
-   * Finds the curve resource field text names.
+   * Writes field text, then redraws the picker and strip.
    *
    * @param text Field text.
-   * @returns Text such as [$Resources.Wall], or empty when it names none.
    */
-  private resourceOf(text: string): string {
-    const trimmed = text.trim();
-    return this.resources.some((name) => `[${name}]` === trimmed) ? trimmed : '';
+  private write(text: string): void {
+    this.input.value = text;
+    if (!this.named(text)) this.own = text;
+    this.resourceFill();
+    this.writePreview();
+    this.changed();
   }
 
   /**
-   * Returns the stored text in Pick mode, preserving unedited text verbatim.
+   * Tells whether field text names one of the curve resources.
    *
-   * @returns Stored text or newly picked escaped curve.
+   * @param text Field text.
+   * @returns True when it does.
    */
-  readPicked(): string {
-    return this.picked ?? this.input.value.trim();
+  private named(text: string): boolean {
+    const trimmed = text.trim();
+    return this.curves.names().some((name) => `[${name}]`.toLowerCase() === trimmed.toLowerCase());
   }
 
   /**
@@ -206,54 +185,64 @@ class SolidScriptConfiguratorCurveField {
   private modeButton(mode: 'Pick' | 'Type'): HTMLButtonElement {
     const tip =
       mode === 'Pick'
-        ? 'Pick or edit a curve in the curve editor, or drop an .aicurve file'
-        : 'Type a Curve input variable, formula or curve text';
+        ? 'Pick a curve of the script, or edit the curve to keep it with the script'
+        : 'Type a Curve input variable, a formula, a preset name or points';
     const button = solidScriptEditorToolButton(mode, mode.toLowerCase(), tip, () => this.switch(mode === 'Pick'));
     button.setAttribute('aria-label', `${mode} ${this.label}`);
     return button;
   }
 
   /**
-   * Switches between picking and typing, keeping stored values synchronized.
+   * Switches between picking and typing.
    *
    * @param picking True to pick.
    */
   private switch(picking: boolean): void {
     if (picking === this.picking) return;
-    if (this.picking && this.picked !== null) this.input.value = this.picked;
-    else if (!this.picking) this.writePreview(this.input.value);
     this.picking = picking;
+    this.resourceFill();
+    this.writePreview();
     this.show();
     this.changed();
   }
 
   /**
-   * Follows text written into the input while picking, such as by the formula
-   * window.
+   * Follows text written into the input, such as by the formula window or by
+   * typing.
    */
   private follow(): void {
-    this.picked = null;
+    if (!this.named(this.input.value)) this.own = this.input.value;
     if (!this.picking) return;
-    this.picking =
-      this.resourceOf(this.input.value) !== '' || solidScriptCurveShouldPick(this.input.value, this.curve.raw === true);
-    this.resource.value = this.resourceOf(this.input.value);
-    if (this.picking) this.writePreview(this.input.value);
+    this.picking = this.named(this.input.value) || !solidScriptCurveHasBracket(this.input.value);
+    this.resourceFill();
+    this.writePreview();
     this.show();
   }
 
-  /** Updates the curve strip preview from stored text or fallback. */
-  private writePreview(text: string): void {
-    const decoded =
-      solidScriptCurveStoredDecode(text, this.curve.raw === true) ??
+  /**
+   * Reads the curve the field shows: its resource, its typed curve, the field's
+   * fallback, or a flat line.
+   *
+   * @returns Curve.
+   */
+  private previewCurve(): Curve {
+    return (
+      this.curves.curve(this.input.value) ??
+      solidScriptCurveFromText(solidScriptFieldUnescape(this.input.value)) ??
       solidScriptCurveFromStored(this.curve.fallback) ??
-      solidScriptCurveDefault();
-    this.curveField.setCurve(decoded);
+      solidScriptCurveDefault()
+    );
   }
 
-  /** Shows the curve preview or the text input, and updates mode toggle state. */
+  /** Updates the curve strip from the field. */
+  private writePreview(): void {
+    this.curveField.setCurve(this.previewCurve());
+  }
+
+  /** Shows the picker and strip or the text input, and updates the toggles. */
   private show(): void {
-    this.resource.hidden = !this.picking || this.resources.length === 0;
-    this.host.hidden = !this.picking || this.resource.value !== '';
+    this.resource.hidden = !this.picking;
+    this.host.hidden = !this.picking;
     this.input.hidden = this.picking;
     this.modes.forEach((button, index) => button.setAttribute('aria-pressed', String((index === 0) === this.picking)));
   }

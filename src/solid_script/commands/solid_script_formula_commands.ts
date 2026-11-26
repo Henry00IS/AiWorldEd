@@ -218,7 +218,6 @@ function solidScriptFormulaCheckField(input: SolidScriptFormulaInput): SolidScri
             presets: SOLID_SCRIPT_CURVE_PROFILE_PRESETS,
             markers: false,
             fallback: SOLID_SCRIPT_CURVE_PROFILE_FALLBACK,
-            raw: true,
           },
         }
       : {}),

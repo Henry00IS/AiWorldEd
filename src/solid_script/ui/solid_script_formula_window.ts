@@ -1,3 +1,4 @@
+import type { SolidScriptConfiguratorCurves } from './solid_script_configurator_curves.js';
 import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
 import { solidScriptFormulaCatalog } from '@/solid_script/commands/solid_script_formula_commands.js';
@@ -54,6 +55,8 @@ export interface SolidScriptFormulaWindowOptions {
   fills: readonly string[];
   /** Input lines of the script, for Choice inputs. */
   inputs: readonly SolidScriptInput[];
+  /** Curve resources of the script, which curve blocks pick and keep curves in. */
+  curves?: SolidScriptConfiguratorCurves;
   /** Writes the built text into the field, on OK. */
   apply: (stored: string) => void;
 }
@@ -161,6 +164,7 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
       fills: () => this.options.fills,
       mount: () => this.options.host,
       parent: () => this,
+      curves: () => this.options.curves ?? null,
     });
   }
 

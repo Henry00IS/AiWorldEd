@@ -171,8 +171,6 @@ export interface SolidScriptCommandCurve {
   readonly markers: boolean;
   /** Encoded fallback curve shown visually when the stored text is empty. */
   readonly fallback: string;
-  /** True skips field bracket escaping, for formula text literals. */
-  readonly raw?: boolean;
 }
 
 /** One labelled field of a command line. */
