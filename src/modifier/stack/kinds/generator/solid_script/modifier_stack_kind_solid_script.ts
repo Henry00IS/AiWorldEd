@@ -18,8 +18,10 @@ import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KIND,
+  MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY,
 } from './modifier_stack_solid_script_keys.js';
 import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
+import { solidScriptPersistentParametersNormalize } from '@/solid_script/language/persistent/solid_script_persistent_record.js';
 import { solidScriptInspectorRow } from '@/solid_script/ui/solid_script_inspector_row.js';
 import {
   solidScriptInspectorInputs,
@@ -117,12 +119,13 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
    */
   protected override normalizeCurrent(input: Record<string, unknown>): Record<string, unknown> {
     const script = solidScriptDocumentNormalize(input[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
+    const inputs = solidScriptInspectorInputValues(input[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]);
+    const kept = solidScriptPersistentParametersNormalize(input[MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY], inputs);
     return {
       ...super.normalizeCurrent(input),
       [MODIFIER_STACK_SOLID_SCRIPT_KEY]: script,
-      [MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]: solidScriptInspectorInputValues(
-        input[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY],
-      ),
+      [MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]: kept.inputs,
+      [MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY]: kept.persistent,
     };
   }
 
@@ -273,6 +276,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
   ): { units: ModifierStackUnit[]; passed: ModifierStackSolidScriptPassed[] } {
     const document = solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
     const inputs = parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>;
+    const persistent = parameters[MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY] as Record<string, unknown> | undefined;
     const frame = modifierStackFrame(context.volume, 'volume');
     const layout = modifierStackSolidScriptLayout(
       document,
@@ -289,6 +293,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
       use,
       modifierStackSolidScriptBoxValues(context.volume, box),
       { owner: context.volume, stepId: context.step.id },
+      persistent,
     );
     if (layout.error) context.report.error = layout.error;
     const scriptToWorld = frame.clone().multiply(layout.placement);

@@ -19,6 +19,7 @@ import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND,
+  MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY,
 } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { solidScriptInspectorInputValues } from './solid_script_inspector_inputs.js';
 import {
@@ -71,6 +72,7 @@ export class SolidScriptEditorSession {
     return JSON.stringify([
       parameters?.[MODIFIER_STACK_SOLID_SCRIPT_KEY] ?? null,
       parameters?.[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] ?? null,
+      parameters?.[MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY] ?? null,
     ]);
   }
 
@@ -97,6 +99,18 @@ export class SolidScriptEditorSession {
   }
 
   /**
+   * Reads the persistent values stored on the generator.
+   *
+   * @returns Structured persistent record.
+   */
+  persistent(): Record<string, unknown> {
+    const stored = modifierStackParametersRead(this.node, this.stepId)?.[MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY];
+    return stored && typeof stored === 'object' && !Array.isArray(stored)
+      ? { ...(stored as Record<string, unknown>) }
+      : {};
+  }
+
+  /**
    * Returns what a run of the script in the editor starts from: the inspector
    * values and $Box from the generator or modifier volume; for a modifier, also
    * the brushes it received at its last evaluation, so the editor shows what
@@ -106,12 +120,17 @@ export class SolidScriptEditorSession {
    */
   runStart(): {
     inputs: Record<string, string>;
+    persistent: Record<string, unknown>;
     box: [number, number, number];
     pose: SolidScriptBoxPose;
     corners: SolidScriptBoxCorners;
     use?: SolidScriptUseFacts;
   } {
-    return { inputs: this.inputs(), ...modifierStackSolidScriptRunStart(this.node, this.stepId, this.use()) };
+    return {
+      inputs: this.inputs(),
+      persistent: this.persistent(),
+      ...modifierStackSolidScriptRunStart(this.node, this.stepId, this.use()),
+    };
   }
 
   /**

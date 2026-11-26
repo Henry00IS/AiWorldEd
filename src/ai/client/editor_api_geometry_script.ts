@@ -8,6 +8,7 @@ import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KIND,
+  MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY,
 } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { solidScriptCommandFind, solidScriptCommands } from '@/solid_script/commands/solid_script_command_catalog.js';
 import {
@@ -20,7 +21,7 @@ import {
 import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
 import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import { solidScriptProgramEvaluate, solidScriptProgramHandle } from '@/solid_script/language/solid_script_program.js';
-import { SOLID_SCRIPT_PERSISTENT_PREFIX } from '@/solid_script/language/solid_script_machine_variables.js';
+import { solidScriptPersistentRecordApply } from '@/solid_script/language/persistent/solid_script_persistent_record.js';
 import type { SolidScriptEvent } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';
 import {
@@ -52,6 +53,7 @@ export interface GeometryScriptGeneratorSetArgs {
 /** What the inspector event handlers of one set answered. */
 interface GeometryScriptHandled {
   inputs: Record<string, string>;
+  persistent: Record<string, unknown>;
   notices: string[];
   errors: string[];
 }
@@ -150,7 +152,9 @@ export class EditorApiGeometryScript {
     if (typeof typed === 'string') return failResult(typed);
     const events = geometryScriptEvents(args, document);
     if (typeof events === 'string') return failResult(events);
-    const handled = geometryScriptHandle(document, events, typed);
+    const storedPersistent =
+      (generator.parameters[MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY] as Record<string, unknown> | undefined) ?? {};
+    const handled = geometryScriptHandle(document, events, typed, storedPersistent);
     const before = ModifierVolume.read(generator.node);
     const patch = {
       [MODIFIER_STACK_SOLID_SCRIPT_KEY]: solidScriptDocumentEditModeAfter(
@@ -158,6 +162,7 @@ export class EditorApiGeometryScript {
         document,
       ),
       [MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]: handled.inputs,
+      [MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY]: handled.persistent,
       ...(args.placement ? { placement: args.placement } : {}),
     };
     const after = modifierStackPatch(before, generator.stepId, { parameters: { ...generator.parameters, ...patch } });
@@ -305,8 +310,7 @@ function geometryScriptInputsRead(
   const names = new Set(inputs.map((input) => input.name));
   const stored = solidScriptInspectorInputValues(parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]);
   const merged: Record<string, string> = {};
-  for (const [name, value] of Object.entries(stored))
-    if (names.has(name) || name.startsWith(SOLID_SCRIPT_PERSISTENT_PREFIX)) merged[name] = value;
+  for (const [name, value] of Object.entries(stored)) if (names.has(name)) merged[name] = value;
   if (given === undefined) return merged;
   if (!given || typeof given !== 'object' || Array.isArray(given))
     return 'inputs must be an object of values by input name';
@@ -364,12 +368,23 @@ function geometryScriptHandle(
   document: SolidScriptDocument,
   events: readonly SolidScriptEvent[],
   typed: Readonly<Record<string, string>>,
+  persistent: Readonly<Record<string, unknown>>,
 ): GeometryScriptHandled {
-  const result: GeometryScriptHandled = { inputs: { ...typed }, notices: [], errors: [] };
+  const result: GeometryScriptHandled = {
+    inputs: { ...typed },
+    persistent: { ...persistent },
+    notices: [],
+    errors: [],
+  };
   for (const event of events) {
-    const handled = solidScriptProgramHandle(document, event, result.inputs);
+    const handled = solidScriptProgramHandle(document, event, result.inputs, result.persistent);
     Object.assign(result.inputs, handled.inputs);
     for (const key of handled.removed) delete result.inputs[key];
+    result.persistent = solidScriptPersistentRecordApply(
+      result.persistent,
+      handled.persistent,
+      handled.persistentRemoved,
+    );
     result.notices.push(...handled.notices);
     if (handled.error) result.errors.push(handled.error.message);
   }

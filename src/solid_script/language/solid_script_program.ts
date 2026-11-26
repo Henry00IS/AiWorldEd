@@ -30,6 +30,8 @@ export interface SolidScriptProgramOptions {
   stepLimit?: number;
   /** Values defined before the first line, such as inspector inputs. */
   inputs?: Readonly<Record<string, string>>;
+  /** Persistent values stored on the generator, as the structured record. */
+  persistent?: Readonly<Record<string, unknown>>;
   /** Where the script runs, for Run.Context; a generator when not given. */
   context?: SolidScriptRunContext;
   /** Size of the generator or modifier volume box, for Box.Width and the others. */
@@ -166,6 +168,7 @@ function solidScriptProgramExecute(
     options.inputs,
     system,
     options.profile === true,
+    options.persistent,
   ).run(lines);
 }
 
@@ -232,22 +235,29 @@ export function solidScriptProgramEvaluate(
  * @param program Lines of the script.
  * @param event Event that happened.
  * @param inputs Inspector values, with the new value of a changed input.
+ * @param persistent Persistent values stored on the generator.
  * @returns Changed inputs, messages and the first mistake.
  */
 export function solidScriptProgramHandle(
   program: SolidScriptProgram,
   event: SolidScriptEvent,
   inputs: Readonly<Record<string, string>>,
+  persistent: Readonly<Record<string, unknown>> = {},
 ): SolidScriptHandled {
   try {
     const lines = solidScriptProgramLines(program);
     const system = solidScriptSystemValues('handler', null);
-    return new SolidScriptMachine(Number.POSITIVE_INFINITY, null, inputs, system).handle(lines, event);
+    return new SolidScriptMachine(Number.POSITIVE_INFINITY, null, inputs, system, false, persistent).handle(
+      lines,
+      event,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
       inputs: {},
+      persistent: {},
       removed: [],
+      persistentRemoved: [],
       notices: [],
       messages: [],
       error: solidScriptFailure(solidScriptErrorLine(message), message),

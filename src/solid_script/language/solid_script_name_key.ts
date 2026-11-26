@@ -16,6 +16,15 @@ const SOLID_SCRIPT_NAME_PREFIXES: readonly (readonly [string, string])[] = [
   ['$persistent.', '$Persistent.'],
 ];
 
+/** Prefix of a variable that belongs to the Function it is used in. */
+export const SOLID_SCRIPT_LOCAL_PREFIX = '$local.';
+
+/**
+ * Start of a variable kept with the generator between runs, such as
+ * [$persistent.presses].
+ */
+export const SOLID_SCRIPT_PERSISTENT_PREFIX = '$persistent.';
+
 /**
  * System names that hold the script's own names, written $Local.Name and
  * $Persistent.Name.

@@ -1,4 +1,5 @@
 import { modifierStackParametersCommit } from '@/modifier/stack/modifier_stack_parameters_commit.js';
+import { MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { pathInputRow } from '@/path/ui/path_input_row.js';
 import { modifierStackScenePathNames } from '@/modifier/stack/kinds/generator/path/modifier_stack_scene_paths.js';
 import type { ModifierStackActionTarget, ModifierStackWidget } from '@/modifier/stack/modifier_stack_types.js';
@@ -78,6 +79,7 @@ export function solidScriptInspectorInputs(
   let shape = '';
   let script: unknown = null;
   let values: Record<string, string> = {};
+  let persistent: Record<string, unknown> = {};
   let writers: ((text: string) => void)[] = [];
   let visibility: (valueOf: (name: string) => string | undefined) => void = () => undefined;
   const noticesShow = (texts: readonly string[], error: string | null): void => {
@@ -93,10 +95,15 @@ export function solidScriptInspectorInputs(
   const commit = (event: SolidScriptEvent, text: string | null): void => {
     const target = targetOf(() => undefined);
     if (!target) return;
-    const { next, handled } = solidScriptDocumentEvent(script, event, values, text);
+    const { next, persistent: kept, handled } = solidScriptDocumentEvent(script, event, values, text, persistent);
     noticesShow(handled.notices, handled.error?.message ?? null);
-    if (JSON.stringify(next) === JSON.stringify(values)) return;
-    modifierStackParametersCommit(target.volume, target.stepId, { [inputsKey]: next }, target.commandStack);
+    if (JSON.stringify({ next, kept }) === JSON.stringify({ next: values, kept: persistent })) return;
+    modifierStackParametersCommit(
+      target.volume,
+      target.stepId,
+      { [inputsKey]: next, [MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY]: kept },
+      target.commandStack,
+    );
     target.refresh?.();
   };
   const write = (parameters: Record<string, unknown>): void => {
@@ -104,6 +111,7 @@ export function solidScriptInspectorInputs(
     const layout = solidScriptDocumentInputLayout(solidScriptDocumentNormalize(script));
     const inputs = layout.flatMap((item) => (item.kind === 'input' ? [item.input] : []));
     values = solidScriptInspectorInputValues(parameters[inputsKey]);
+    persistent = (parameters[MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY] as Record<string, unknown> | undefined) ?? {};
     const next = JSON.stringify(layout);
     if (next !== shape) {
       shape = next;

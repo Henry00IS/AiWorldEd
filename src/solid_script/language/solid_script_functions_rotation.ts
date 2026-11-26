@@ -44,6 +44,19 @@ function solidScriptRotationOf(turn: THREE.Quaternion): SolidScriptRotation {
 }
 
 /**
+ * Makes a Rotation from degrees around X, then Y, then Z, the same way
+ * Rotation(x, y, z) does.
+ *
+ * @param degrees The turn in degrees around X, then Y, then Z.
+ * @returns Rotation.
+ */
+export function solidScriptRotationFromDegrees(degrees: readonly number[]): SolidScriptRotation {
+  return solidScriptRotationOf(
+    new THREE.Quaternion().setFromRotationMatrix(solidScriptRotationDegreesMatrix([...degrees])),
+  );
+}
+
+/**
  * Gives a turn back in the kind of the value it came from: a Rotation for a
  * Rotation, else X, Y, Z degrees.
  *

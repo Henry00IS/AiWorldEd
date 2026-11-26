@@ -14,3 +14,6 @@ export const MODIFIER_STACK_SOLID_SCRIPT_KEY = 'script';
 
 /** Parameter key of the values of the script's Input lines, as text by name. */
 export const MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY = 'inputs';
+
+/** Parameter key of the script's persistent values, as a structured record. */
+export const MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY = 'persistent';

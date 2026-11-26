@@ -457,13 +457,17 @@ export interface SolidScriptEvent {
 
 /** What the handlers of an inspector event did. */
 export interface SolidScriptHandled {
-  /**
-   * Input values the handlers changed with Set Input, and persistent values
-   * they set (as persistent.name with JSON text), by name.
-   */
+  /** Input values the handlers changed with Set Input, by name. */
   inputs: Record<string, string>;
-  /** Stored names to forget: persistent values the handlers deleted. */
+  /**
+   * Persistent values the handlers set, as the structured record a generator
+   * stores, by folded bare name.
+   */
+  persistent: Record<string, unknown>;
+  /** Stored input names to forget. */
   removed: string[];
+  /** Folded bare names of persistent values the handlers deleted. */
+  persistentRemoved: string[];
   /** Show Message texts, in order. */
   notices: string[];
   /** Echo lines, in order. */

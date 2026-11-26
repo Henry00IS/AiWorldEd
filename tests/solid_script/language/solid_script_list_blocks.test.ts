@@ -161,10 +161,10 @@ describe('SolidScript persistent values', () => {
   it('keeps values a button press sets as hidden stored inputs', () => {
     const first = solidScriptProgramHandle(script, { kind: 'button', name: 'Add' }, {});
     expect(first.error).toBeNull();
-    expect(first.inputs).toEqual({ '$persistent.count': '1', '$persistent.history': '[1]' });
-    const second = solidScriptProgramHandle(script, { kind: 'button', name: 'Add' }, first.inputs);
-    expect(second.inputs).toEqual({ '$persistent.count': '2', '$persistent.history': '[1,2]' });
-    const built = solidScriptProgramRun(script, { inputs: second.inputs });
+    expect(first.persistent).toEqual({ count: 1, history: [1] });
+    const second = solidScriptProgramHandle(script, { kind: 'button', name: 'Add' }, {}, first.persistent);
+    expect(second.persistent).toEqual({ count: 2, history: [1, 2] });
+    const built = solidScriptProgramRun(script, { persistent: second.persistent });
     expect(built.error).toBeNull();
     expect(JSON.stringify(built.shapes).match(/"kind":"solid"/g)).toHaveLength(2);
   });
@@ -191,8 +191,8 @@ describe('SolidScript persistent values', () => {
       { command: 'end' },
       CUBE,
     ]);
-    const handled = solidScriptProgramHandle(forget, { kind: 'button', name: 'Reset' }, { '$persistent.count': '4' });
+    const handled = solidScriptProgramHandle(forget, { kind: 'button', name: 'Reset' }, {}, { count: 4 });
     expect(handled.error).toBeNull();
-    expect(handled.removed).toEqual(['$persistent.count']);
+    expect(handled.persistentRemoved).toEqual(['count']);
   });
 });

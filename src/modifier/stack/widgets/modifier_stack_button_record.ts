@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
+  MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KEY,
 } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { solidScriptDocumentNormalize } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptDocumentEvent } from '@/solid_script/document/solid_script_document_event.js';
 import { solidScriptFieldBoolean } from '@/solid_script/language/solid_script_field.js';
-import { solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';
+import { solidScriptInputsList, type SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
 import type { SolidScriptEvent } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
 import type { SolidScriptWidget, SolidScriptWidgetButton } from '@/solid_script/language/solid_script_widget.js';
@@ -102,14 +103,44 @@ export function modifierStackButtonPress(
   if (!entry || button.writes === '') return null;
   const script = entry.parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY];
   const values = (entry.parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] ?? {}) as Record<string, string>;
+  const persistent = (entry.parameters[MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY] ?? {}) as Record<string, unknown>;
   const key = solidScriptNameKey(button.writes);
   const input = solidScriptInputsList(solidScriptDocumentNormalize(script).blocks.filter((block) => !block.off)).find(
     (each) => solidScriptNameKey(each.name) === key,
   );
   if (input?.type !== 'Button' && input?.type !== 'Switch') return null;
+  return modifierStackButtonEventPatch(script, input, values, persistent);
+}
+
+/**
+ * Runs the press or flip handler and writes the inputs and persistent values it
+ * leaves stored.
+ *
+ * @param script Script of the step.
+ * @param input Button or Switch input.
+ * @param values Stored input values.
+ * @param persistent Stored persistent record.
+ * @returns Patch and messages.
+ */
+function modifierStackButtonEventPatch(
+  script: unknown,
+  input: SolidScriptInput,
+  values: Record<string, string>,
+  persistent: Record<string, unknown>,
+): ModifierStackButtonPressed {
   const event: SolidScriptEvent = { kind: input.type === 'Button' ? 'button' : 'input', name: input.name };
   const flipped = solidScriptFieldBoolean(values[input.name] ?? input.fallback) === true ? 'No' : 'Yes';
-  const { next, handled } = solidScriptDocumentEvent(script, event, values, event.kind === 'button' ? null : flipped);
-  const patch = { [MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]: next };
-  return { patch, notices: handled.notices, error: handled.error?.message ?? null };
+  const {
+    next,
+    persistent: kept,
+    handled,
+  } = solidScriptDocumentEvent(script, event, values, event.kind === 'button' ? null : flipped, persistent);
+  return {
+    patch: {
+      [MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]: next,
+      [MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY]: kept,
+    },
+    notices: handled.notices,
+    error: handled.error?.message ?? null,
+  };
 }

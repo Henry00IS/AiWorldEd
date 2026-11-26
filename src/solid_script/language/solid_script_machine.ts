@@ -215,8 +215,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     inputs: Readonly<Record<string, string>> = {},
     system: SolidScriptSystemReader = { get: () => undefined },
     private readonly profiling = false,
+    persistentStored: unknown = {},
   ) {
-    super(inputs, system);
+    super(inputs, system, persistentStored);
   }
 
   /**
@@ -607,7 +608,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     }
     return {
       inputs: this.inputsChanged,
-      removed: [...this.inputsRemoved],
+      persistent: { ...this.persistentChanged },
+      removed: [],
+      persistentRemoved: [...this.persistentRemoved],
       notices: this.notices,
       messages: this.messages,
       error: this.failure,
@@ -618,7 +621,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   private useOnce(): void {
     if (this.used) throw new Error('a script machine runs once; make a new one for every run');
     this.used = true;
-    for (const [name, value] of solidScriptPersistentRead(this.inputs))
+    for (const [name, value] of solidScriptPersistentRead(this.inputs, this.persistentStored))
       this.persistent.variableDefine(this.nameKey(name), value);
   }
 

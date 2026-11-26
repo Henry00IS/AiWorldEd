@@ -53,9 +53,15 @@ describe('solidScriptDocumentEvent', () => {
       { command: 'variable', values: { name: '$Persistent.Page', value: 'Rails' } },
       { command: 'end' },
     ]);
-    const { next, handled } = solidScriptDocumentEvent(script, { kind: 'button', name: 'ResetAll' }, {}, null);
+    const { next, persistent, handled } = solidScriptDocumentEvent(
+      script,
+      { kind: 'button', name: 'ResetAll' },
+      {},
+      null,
+    );
     expect(handled.error).toBeNull();
-    expect(JSON.stringify(next)).toContain('Rails');
+    expect(next).toEqual({});
+    expect(persistent).toEqual({ page: 'Rails' });
   });
 
   it('writes the new value of a changed input before its handlers run', () => {

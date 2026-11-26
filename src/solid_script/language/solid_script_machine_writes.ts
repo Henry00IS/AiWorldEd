@@ -44,6 +44,7 @@ import {
 } from './solid_script_uvs.js';
 import {
   SOLID_SCRIPT_LOCAL_PREFIX,
+  SOLID_SCRIPT_PERSISTENT_PREFIX,
   SOLID_SCRIPT_NAME,
   SOLID_SCRIPT_NAMES_PLAIN,
   SolidScriptMachineVariables,
@@ -123,7 +124,22 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
         valueOf(item, index, items.length),
       );
     }
+    this.persistentOwnerKeep(parts.slice(0, at).join('.'), scope);
     return true;
+  }
+
+  /**
+   * Stores a persistent Dictionary after a .Data write, so the change is kept
+   * between runs.
+   *
+   * @param written Owner name as written, such as $Persistent.Prices.
+   * @param scope Scope of the line.
+   */
+  private persistentOwnerKeep(written: string, scope: SolidScriptScope): void {
+    const name = solidScriptNameKey(written);
+    if (!name.startsWith(SOLID_SCRIPT_PERSISTENT_PREFIX)) return;
+    const where = this.variableWhere(name, scope);
+    if (where.persistent) this.persistentKeep(where.name);
   }
 
   /**

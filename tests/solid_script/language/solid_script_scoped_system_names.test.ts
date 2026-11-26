@@ -43,7 +43,7 @@ describe('$Local and $Persistent', () => {
     );
   });
 
-  it('keeps $Persistent values a button press sets, stored with their $', () => {
+  it('keeps $Persistent values a button press sets, stored on the generator', () => {
     const script = solidScriptDocumentCreate([
       line('input', { name: 'Add', type: 'Button' }),
       line('when_button_pressed', { name: 'Add' }),
@@ -53,7 +53,8 @@ describe('$Local and $Persistent', () => {
     ]);
     const pressed = solidScriptProgramHandle(script, { kind: 'button', name: 'Add' }, {});
     expect(pressed.error).toBeNull();
-    expect(pressed.inputs).toEqual({ '$persistent.count': '1' });
+    expect(pressed.inputs).toEqual({});
+    expect(pressed.persistent).toEqual({ count: 1 });
   });
 
   it('reads Local. and Persistent. without the $ as plain names', () => {

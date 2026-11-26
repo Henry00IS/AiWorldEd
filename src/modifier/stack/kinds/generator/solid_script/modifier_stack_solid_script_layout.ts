@@ -91,6 +91,7 @@ export interface ModifierStackSolidScriptPassed {
  *   its own when omitted.
  * @param step.owner Volume, brush or group owning the stack.
  * @param step.stepId Step id.
+ * @param persistent Persistent values stored on the generator.
  * @returns Nodes in frame coordinates, or an error.
  */
 export function modifierStackSolidScriptLayout(
@@ -103,11 +104,13 @@ export function modifierStackSolidScriptLayout(
   use: SolidScriptUseFacts = SOLID_SCRIPT_USE_GENERATOR,
   boxValues?: ModifierStackSolidScriptBoxValues,
   step?: { owner: THREE.Object3D; stepId: string },
+  persistent: Readonly<Record<string, unknown>> = {},
 ): ModifierStackSolidScriptLayout {
   try {
     const size = box.getSize(new THREE.Vector3());
     const run = {
       inputs,
+      persistent,
       box: boxValues?.size ?? ([size.x, size.y, size.z] as const),
       ...(boxValues?.pose ? { pose: boxValues.pose } : {}),
       ...(boxValues?.corners ? { corners: boxValues.corners } : {}),

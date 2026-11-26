@@ -11,7 +11,15 @@ import { SolidScriptFieldReader, type SolidScriptFieldHost } from './solid_scrip
 import { solidScriptListItemParse, solidScriptListItemRead } from './solid_script_list_item.js';
 import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
 import type { SolidScriptFrame, SolidScriptMachineCommand, SolidScriptVariable } from './solid_script_machine_types.js';
-import { solidScriptNameFind, solidScriptNameKey, solidScriptNameSpelling } from './solid_script_name_key.js';
+import {
+  SOLID_SCRIPT_LOCAL_PREFIX,
+  SOLID_SCRIPT_PERSISTENT_PREFIX,
+  solidScriptNameFind,
+  solidScriptNameKey,
+  solidScriptNameSpelling,
+} from './solid_script_name_key.js';
+
+export { SOLID_SCRIPT_LOCAL_PREFIX, SOLID_SCRIPT_PERSISTENT_PREFIX } from './solid_script_name_key.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import {
   SolidScriptDictionary,
@@ -19,6 +27,12 @@ import {
   solidScriptValueType,
   type SolidScriptValue,
 } from './solid_script_value.js';
+import {
+  solidScriptPersistentRecordKeep,
+  solidScriptPersistentRecordRead,
+  type SolidScriptPersistentRecord,
+} from './persistent/solid_script_persistent_record.js';
+import { solidScriptPersistentValueWrite } from './persistent/solid_script_persistent_codec.js';
 import { solidScriptSelectFresh, solidScriptSelectIds } from './solid_script_select.js';
 import { SolidScriptElements } from './solid_script_elements.js';
 import { solidScriptMemberRead } from './solid_script_members.js';
@@ -28,38 +42,21 @@ import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 /** Pattern of a variable or part name. */
 export const SOLID_SCRIPT_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
-/** Prefix of a variable that belongs to the Function it is used in. */
-export const SOLID_SCRIPT_LOCAL_PREFIX = '$local.';
-
 /**
- * Start of a variable kept with the generator between runs, such as
- * [$persistent.presses]. Its value is stored, saved and shared like an input
- * that has no row in the inspector.
- */
-export const SOLID_SCRIPT_PERSISTENT_PREFIX = '$persistent.';
-
-/**
- * Reads the persistent values stored among a generator's input values.
+ * Reads the persistent values stored on a generator: the structured record, or
+ * older maps that kept them among the input values as JSON text.
  *
  * @param inputs Stored input values by name.
+ * @param stored Structured record already on the generator, if any.
  * @returns Persistent values by bare name.
  */
-export function solidScriptPersistentRead(inputs: Readonly<Record<string, string>>): Map<string, SolidScriptValue> {
-  const values = new Map<string, SolidScriptValue>();
-  for (const [key, text] of Object.entries(inputs)) {
-    if (!key.startsWith(SOLID_SCRIPT_PERSISTENT_PREFIX)) continue;
-    let value: SolidScriptValue = text;
-    try {
-      value = JSON.parse(text) as SolidScriptValue;
-    } catch {
-      value = text;
-    }
-    values.set(key.slice(SOLID_SCRIPT_PERSISTENT_PREFIX.length), value);
-  }
-  return values;
+export function solidScriptPersistentRead(
+  inputs: Readonly<Record<string, string>>,
+  stored: unknown = {},
+): Map<string, SolidScriptValue> {
+  return solidScriptPersistentRecordRead(stored, inputs);
 }
 
-/** Most list items the variable explorer lists under one list. */
 export const SOLID_SCRIPT_VARIABLE_ITEMS_MAX = 256;
 
 /**
@@ -294,8 +291,13 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   /** True while an inspector event runs its handlers. */
   protected handling = false;
   protected readonly inputsChanged: Record<string, string> = {};
-  /** Stored persistent names the handlers deleted. */
-  protected readonly inputsRemoved = new Set<string>();
+  /**
+   * Persistent values the handlers set, as the structured record a generator
+   * stores.
+   */
+  protected readonly persistentChanged: SolidScriptPersistentRecord = {};
+  /** Folded bare names of persistent values the handlers deleted. */
+  protected readonly persistentRemoved = new Set<string>();
   /** Variables kept with the generator between runs, by bare name. */
   protected readonly persistent = new SolidScriptScope(null);
   protected root = new SolidScriptScope(null);
@@ -311,10 +313,13 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
    *
    * @param inputs Inspector values of the script's Input lines, by name.
    * @param system Built-in values.
+   * @param persistentStored Structured persistent record stored on the
+   *   generator.
    */
   constructor(
     protected readonly inputs: Readonly<Record<string, string>>,
     protected readonly system: SolidScriptSystemReader,
+    protected readonly persistentStored: unknown = {},
   ) {}
 
   /** Counts one step of work and stops a run that never ends. */
@@ -725,22 +730,26 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   }
 
   /**
-   * Notes a changed persistent value so the inspector stores it. Only When
+   * Notes a changed persistent value so the generator stores it. Only When
    * Button Pressed and When Input Changes blocks store values; the normal build
-   * may change them for its own run, so every rebuild gives the same shape.
+   * may change them for its own run, so every rebuild gives the same shape. A
+   * value that cannot be kept is refused at once, in a build or a handler.
    *
    * @param name Bare name.
    */
   protected persistentKeep(name: string): void {
-    if (!this.handling) return;
-    const key = `${SOLID_SCRIPT_PERSISTENT_PREFIX}${name}`;
+    const shown = this.nameShown(`${SOLID_SCRIPT_PERSISTENT_PREFIX}${name}`);
     if (!this.persistent.variableHas(name)) {
-      delete this.inputsChanged[key];
-      this.inputsRemoved.add(key);
+      if (this.handling)
+        solidScriptPersistentRecordKeep(this.persistentChanged, this.persistentRemoved, name, undefined, shown);
       return;
     }
-    this.inputsRemoved.delete(key);
-    this.inputsChanged[key] = JSON.stringify(this.persistent.variableGet(name));
+    const value = this.persistent.variableGet(name);
+    if (!this.handling) {
+      solidScriptPersistentValueWrite(value, shown);
+      return;
+    }
+    solidScriptPersistentRecordKeep(this.persistentChanged, this.persistentRemoved, name, value, shown);
   }
 
   /**
