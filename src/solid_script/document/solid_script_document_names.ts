@@ -55,6 +55,7 @@ export const SOLID_SCRIPT_NAME_CATEGORIES = [
   'Objects',
   'Handlers',
   'Persistent',
+  'Resources',
   'System',
 ] as const;
 
@@ -309,7 +310,25 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
     solidScriptNamesOfValues(list, block, line);
     solidScriptNamesOfBlocks(list, block, line);
   }
-  return solidScriptNamesKinds(list.names, solidScriptDocumentFlowEnd(document), document);
+  const named = solidScriptNamesKinds(list.names, solidScriptDocumentFlowEnd(document), document);
+  return [...named, ...solidScriptNamesResources(document)];
+}
+
+/**
+ * Lists the resources of a script as the names fields read them, such as
+ * $Resource.Wall, each with its kind.
+ *
+ * @param document Script.
+ * @returns Names.
+ */
+export function solidScriptNamesResources(document: SolidScriptDocument): SolidScriptName[] {
+  return (document.resources ?? []).map((resource) => ({
+    name: `$Resource.${resource.name}`,
+    category: 'Resources',
+    line: 0,
+    detail: `${resource.kind.toLowerCase()} resource`,
+    kinds: [resource.kind],
+  }));
 }
 
 /**

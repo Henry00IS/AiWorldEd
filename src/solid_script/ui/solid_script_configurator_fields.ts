@@ -120,6 +120,18 @@ function solidScriptConfiguratorVectorSize(parameter: SolidScriptCommandParamete
   return parameter.type === 'vector3' ? 3 : parameter.type === 'vector2' ? 2 : 0;
 }
 
+/**
+ * Lists the resources of one kind the script has, as fields write them, such as
+ * $Resource.Wall.
+ *
+ * @param names Names the line sees.
+ * @param kind Texture, Curve or Path.
+ * @returns Names.
+ */
+function solidScriptConfiguratorResources(names: readonly SolidScriptName[], kind: string): string[] {
+  return names.filter((name) => name.category === 'Resources' && name.kinds?.includes(kind)).map((name) => name.name);
+}
+
 /** Pattern of names a variable can have. */
 const SOLID_SCRIPT_CONFIGURATOR_NAME = /^(\$(local|persistent)\.)?[A-Za-z_][A-Za-z0-9_]*$/i;
 
@@ -232,7 +244,7 @@ export function solidScriptConfiguratorFieldBuild(
   } else caption.textContent = parameter.label;
   const inputs = document.createElement('span');
   inputs.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldInputs;
-  const field = solidScriptConfiguratorInputs(parameter, value, inputs);
+  const field = solidScriptConfiguratorInputs(parameter, value, inputs, scope.names);
   const wordsOf = (): readonly SolidScriptCommandWord[] => {
     const base = solidScriptConfiguratorWords(parameter, scope.names);
     if (base.length > 0 && parameter.words === undefined && parameter.type !== 'boolean') return base;
@@ -377,16 +389,22 @@ function solidScriptConfiguratorInputs(
   parameter: SolidScriptCommandParameter,
   value: string,
   inputs: HTMLElement,
+  names: readonly SolidScriptName[],
 ): SolidScriptConfiguratorFieldReader {
   const switched = parameter.type === 'boolean' ? solidScriptFieldBoolean(value) : value;
   const shown = typeof switched === 'boolean' ? (switched ? 'Yes' : 'No') : value;
   const input = solidScriptConfiguratorInput(shown, parameter.label);
   const placeholder = solidScriptParameterPlaceholder(parameter);
   if (placeholder !== '') input.placeholder = placeholder;
-  if (parameter.texture === true) return solidScriptConfiguratorTexture(input, parameter, inputs);
+  if (parameter.texture === true)
+    return solidScriptConfiguratorTexture(input, parameter, inputs, solidScriptConfiguratorResources(names, 'Texture'));
   if (parameter.curve !== undefined)
-    return solidScriptConfiguratorCurve(input, parameter, inputs, () =>
-      solidScriptConfiguratorProblem(parameter, input.value),
+    return solidScriptConfiguratorCurve(
+      input,
+      parameter,
+      inputs,
+      () => solidScriptConfiguratorProblem(parameter, input.value),
+      solidScriptConfiguratorResources(names, 'Curve'),
     );
   if (parameter.color === true) solidScriptConfiguratorColorAttach(input, inputs);
   else inputs.append(input);
@@ -409,8 +427,9 @@ function solidScriptConfiguratorTexture(
   input: HTMLInputElement,
   parameter: SolidScriptCommandParameter,
   inputs: HTMLElement,
+  resources: readonly string[],
 ): SolidScriptConfiguratorFieldReader {
-  const field = new SolidScriptConfiguratorTextureField(input, parameter.label, inputs);
+  const field = new SolidScriptConfiguratorTextureField(input, parameter.label, inputs, resources);
   return {
     read: () => (field.picking ? field.select.read() : input.value.trim()),
     problem: () => (field.picking ? '' : solidScriptConfiguratorProblem(parameter, input.value)),
@@ -437,10 +456,15 @@ class SolidScriptConfiguratorTextureField {
     private readonly input: HTMLInputElement,
     label: string,
     private readonly inputs: HTMLElement,
+    private readonly resources: readonly string[],
   ) {
-    this.select = textureSelectCreate(label, () => this.changed());
+    this.select = textureSelectCreate(
+      label,
+      () => this.changed(),
+      resources.map((name) => ({ value: `[${name}]`, label: name.slice(1) })),
+    );
     this.select.element.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.input);
-    this.picking = !input.value.includes('[');
+    this.picking = this.pickable(input.value);
     this.modes = (['Pick', 'Type'] as const).map((mode) => this.modeButton(mode));
     this.select.write(this.picking ? input.value.trim() : '');
     this.show();
@@ -469,7 +493,7 @@ class SolidScriptConfiguratorTextureField {
   private switch(picking: boolean): void {
     if (picking === this.picking) return;
     if (this.picking) this.input.value = this.select.read();
-    else if (!this.input.value.includes('[')) this.select.write(this.input.value.trim());
+    else if (this.pickable(this.input.value)) this.select.write(this.input.value.trim());
     this.picking = picking;
     this.show();
     this.changed();
@@ -481,9 +505,20 @@ class SolidScriptConfiguratorTextureField {
    */
   private follow(): void {
     if (!this.picking) return;
-    this.picking = !this.input.value.includes('[');
+    this.picking = this.pickable(this.input.value);
     if (this.picking) this.select.write(this.input.value.trim());
     this.show();
+  }
+
+  /**
+   * Tells whether the picker can show text: a library texture or a texture
+   * resource of the script.
+   *
+   * @param text Field text.
+   * @returns True when it can.
+   */
+  private pickable(text: string): boolean {
+    return !text.includes('[') || this.resources.some((name) => `[${name}]` === text.trim());
   }
 
   /** Shows the picker or the input, and which button is down. */
