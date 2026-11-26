@@ -127,8 +127,8 @@ describe('CurveProfile function and Curve Profile 2D Shape', () => {
           values: { curve: '[Moulding]', height: '0.2', depth: '0.05', side: 'Normal', segments: '8', into: 'Shape' },
         },
         {
-          command: 'path',
-          values: { shape: 'Line', from: '0, 0, 0', to: '3, 0, 0', count: '2', into: 'Wall' },
+          command: 'line_path',
+          values: { from: '0, 0, 0', to: '3, 0, 0', count: '2', into: 'Wall' },
         },
         {
           command: 'sweep_along_path',
@@ -149,8 +149,8 @@ describe('CurveProfile function and Curve Profile 2D Shape', () => {
       solidScriptDocumentCreate([
         { command: 'input', values: { name: 'Moulding', type: 'Curve', default: encoded } },
         {
-          command: 'path',
-          values: { shape: 'Line', from: '0, 0, 0', to: '3, 0, 0', count: '2', into: 'Wall' },
+          command: 'line_path',
+          values: { from: '0, 0, 0', to: '3, 0, 0', count: '2', into: 'Wall' },
         },
         {
           command: 'sweep_along_path',

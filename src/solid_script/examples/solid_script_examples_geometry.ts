@@ -65,8 +65,7 @@ export const SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Depth', 'Number', '2', { min: '0.5', max: '20', label: 'Depth' }),
   solidScriptExampleInput('Corner', 'Number', '0.4', { min: '0', max: '5', label: 'Corner' }),
   solidScriptExampleInput('Thickness', 'Number', '0.08', { min: '0.01', max: '1', label: 'Thickness' }),
-  solidScriptExampleLine('path', {
-    shape: 'From Points',
+  solidScriptExampleLine('path_from_points', {
     points:
       '[=Vector(-[Width] / 2, 0, -[Depth] / 2)], [=Vector([Width] / 2, 0, -[Depth] / 2)], [=Vector([Width] / 2, 0, [Depth] / 2)], [=Vector(-[Width] / 2, 0, [Depth] / 2)]',
     corner_radius: '[Corner]',
@@ -127,8 +126,7 @@ export const SOLID_SCRIPT_EXAMPLE_CURVE_BASEBOARD: readonly SolidScriptLine[] = 
     segments: '16',
     into: 'Profile',
   }),
-  solidScriptExampleLine('path', {
-    shape: 'From Points',
+  solidScriptExampleLine('path_from_points', {
     points: '[-1.5, 0, 1], [-1.5, 0, -1], [1.5, 0, -1], [1.5, 0, 1]',
     into: 'Wall',
   }),

@@ -5,13 +5,14 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 /**
  * Makes a Path and prints its point count, first, middle and last points.
  *
+ * @param command Path block id.
  * @param values Path fields.
  * @returns Program result.
  */
-function path(values: Record<string, string>): ReturnType<typeof solidScriptProgramRun> {
+function path(command: string, values: Record<string, string>): ReturnType<typeof solidScriptProgramRun> {
   return solidScriptProgramRun(
     solidScriptDocumentCreate([
-      { command: 'path', values: { into: 'P', ...values } },
+      { command, values: { into: 'P', ...values } },
       { command: 'echo', values: { value: '[P.Points.Count]' } },
       { command: 'echo', values: { value: '[P.Points(0)] [P.Points(2)] [P.Points(4)]' } },
     ]),
@@ -20,8 +21,7 @@ function path(values: Record<string, string>): ReturnType<typeof solidScriptProg
 
 describe('Path Smooth and Bezier', () => {
   it('bends a Bezier from From to To through its handles', () => {
-    const result = path({
-      shape: 'Bezier',
+    const result = path('bezier_path', {
       from: '0, 0, 0',
       from_handle: '0, 4, 0',
       to_handle: '4, 4, 0',
@@ -33,14 +33,13 @@ describe('Path Smooth and Bezier', () => {
   });
 
   it('runs a Smooth path through every point with Sides segments per stretch', () => {
-    const result = path({ shape: 'Smooth', points: '[0, 0, 0], [2, 2, 0], [4, 0, 0]', sides: '2' });
+    const result = path('smooth_path', { points: '[0, 0, 0], [2, 2, 0], [4, 0, 0]', sides: '2' });
     expect(result.error?.message).toBeUndefined();
     expect(result.messages).toEqual(['5', '[0, 0, 0] [2, 2, 0] [4, 0, 0]']);
   });
 
   it('closes a Smooth path without repeating its first point', () => {
-    const result = path({
-      shape: 'Smooth',
+    const result = path('smooth_path', {
       points: '[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]',
       sides: '3',
       closed: 'Yes',

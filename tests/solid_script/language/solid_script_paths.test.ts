@@ -70,8 +70,8 @@ const L_PATH = points('path', '0, 0, 0', '2, 0, 0', '2, 2, 0');
 /** A closed square Path, 4 m a side. */
 const LOOP: SolidScriptLine[] = [
   {
-    command: 'path',
-    values: { shape: 'From Points', points: '[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]', closed: 'Yes', into: 'path' },
+    command: 'path_from_points',
+    values: { points: '[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]', closed: 'Yes', into: 'path' },
   },
 ];
 
@@ -178,10 +178,10 @@ describe('SolidScript paths', () => {
 
   it('sweeps a Circle 2D polygon Into a Path along straight and curved paths as a closed tube', () => {
     const pathLines: SolidScriptLine[] = [
-      { command: 'path', values: { shape: 'Line', from: '0, 0, 0', to: '2, 0, 0', count: '2', into: 'Rail' } },
+      { command: 'line_path', values: { from: '0, 0, 0', to: '2, 0, 0', count: '2', into: 'Rail' } },
       {
-        command: 'path',
-        values: { shape: 'Arc', center: '0, 0, 0', radius: '2', start: '0', end: '180', count: '13', into: 'Rail' },
+        command: 'arc_path',
+        values: { center: '0, 0, 0', radius: '2', start: '0', end: '180', count: '13', into: 'Rail' },
       },
     ];
     for (const pathLine of pathLines) {
@@ -193,15 +193,15 @@ describe('SolidScript paths', () => {
         ]);
         expect(solidScriptKindCheck(doc)).toEqual([]);
         const result = solidScriptProgramRun(doc);
-        expect(result.error, `${pathLine.values?.['shape']} mesh=${meshFlag}`).toBeNull();
+        expect(result.error, `${pathLine.command} mesh=${meshFlag}`).toBeNull();
         if (meshFlag === 'Yes') {
           const [mesh] = solidScriptShapeMeshes(result.shapes);
-          expect(mesh, pathLine.values?.['shape']).toBeTruthy();
+          expect(mesh, pathLine.command).toBeTruthy();
           expect(volume(mesh!)).toBeGreaterThan(0.15);
           const box = new THREE.Box3().setFromPoints(mesh!.points);
           const size = box.getSize(new THREE.Vector3());
           expect(size.y).toBeCloseTo(0.4, 2);
-          if (pathLine.values?.['shape'] === 'Line') {
+          if (pathLine.command === 'line_path') {
             expect(size.x).toBeCloseTo(2, 4);
             expect(size.z).toBeCloseTo(0.4, 2);
           } else {
@@ -239,9 +239,8 @@ describe('SolidScript paths', () => {
 
     const xzArc = run(
       {
-        command: 'path',
+        command: 'arc_path',
         values: {
-          shape: 'Arc',
           center: '0, 0, 0',
           radius: '0.2',
           sweep: '360',
@@ -250,7 +249,7 @@ describe('SolidScript paths', () => {
           into: 'Ring',
         },
       },
-      { command: 'path', values: { shape: 'Line', from: '0, 0, 0', to: '2, 0, 0', count: '2', into: 'Rail' } },
+      { command: 'line_path', values: { from: '0, 0, 0', to: '2, 0, 0', count: '2', into: 'Rail' } },
       { command: 'sweep_along_path', values: { path: '[Rail]', profile: '[Ring]', mesh: 'Yes' } },
     );
     expect(xzArc.error).toBeNull();
@@ -261,7 +260,7 @@ describe('SolidScript paths', () => {
   it('sweeps Square, Polygon, Star and Ring.Points profiles along a path without flattening', () => {
     const starDoc = solidScriptDocumentCreate([
       { command: 'star', values: { points: '5', inner: '0.1', outer: '0.3', into: 'StarProfile' } },
-      { command: 'path', values: { shape: 'Line', from: '0, 0, 0', to: '2, 0, 0', count: '2', into: 'Rail' } },
+      { command: 'line_path', values: { from: '0, 0, 0', to: '2, 0, 0', count: '2', into: 'Rail' } },
       { command: 'sweep_along_path', values: { path: '[Rail]', profile: '[StarProfile]', mesh: 'No' } },
     ]);
     const starRun = solidScriptProgramRun(starDoc);
@@ -270,7 +269,7 @@ describe('SolidScript paths', () => {
 
     const pointsDoc = solidScriptDocumentCreate([
       { command: 'square', values: { size: '0.4, 0.2', into: 'BoxProfile' } },
-      { command: 'path', values: { shape: 'Line', from: '0, 0, 0', to: '2, 0, 0', count: '2', into: 'Rail' } },
+      { command: 'line_path', values: { from: '0, 0, 0', to: '2, 0, 0', count: '2', into: 'Rail' } },
       { command: 'sweep_along_path', values: { path: '[Rail]', profile: '[BoxProfile.Points]', mesh: 'Yes' } },
     ]);
     const pointsRun = solidScriptProgramRun(pointsDoc);
@@ -287,7 +286,7 @@ describe('SolidScript paths', () => {
       { command: 'point', values: { position: '0, 0.2, 0' } },
       { command: 'point', values: { position: '-0.2, 0.2, 0' } },
       END,
-      { command: 'path', values: { shape: 'Line', from: '0, 0, 0', to: '1, 0, 0', count: '2', into: 'Rail' } },
+      { command: 'line_path', values: { from: '0, 0, 0', to: '1, 0, 0', count: '2', into: 'Rail' } },
       { command: 'sweep_along_path', values: { path: '[Rail]', profile: '[L]', mesh: 'Yes' } },
     ]);
     const polyRun = solidScriptProgramRun(polygonDoc);

@@ -7,7 +7,9 @@ import {
 
 describe('Block palette categories', () => {
   it.each([
-    ['path', 'Paths'],
+    ['line_path', 'Paths'],
+    ['arc_path', 'Paths'],
+    ['path_from_points', 'Paths'],
     ['set_handles', 'Paths'],
     ['sweep_along_path', 'Paths'],
     ['select_objects', 'Objects'],

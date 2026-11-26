@@ -4,8 +4,8 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 
 /** An open L-shaped path of three points, in [P]. */
 const ELL: SolidScriptLine = {
-  command: 'path',
-  values: { shape: 'From Points', points: '[0, 0, 0], [2, 0, 0], [2, 0, 2]', into: 'P' },
+  command: 'path_from_points',
+  values: { points: '[0, 0, 0], [2, 0, 0], [2, 0, 2]', into: 'P' },
 };
 
 /**

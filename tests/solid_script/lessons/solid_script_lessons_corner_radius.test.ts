@@ -12,9 +12,8 @@ function square(values: Record<string, string>): ReturnType<typeof solidScriptPr
   return solidScriptProgramRun(
     solidScriptDocumentCreate([
       {
-        command: 'path',
+        command: 'path_from_points',
         values: {
-          shape: 'From Points',
           points: '[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]',
           closed: 'Yes',
           sides: '4',

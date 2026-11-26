@@ -138,12 +138,11 @@ describe('SolidScript flat vectors: [x, y] is [x, y, 0]', () => {
   });
 
   it('takes [x, y] points in every points field', () => {
-    const path = (points: string) =>
-      printed(line('path', { shape: 'From Points', points, into: 'W' }), echo('[W.Points]'));
+    const path = (points: string) => printed(line('path_from_points', { points, into: 'W' }), echo('[W.Points]'));
     expect(path('[0, 0], [1, 0], [1, 1]')).toEqual(path('[0, 0, 0], [1, 0, 0], [1, 1, 0]'));
     const sweep = (profile: string) =>
       corners(
-        line('path', { shape: 'From Points', points: '[0, 0, 0], [1, 0, 0], [2, 1, 0]', into: 'W' }),
+        line('path_from_points', { points: '[0, 0, 0], [1, 0, 0], [2, 1, 0]', into: 'W' }),
         line('sweep_along_path', { path: '[W]', profile }),
       );
     expect(sweep('[0, 0], [0.2, 0], [0.2, 0.1]')).toEqual(sweep('[0, 0, 0], [0.2, 0, 0], [0.2, 0.1, 0]'));

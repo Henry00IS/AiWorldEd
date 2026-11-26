@@ -41,7 +41,7 @@ describe('Chunks', () => {
     const result = solidScriptProgramRun(
       solidScriptDocumentCreate([
         { command: 'for_each', values: { variable: 'Piece', list: `[=Chunks(${points}, List(3, 2))]` } },
-        { command: 'path', values: { shape: 'From Points', points: '[Piece]', into: 'P' } },
+        { command: 'path_from_points', values: { points: '[Piece]', into: 'P' } },
         { command: 'echo', values: { value: '[P.Length]' } },
         { command: 'end' },
         { command: 'cube', values: {} },

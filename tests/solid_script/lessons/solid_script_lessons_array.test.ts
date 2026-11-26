@@ -38,7 +38,7 @@ describe('Array', () => {
     expect(
       centers(
         { command: 'move_by', values: { by: '2, 0, 0' } },
-        { command: 'array_in_circle', values: { count: '4'} },
+        { command: 'array_in_circle', values: { count: '4' } },
       ),
     ).toEqual([
       [2, 0, 0],
@@ -49,9 +49,7 @@ describe('Array', () => {
   });
 
   it('places them evenly along a Path, the first at its start', () => {
-    expect(
-      centers({ command: 'array_along_path', values: { count: '3', path: '[0, 0, 0], [4, 0, 0]' } }),
-    ).toEqual([
+    expect(centers({ command: 'array_along_path', values: { count: '3', path: '[0, 0, 0], [4, 0, 0]' } })).toEqual([
       [0, 0, 0],
       [2, 0, 0],
       [4, 0, 0],

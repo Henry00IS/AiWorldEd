@@ -12,7 +12,7 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
  */
 function typed(points: string, types: [string, string][], closed = false): string {
   const lines: SolidScriptLine[] = [
-    { command: 'path', values: { shape: 'From Points', points, closed: closed ? 'Yes' : 'No', into: 'P' } },
+    { command: 'path_from_points', values: { points, closed: closed ? 'Yes' : 'No', into: 'P' } },
     ...types.map(([type, resolution]) => ({
       command: 'set_path_type',
       values: { path: '[P]', type, resolution, into: 'P' },

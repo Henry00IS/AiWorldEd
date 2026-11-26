@@ -39,9 +39,8 @@ describe('Points From Path', () => {
   it('does not repeat the start of a closed path', () => {
     const [points] = ran(
       {
-        command: 'path',
+        command: 'path_from_points',
         values: {
-          shape: 'From Points',
           points: '[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]',
           closed: 'Yes',
           into: 'Loop',

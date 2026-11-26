@@ -27,9 +27,8 @@ function run(...lines: SolidScriptLine[]) {
   };
 }
 
-const CLOSED_ARC = line('path', { shape: 'Arc', radius: '1', sweep: '360', count: '12', closed: 'Yes', into: 'Ring' });
-const TRIANGLE = line('path', {
-  shape: 'From Points',
+const CLOSED_ARC = line('arc_path', { radius: '1', sweep: '360', count: '12', closed: 'Yes', into: 'Ring' });
+const TRIANGLE = line('path_from_points', {
   points: '[0.5, 0, 0], [2, 0, 0], [1, 1, 0]',
   closed: 'Yes',
   into: 'Tri',
@@ -71,7 +70,7 @@ describe('one Path kind for lines and flat shapes', () => {
       line('linear_extrude'),
       line('square', { size: '1, 1', into: 'S' }),
       END,
-      line('path', { into: 'P' }),
+      line('line_path', { into: 'P' }),
       line('echo', { value: '[=IsPath([S])], [S.Closed], [=IsPath([P])], [P.Closed], [=Len([P.Points])]' }),
     );
     expect(result.error).toBe('');
@@ -87,7 +86,7 @@ describe('one Path kind for lines and flat shapes', () => {
   });
 
   it('leaves an open Path inside Linear Extrude unfilled, with a plain message', () => {
-    expect(run(line('linear_extrude'), line('path', { into: 'P' }), END).error).toMatch(/open.*Closed/i);
+    expect(run(line('linear_extrude'), line('line_path', { into: 'P' }), END).error).toMatch(/open.*Closed/i);
   });
 
   it('sweeps any Path with Sweep Along Path, taking whether it is closed from the Path', () => {
@@ -95,7 +94,7 @@ describe('one Path kind for lines and flat shapes', () => {
     const sweep = solidScriptCommandFind('sweep_along_path');
     expect(sweep?.label).toBe('Sweep Along Path');
     expect(sweep?.parameters.map((field) => field.key)).not.toContain('closed');
-    const open = run(line('path', { count: '5', into: 'P' }), line('sweep_along_path', { path: '[P]' }));
+    const open = run(line('line_path', { count: '5', into: 'P' }), line('sweep_along_path', { path: '[P]' }));
     expect(open.error).toBe('');
     expect(open.solids).toBe(4);
     const loop = run(TRIANGLE, line('sweep_along_path', { path: '[Tri]' }));
@@ -111,7 +110,7 @@ describe('one Path kind for lines and flat shapes', () => {
   });
 
   it('reads a Path where a list of points is asked for', () => {
-    const result = run(line('path', { count: '4', into: 'P' }), line('echo', { value: '[=PathLength([P])]' }));
+    const result = run(line('line_path', { count: '4', into: 'P' }), line('echo', { value: '[=PathLength([P])]' }));
     expect(result.error).toBe('');
     expect(result.messages).toEqual(['1']);
   });

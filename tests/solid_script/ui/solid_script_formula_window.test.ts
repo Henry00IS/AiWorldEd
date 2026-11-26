@@ -543,7 +543,7 @@ const FIELD_CASES: readonly FieldCase[] = [
     blocks: ["Text 'Facing Up'"],
     edit: edit(0, T, 'All', 'All'),
   },
-  { kind: 'boolean', id: 'path', label: 'Closed', stored: 'Yes', blocks: ["Text 'Yes'"], edit: edit(0, T, 'No', 'No') },
+  { kind: 'boolean', id: 'path_from_points', label: 'Closed', stored: 'Yes', blocks: ["Text 'Yes'"], edit: edit(0, T, 'No', 'No') },
   {
     kind: 'name',
     id: 'call',
@@ -584,7 +584,7 @@ const FIELD_CASES: readonly FieldCase[] = [
   },
   {
     kind: 'points3',
-    id: 'path',
+    id: 'path_from_points',
     label: 'Points',
     stored: '[0, 0, 0], [1, 0, 0], [1, 1, 0]',
     blocks: ['List', "Vector '0, 0, 0'", "Vector '1, 0, 0'", "Vector '1, 1, 0'", 'End List'],
@@ -718,7 +718,7 @@ const FIELD_CASES: readonly FieldCase[] = [
   },
   {
     kind: 'boolean',
-    id: 'path',
+    id: 'path_from_points',
     label: 'Closed',
     stored: '[="Yes"]',
     blocks: ["Text 'Yes'"],

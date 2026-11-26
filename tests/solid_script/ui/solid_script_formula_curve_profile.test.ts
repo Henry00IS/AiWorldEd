@@ -63,7 +63,7 @@ describe('CurveProfile in Formula Editor and autocomplete', () => {
       const stored = solidScriptFormulaStore('points2', written.text, '');
       const swept = solidScriptProgramRun(
         solidScriptDocumentCreate([
-          { command: 'path', values: { shape: 'Line', from: '0, 0, 0', to: '2, 0, 0', count: '2', into: 'Rail' } },
+          { command: 'line_path', values: { from: '0, 0, 0', to: '2, 0, 0', count: '2', into: 'Rail' } },
           { command: 'sweep_along_path', values: { path: '[Rail]', profile: stored, up: '0, 1, 0' } },
         ]),
       );

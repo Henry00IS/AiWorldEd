@@ -31,6 +31,7 @@ import { SOLID_SCRIPT_COMMANDS_TAGS } from './solid_script_commands_tags.js';
 import { SOLID_SCRIPT_COMMANDS_UVS } from './solid_script_commands_uvs.js';
 import { SOLID_SCRIPT_COMMANDS_SELECT } from './solid_script_commands_select.js';
 import { SOLID_SCRIPT_COMMANDS_PATHS } from './solid_script_commands_paths.js';
+import { SOLID_SCRIPT_COMMANDS_PATH_SHAPES } from './solid_script_commands_path_shapes.js';
 import { SOLID_SCRIPT_COMMANDS_GENERATORS } from './solid_script_commands_generators.js';
 import { SOLID_SCRIPT_COMMANDS_PROGRAM } from './solid_script_commands_program.js';
 import { SOLID_SCRIPT_COMMANDS_WIDGETS } from './solid_script_commands_widgets.js';
@@ -88,6 +89,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_FACE_GROUPS,
   ...SOLID_SCRIPT_COMMANDS_PATH_HANDLES,
   ...SOLID_SCRIPT_COMMANDS_PATH_FROM,
+  ...SOLID_SCRIPT_COMMANDS_PATH_SHAPES,
   ...SOLID_SCRIPT_COMMANDS_PATHS,
   ...SOLID_SCRIPT_COMMANDS_FACES.slice(0, 1),
   ...SOLID_SCRIPT_COMMANDS_SELECT,

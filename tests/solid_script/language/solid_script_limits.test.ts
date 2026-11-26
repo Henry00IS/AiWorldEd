@@ -64,7 +64,7 @@ describe('SolidScript limits', { timeout: 60_000 }, () => {
 
   it('stops when a list has more than 100,000 items, and names the line and the fix', () => {
     const result = run(
-      { command: 'path', values: { count: '10000', into: 'A' } },
+      { command: 'line_path', values: { count: '10000', into: 'A' } },
       {
         command: 'variable',
         values: {
@@ -125,7 +125,7 @@ describe('SolidScript limits', { timeout: 60_000 }, () => {
 
   it('reuses the For Each items cap and names the line and the fix', () => {
     const result = run(
-      { command: 'path', values: { count: '10000', into: 'Items' } },
+      { command: 'line_path', values: { count: '10000', into: 'Items' } },
       {
         command: 'variable',
         values: { name: 'Items', value: '[=Concat([Items.Points], Slice([Items.Points], 0, 1))]' },

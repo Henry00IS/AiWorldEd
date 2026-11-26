@@ -25,9 +25,8 @@ function area(result: ReturnType<typeof solidScriptProgramRun>): number {
  */
 function square(name: string, from: number, to: number): { command: string; values: Record<string, string> } {
   return {
-    command: 'path',
+    command: 'path_from_points',
     values: {
-      shape: 'From Points',
       points: `[${from}, 0, ${from}], [${from}, 0, ${to}], [${to}, 0, ${to}], [${to}, 0, ${from}]`,
       closed: 'Yes',
       into: name,

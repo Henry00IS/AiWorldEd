@@ -4,8 +4,8 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 
 /** A straight open path named P. */
 const PATH: SolidScriptLine = {
-  command: 'path',
-  values: { shape: 'From Points', points: '[0, 0, 0], [3, 0, 0]', into: 'P' },
+  command: 'path_from_points',
+  values: { points: '[0, 0, 0], [3, 0, 0]', into: 'P' },
 };
 
 /**

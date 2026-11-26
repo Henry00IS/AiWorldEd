@@ -9,7 +9,7 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
  * @returns Line.
  */
 function path(points: string): SolidScriptLine {
-  return { command: 'path', values: { shape: 'From Points', points, into: 'P' } };
+  return { command: 'path_from_points', values: { points, into: 'P' } };
 }
 
 /**

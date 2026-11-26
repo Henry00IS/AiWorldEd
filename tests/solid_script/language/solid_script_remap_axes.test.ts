@@ -67,7 +67,7 @@ describe('RemapAxes', () => {
       solidScriptDocumentCreate([
         { command: 'square', values: { size: '4, 2', into: 'Box' } },
         { command: 'variable', values: { name: 'Flat', value: '[=RemapAxes([Box.Points], "X", "Z", "-Y")]' } },
-        { command: 'path', values: { shape: 'From Points', points: '[Flat]', closed: 'Yes', into: 'GroundPath' } },
+        { command: 'path_from_points', values: { points: '[Flat]', closed: 'Yes', into: 'GroundPath' } },
         { command: 'echo', values: { value: '[=[GroundPath.Points]]' } },
       ]),
       {},

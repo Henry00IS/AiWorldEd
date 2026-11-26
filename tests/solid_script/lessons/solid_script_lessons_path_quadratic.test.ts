@@ -12,7 +12,7 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 function quadratic(values: Record<string, string>, echo: string): string {
   const result = solidScriptProgramRun(
     solidScriptDocumentCreate([
-      { command: 'path', values: { shape: 'Quadratic', into: 'P', ...values } },
+      { command: 'quadratic_path', values: { into: 'P', ...values } },
       { command: 'echo', values: { value: echo } },
       { command: 'cube' },
     ]),

@@ -8,8 +8,8 @@ import { solidScriptPathStraight } from '@/solid_script/language/solid_script_pa
 
 /** A bent path of three points, in [P]. */
 const BENT: SolidScriptLine = {
-  command: 'path',
-  values: { shape: 'From Points', points: '[0, 0, 0], [2, 0, 0], [4, 2, 0]', into: 'P' },
+  command: 'path_from_points',
+  values: { points: '[0, 0, 0], [2, 0, 0], [4, 2, 0]', into: 'P' },
 };
 
 /** Handles on the middle point that do not line up. */

@@ -288,9 +288,8 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     {
-      command: 'path',
+      command: 'path_from_points',
       values: {
-        shape: 'From Points',
         points:
           '[=Vector(-[Width] / 2, 0, -[Depth] / 2)], [=Vector([Width] / 2, 0, -[Depth] / 2)], [=Vector([Width] / 2, 0, [Depth] / 2)], [=Vector(-[Width] / 2, 0, [Depth] / 2)]',
         corner_radius: '[Corner]',
@@ -1780,11 +1779,11 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'if', values: { condition: '[Fill] == "Floating Treads"' } },
     { command: 'variable', values: { name: 'Bottom', value: '[=Max([Floor], [Top] - [Thickness])]' } },
     { command: 'end', values: {} },
-    { command: 'clear_variable', values: { name: 'path' } },
-    { command: 'add_item', values: { value: '[=Vector([From], [Bottom])]', list: 'path' } },
-    { command: 'add_item', values: { value: '[=Vector([To], [Bottom])]', list: 'path' } },
-    { command: 'add_item', values: { value: '[=Vector([To], [Top])]', list: 'path' } },
-    { command: 'add_item', values: { value: '[=Vector([From], [Top])]', list: 'path' } },
+    { command: 'clear_variable', values: { name: 'line_path' } },
+    { command: 'add_item', values: { value: '[=Vector([From], [Bottom])]', list: 'line_path' } },
+    { command: 'add_item', values: { value: '[=Vector([To], [Bottom])]', list: 'line_path' } },
+    { command: 'add_item', values: { value: '[=Vector([To], [Top])]', list: 'line_path' } },
+    { command: 'add_item', values: { value: '[=Vector([From], [Top])]', list: 'line_path' } },
     { command: 'polyhedron', values: {} },
     { command: 'for_each', values: { variable: 'P', list: '[path]' } },
     { command: 'point', values: { position: '[=Spot([P.X], [P.Y], -1)]' } },
