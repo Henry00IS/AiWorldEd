@@ -9,7 +9,7 @@ import {
   solidScriptCurveProfilePoints,
   solidScriptCurveProfileSideRead,
 } from '@/solid_script/language/solid_script_curve_profile.js';
-import { solidScriptCurveFromText } from '@/solid_script/language/solid_script_curve_read.js';
+import { solidScriptCurveOrFlat } from '@/solid_script/language/solid_script_curve_value.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
@@ -387,9 +387,9 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
     ],
     execute: (run) => {
       const args = run.fields();
-      const text = solidScriptValueText(args.value('curve')).trim();
-      const curve = solidScriptCurveFromText(text === '' ? '1' : text);
-      if (!curve) throw args.error('curve', 'must be a curve, such as a Curve input', text);
+      const given = args.value('curve');
+      const curve = solidScriptCurveOrFlat(given);
+      if (!curve) throw args.error('curve', 'must be a curve, such as a Curve input', solidScriptValueText(given));
       const height = args.positive('height', args.number('height', 1));
       const depth = args.positive('depth', args.number('depth', 0.2));
       const sideText = solidScriptValueText(args.value('side')).trim() || 'Normal';

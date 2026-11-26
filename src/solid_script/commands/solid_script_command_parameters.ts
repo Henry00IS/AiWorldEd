@@ -217,7 +217,7 @@ export function solidScriptParameterRings(): SolidScriptCommandParameter {
  * name, a number for a flat line, or a list of points such as [[0, 1], [1,
  * 0]].
  */
-export const SOLID_SCRIPT_CURVE_ACCEPTS: readonly string[] = ['Text', 'Number', 'Vector List'];
+export const SOLID_SCRIPT_CURVE_ACCEPTS: readonly string[] = ['Curve', 'Text', 'Number', 'Vector List'];
 
 /**
  * The optional Name of a shape line.

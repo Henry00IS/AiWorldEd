@@ -21,6 +21,8 @@ import {
   solidScriptFaceCornersAtVertex,
   solidScriptFaceCornersOfFace,
 } from './solid_script_members_face_corner.js';
+import { solidScriptCurveMember } from './solid_script_curve_members.js';
+import { SolidScriptCurveValue } from './solid_script_curve_value.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptMemberIdOf } from './solid_script_member_id.js';
 import { solidScriptMemberForm } from './solid_script_shown_names.js';
@@ -120,6 +122,11 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Resolution: form('Resolutions', 'Number'),
     HandleTypesLeft: form('HandleTypesLefts', 'Text List'),
     HandleTypesRight: form('HandleTypesRights', 'Text List'),
+  },
+  Curve: {
+    Points: form('Points', 'Vector List'),
+    Length: form('Lengths', 'Number'),
+    Segments: form('Segments', 'Dictionary List'),
   },
   Object: {
     Name: form('Names', 'Text'),
@@ -599,6 +606,7 @@ function solidScriptMemberElement(
 ): SolidScriptValue {
   if (member === 'data') return elements.data(element);
   if (element instanceof SolidScriptPathElement) return solidScriptMemberPath(element.path, member);
+  if (element instanceof SolidScriptCurveValue) return solidScriptCurveMember(element.curve, member);
   if (member === 'parent' && element.kind !== 'brush') return elements.parent(element);
   const leaf = elements.leaf(element);
   const faceList = (faces: readonly SolidScriptFaceFacts[]): SolidScriptValue[] => {

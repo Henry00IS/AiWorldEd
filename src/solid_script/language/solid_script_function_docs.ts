@@ -34,7 +34,9 @@ import {
 } from './solid_script_functions_kind_checks.js';
 import { SOLID_SCRIPT_FUNCTION_DOCS_MATH, solidScriptFunctionDocSummary } from './solid_script_function_docs_math.js';
 import {
+  SOLID_SCRIPT_CURVE_MAKE_ARGUMENTS,
   SOLID_SCRIPT_CURVE_PROFILE_ARGUMENTS,
+  SOLID_SCRIPT_FUNCTION_DOCS_CURVE_MAKE,
   SOLID_SCRIPT_FUNCTION_DOCS_CURVE_PROFILE,
 } from './solid_script_function_docs_curve.js';
 import {
@@ -476,13 +478,7 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
     gives: ['List'],
   },
   ...SOLID_SCRIPT_FUNCTION_DOCS_CURVE_PROFILE,
-  profile_points: {
-    usage: 'ProfilePoints(curve, height, radius)',
-    summary:
-      'A profile as [height, radius] points, like a column samples it, such as ProfilePoints([Profile], 2, 0.5).',
-    group: 'Curve',
-    gives: ['List'],
-  },
+  ...SOLID_SCRIPT_FUNCTION_DOCS_CURVE_MAKE,
   rands: {
     usage: 'Rands(min, max, count, seed)',
     summary: 'A list of random numbers, such as Rands(0, 1, 4, 1).',
@@ -957,6 +953,7 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   ...SOLID_SCRIPT_DICTIONARY_ARGUMENTS,
   ...SOLID_SCRIPT_COORDINATES_ARGUMENTS,
   ...SOLID_SCRIPT_CURVE_PROFILE_ARGUMENTS,
+  ...SOLID_SCRIPT_CURVE_MAKE_ARGUMENTS,
   ...SOLID_SCRIPT_SHAPING_WAVE_ARGUMENTS,
 };
 

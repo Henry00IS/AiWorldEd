@@ -1,7 +1,10 @@
+import { curveFromData, curveToData } from '@/curve/model/curve_codec.js';
+import { SolidScriptCurveValue } from '../solid_script_curve_value.js';
 import { solidScriptRotationFromDegrees } from '../solid_script_functions_rotation.js';
 import { solidScriptNameKey } from '../solid_script_name_key.js';
 import { SolidScriptDictionary, SolidScriptRotation, type SolidScriptValue } from '../solid_script_value.js';
 import {
+  SOLID_SCRIPT_PERSISTENT_CURVE_KIND,
   SOLID_SCRIPT_PERSISTENT_DICTIONARY_KIND,
   SOLID_SCRIPT_PERSISTENT_ROTATION_KIND,
   type SolidScriptPersistentData,
@@ -52,6 +55,8 @@ function solidScriptPersistentValueEncodeKnown(value: SolidScriptValue): SolidSc
   if (value === undefined) return null;
   if (Array.isArray(value)) return value.map((item) => solidScriptPersistentValueEncodeKnown(item));
   if (value instanceof SolidScriptRotation) return solidScriptPersistentRotationEncode(value);
+  if (value instanceof SolidScriptCurveValue)
+    return { kind: SOLID_SCRIPT_PERSISTENT_CURVE_KIND, curve: curveToData(value.curve) };
   return solidScriptPersistentDictionaryEncode(value as SolidScriptDictionary);
 }
 
@@ -113,14 +118,18 @@ function solidScriptPersistentListRead(data: readonly unknown[]): SolidScriptVal
 }
 
 /**
- * Reads a stored Dictionary or Rotation.
+ * Reads a stored Dictionary, Rotation or Curve.
  *
  * @param data Stored object.
  * @returns Value, or undefined when the object is not one.
  */
 function solidScriptPersistentObjectRead(data: unknown): SolidScriptValue | undefined {
   if (!data || typeof data !== 'object') return undefined;
-  const record = data as { kind?: unknown; degrees?: unknown; entries?: unknown };
+  const record = data as { kind?: unknown; degrees?: unknown; entries?: unknown; curve?: unknown };
+  if (record.kind === SOLID_SCRIPT_PERSISTENT_CURVE_KIND) {
+    const curve = curveFromData(record.curve);
+    return curve ? new SolidScriptCurveValue(curve) : undefined;
+  }
   if (record.kind === SOLID_SCRIPT_PERSISTENT_ROTATION_KIND) return solidScriptPersistentRotationRead(record.degrees);
   if (record.kind === SOLID_SCRIPT_PERSISTENT_DICTIONARY_KIND)
     return solidScriptPersistentDictionaryRead(record.entries);

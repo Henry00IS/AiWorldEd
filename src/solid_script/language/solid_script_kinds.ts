@@ -27,6 +27,7 @@ export const SOLID_SCRIPT_KINDS = [
   'List',
   'Dictionary',
   'Rotation',
+  'Curve',
 ] as const;
 
 /**

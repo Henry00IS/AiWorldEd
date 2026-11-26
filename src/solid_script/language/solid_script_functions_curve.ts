@@ -3,7 +3,9 @@ import { curveEvaluate } from '@/curve/model/curve_sample.js';
 import { generatorRevolveStationsFromCurve } from '@/generator/revolve/generator_revolve_curve.js';
 import { solidScriptAxesEach } from './solid_script_functions_axes.js';
 import { solidScriptCurveProfilePoints, solidScriptCurveProfileSideRead } from './solid_script_curve_profile.js';
+import { solidScriptCurveBuild } from './solid_script_curve_build.js';
 import { solidScriptCurveFromText } from './solid_script_curve_read.js';
+import { SolidScriptCurveValue } from './solid_script_curve_value.js';
 import { solidScriptExtraNumber } from './solid_script_functions_extra.js';
 import {
   solidScriptPathAt,
@@ -31,14 +33,16 @@ const SOLID_SCRIPT_CURVE_CACHE_LIMIT = 64;
 const SOLID_SCRIPT_CURVES = new Map<string, Curve>();
 
 /**
- * Reads an argument as a curve: the text a Curve input holds. A number is a
- * flat line at that height, and empty text one at 1, like a new curve field.
+ * Reads an argument as a curve: a Curve, such as a Curve input, or text naming
+ * one. A number is a flat line at that height, and empty text one at 1, like a
+ * new curve field.
  *
  * @param args Arguments.
  * @param usage How to call the function, for the message.
  * @returns Curve.
  */
 function solidScriptCurveRead(args: readonly SolidScriptValue[], usage: string): Curve {
+  if (args[0] instanceof SolidScriptCurveValue) return args[0].curve;
   const text = typeof args[0] === 'string' ? args[0] : solidScriptValueText(args[0]);
   let curve = SOLID_SCRIPT_CURVES.get(text);
   if (!curve) {
@@ -68,8 +72,9 @@ function solidScriptCurvePath(args: readonly SolidScriptValue[], usage: string):
   return points as number[][];
 }
 
-/** Functions that read Curve inputs and paths. */
+/** Functions that make curves and read curves and paths. */
 export const SOLID_SCRIPT_FUNCTIONS_CURVE = {
+  curve: (args) => solidScriptCurveBuild(args),
   curve_at: solidScriptAxesEach('CurveAt(curve, x)', (args) => {
     const usage = 'CurveAt(curve, x)';
     return curveEvaluate(solidScriptCurveRead(args, usage), solidScriptExtraNumber(args, 1, usage));

@@ -159,7 +159,7 @@ describe('SolidScript persistent value codec', () => {
       ]),
     );
     expect(held.error?.message).toMatch(
-      /\[\$Persistent\.Held\] can't be kept between runs, because it is a Solid\. Keep a number, text, Yes or No, a list, a Dictionary or a Rotation instead/,
+      /\[\$Persistent\.Held\] can't be kept between runs, because it is a Solid\. Keep a number, text, Yes or No, a list, a Dictionary, a Rotation or a Curve instead/,
     );
     const listed = solidScriptProgramRun(
       solidScriptDocumentCreate([

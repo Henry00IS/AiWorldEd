@@ -38,8 +38,7 @@ import {
   SOLID_SCRIPT_PART_DEPTH_MAX,
 } from '@/solid_script/language/solid_script_machine_calls.js';
 import { solidScriptInputBrushesBuild } from '@/solid_script/language/solid_script_input_brushes.js';
-import { curveEncode } from '@/curve/model/curve_codec.js';
-import { solidScriptCurveFromText } from '@/solid_script/language/solid_script_curve_read.js';
+import { SolidScriptCurveValue, solidScriptCurveOrFlat } from '@/solid_script/language/solid_script_curve_value.js';
 import { solidScriptInputPath } from '@/solid_script/language/solid_script_input_path.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 
@@ -164,8 +163,8 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
     }
     if (input.type === 'Curve') {
       const text = given ?? input.fallback;
-      const curve = solidScriptCurveFromText(text.trim() === '' ? '1' : text);
-      run.inputDefine(input.name, curve ? curveEncode(curve) : text);
+      const curve = solidScriptCurveOrFlat(text);
+      run.inputDefine(input.name, curve ? new SolidScriptCurveValue(curve) : text);
       return [];
     }
     let value: SolidScriptValue;

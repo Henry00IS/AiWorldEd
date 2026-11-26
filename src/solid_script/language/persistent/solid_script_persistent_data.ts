@@ -1,8 +1,13 @@
+import type { CurveData } from '@/curve/model/curve_codec.js';
+
 /** Stored tag of a Dictionary kept between runs. */
 export const SOLID_SCRIPT_PERSISTENT_DICTIONARY_KIND = 'dictionary';
 
 /** Stored tag of a Rotation kept between runs. */
 export const SOLID_SCRIPT_PERSISTENT_ROTATION_KIND = 'rotation';
+
+/** Stored tag of a Curve kept between runs. */
+export const SOLID_SCRIPT_PERSISTENT_CURVE_KIND = 'curve';
 
 /** One Dictionary entry as stored on a generator. */
 export interface SolidScriptPersistentDictionaryEntry {
@@ -32,10 +37,17 @@ export interface SolidScriptPersistentRotation {
   degrees: number[];
 }
 
+/** A Curve stored as the plain data a curve file holds. */
+export interface SolidScriptPersistentCurve {
+  kind: typeof SOLID_SCRIPT_PERSISTENT_CURVE_KIND;
+  /** Points, segments and markers of the curve. */
+  curve: CurveData;
+}
+
 /**
  * A value kept between runs, as plain data a level or a multiplayer message can
- * hold: a number, text, Yes or No, a list of those, a Dictionary or a Rotation.
- * null stands for an empty list item.
+ * hold: a number, text, Yes or No, a list of those, a Dictionary, a Rotation or
+ * a Curve. null stands for an empty list item.
  */
 export type SolidScriptPersistentData =
   | number
@@ -44,4 +56,5 @@ export type SolidScriptPersistentData =
   | null
   | SolidScriptPersistentData[]
   | SolidScriptPersistentDictionary
-  | SolidScriptPersistentRotation;
+  | SolidScriptPersistentRotation
+  | SolidScriptPersistentCurve;
