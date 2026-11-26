@@ -1,16 +1,10 @@
 import { solidScriptListingOf } from './solid_script_command_listing.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
-import {
-  solidScriptParameter,
-  solidScriptParameterOf,
-  solidScriptParameterOptional,
-  solidScriptParameterWrites,
-} from './solid_script_command_parameters.js';
+import { solidScriptParameter, solidScriptParameterOf } from './solid_script_command_parameters.js';
 import { solidScriptDataItems } from './solid_script_commands_data.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
-import { solidScriptDictionaryFrom } from '@/solid_script/language/solid_script_functions_dictionary.js';
 
 /**
  * Reads a key name that must not be empty.
@@ -75,50 +69,8 @@ const SOLID_SCRIPT_DATA_KEYS_KEY = solidScriptParameter(
   'The .Data key, such as Heat for [Face.Data.Heat].',
 );
 
-/** Commands that make a Dictionary, and rename or remove .Data keys. */
+/** Commands that rename or remove .Data keys. */
 export const SOLID_SCRIPT_COMMANDS_DATA_KEYS: SolidScriptCommand[] = [
-  new SolidScriptCommand({
-    id: 'make_dictionary',
-    label: 'Make Dictionary',
-    category: 'Data',
-    description: 'Make a Dictionary of values looked up by a key',
-    synonyms: ['map', 'table', 'bundle', 'lookup'],
-    manual:
-      'Writes a new Dictionary to Into: values looked up by a key, read and written like .Data. Keys and Values are two lists in the same order, such as Wood, Stone and 5, 7; left off, the Dictionary starts empty. Read a value with [Prices.Data.Wood], or [Prices.Data.[Name]] for a key in a variable, change or add one with Add Entry or Set Prices.Data.Wood, add a whole Dictionary with Merge Dictionary, loop over it with For Each with a Key, take a key out with Remove Entry, and rename one with Rename Data Of [Prices]. [=Keys([Prices])], [=Values([Prices])] and [=Contains([Prices], "Wood")] read it in formulas. Setting it to another name copies it. Example: Make Dictionary Into [Prices] Keys Wood, Stone Values 5, 7, then [Prices.Data.Stone] reads 7.',
-    stops: ['Keys and Values that are not lists of the same length.', 'A key that is not a name, such as 2nd.'],
-    parameters: [
-      {
-        ...solidScriptParameterWrites(
-          solidScriptParameter('into', 'Into', 'name', 'Prices', 'Variable that gets the Dictionary, such as Prices.'),
-          { rule: 'kind', kind: 'Dictionary', what: 'Dictionary of **{command}**', keys: 'keys' },
-        ),
-        into: 'label',
-      },
-      solidScriptParameterOptional(
-        'keys',
-        'Keys',
-        'value',
-        'The keys, such as Wood, Stone or [Names]. Left off starts empty.',
-      ),
-      solidScriptParameterOptional(
-        'values',
-        'Values',
-        'value',
-        'A value for each key, in the same order, such as 5, 7.',
-      ),
-    ],
-    listing: (read) => [
-      'Make Dictionary',
-      ' Into ',
-      read.value('into'),
-      ...(read.text('keys').trim() === '' ? [] : [' Keys ', read.value('keys'), ' Values ', read.value('values')]),
-    ],
-    execute: (run) => {
-      const made = solidScriptDictionaryFrom(run.list('keys'), run.list('values'), 'Make Dictionary');
-      run.variableSet(run.text('into').trim(), made);
-      return [];
-    },
-  }),
   new SolidScriptCommand({
     id: 'rename_data',
     label: 'Rename Data',

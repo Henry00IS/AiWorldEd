@@ -37,6 +37,7 @@ const SOLID_SCRIPT_EDITOR_ICON_PATHS: Readonly<Record<string, string>> = {
   Vector: '<path d="M2.5 13.5 13 3 M8 3h5v5"/>',
   Text: '<path d="M3 3.5h10 M8 3.5v9.5 M6 13h4"/>',
   List: '<path d="M5.5 3.5h9 M5.5 8h9 M5.5 12.5h9"/><circle cx="2.5" cy="3.5" r="1"/><circle cx="2.5" cy="8" r="1"/><circle cx="2.5" cy="12.5" r="1"/>',
+  Dictionaries: '<path d="M3.5 1.5h9v13h-9z M6 4.5h4 M6 7.5h4"/><circle cx="6" cy="11.5" r="1"/>',
   Dictionary: '<path d="M3.5 1.5h9v13h-9z M6 4.5h4 M6 7.5h4"/><circle cx="6" cy="11.5" r="1"/>',
   Curve: '<path d="M2 13.5C3 4 13 12 14 2.5"/><circle cx="2" cy="13.5" r="1"/><circle cx="14" cy="2.5" r="1"/>',
   Path: '<path d="M2 13.5 6 6l4 4 4-7.5"/><circle cx="2" cy="13.5" r="1"/><circle cx="14" cy="2.5" r="1"/>',

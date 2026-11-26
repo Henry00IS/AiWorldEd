@@ -49,7 +49,7 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'find_on',
     label: 'Find On',
-    category: 'Data',
+    category: 'Points',
     description: 'Find the closest point on faces, or the first hit along a ray',
     manual:
       'Looks at the faces in Of, or [$Selected.Faces] when Of is empty, and writes what it finds. How Closest (the default) picks the nearest point to From on any of those faces. Target, for Closest, measures to the face surfaces (Faces, the default), their edges (Edges) or their corners (Corners). Along Ray follows Direction from From and picks the first face it meets. At UV reads the first two numbers of From as texture coordinates and finds the first face whose UVs hold them, blending its corners into the point; overlapping UVs give the first face. A find further than Max Distance is a miss. Sample is read on the face found, with [$Face], and written to Sampled, such as [=[$Face.Texture]]. Blend Corners reads Sample at every corner of that face instead, with [$FaceCorner], and blends the numbers or vectors by where the point lies, such as [=[$FaceCorner.UV]] for the texture coordinates there. Into gets the point, Distance how far it is, Normal the way the face looks, Face the face, and Hit whether a face was found. A list of points in From, or of directions in Direction, finds once per item: then Into, Distance, Normal and Hit are lists with one entry per item (a miss gives 0, 0, 0, 0 and No), and Face gets the faces that were hit. Example: Cube, Select Faces All, Find On Closest From 0, 2, 0 Into [Spot] Face [Top] Hit [Found].',

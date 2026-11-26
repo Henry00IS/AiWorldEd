@@ -128,6 +128,7 @@ export type SolidScriptCommandCategory =
   | 'Widgets'
   | 'Logic'
   | 'Lists'
+  | 'Dictionaries'
   | 'Parts'
   | 'Groups'
   | 'Operators'

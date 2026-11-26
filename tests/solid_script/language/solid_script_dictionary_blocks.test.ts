@@ -292,10 +292,10 @@ describe('SolidScript Dictionary blocks', () => {
     ]);
   });
 
-  it('has the three blocks in the Data group, each with a manual and a way to stop', () => {
-    for (const id of ['add_entry', 'remove_entry', 'merge_dictionary']) {
+  it('has the Dictionary blocks in the Dictionaries group, each with a manual and a way to stop', () => {
+    for (const id of ['make_dictionary', 'add_entry', 'remove_entry', 'merge_dictionary']) {
       const command = solidScriptCommandFind(id);
-      expect(command?.category, id).toBe('Data');
+      expect(command?.category, id).toBe('Dictionaries');
       expect(command?.manual.length, id).toBeGreaterThan(80);
       expect(command?.stops.length, id).toBeGreaterThan(0);
     }

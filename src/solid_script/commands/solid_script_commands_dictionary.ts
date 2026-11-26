@@ -3,7 +3,12 @@ import {
   type SolidScriptCommandGives,
   type SolidScriptCommandParameter,
 } from './solid_script_command.js';
-import { solidScriptParameter, solidScriptParameterWrites } from './solid_script_command_parameters.js';
+import {
+  solidScriptParameter,
+  solidScriptParameterOptional,
+  solidScriptParameterWrites,
+} from './solid_script_command_parameters.js';
+import { solidScriptDictionaryFrom } from '@/solid_script/language/solid_script_functions_dictionary.js';
 import {
   solidScriptDictionaryAdd,
   solidScriptDictionaryKey,
@@ -59,12 +64,57 @@ function solidScriptDictionaryChanged(rule: SolidScriptCommandGives): SolidScrip
   return solidScriptParameterWrites(SOLID_SCRIPT_DICTIONARY_FIELD, rule);
 }
 
-/** Commands that change a Dictionary in plain words, like the List lines. */
+/**
+ * Commands that make or change a Dictionary in plain words, like the List
+ * lines.
+ */
 export const SOLID_SCRIPT_COMMANDS_DICTIONARY: readonly SolidScriptCommand[] = [
+  new SolidScriptCommand({
+    id: 'make_dictionary',
+    label: 'Make Dictionary',
+    category: 'Dictionaries',
+    description: 'Make a Dictionary of values looked up by a key',
+    synonyms: ['map', 'table', 'bundle', 'lookup'],
+    manual:
+      'Writes a new Dictionary to Into: values looked up by a key, read and written like .Data. Keys and Values are two lists in the same order, such as Wood, Stone and 5, 7; left off, the Dictionary starts empty. Read a value with [Prices.Data.Wood], or [Prices.Data.[Name]] for a key in a variable, change or add one with Add Entry or Set Prices.Data.Wood, add a whole Dictionary with Merge Dictionary, loop over it with For Each with a Key, take a key out with Remove Entry, and rename one with Rename Data Of [Prices]. [=Keys([Prices])], [=Values([Prices])] and [=Contains([Prices], "Wood")] read it in formulas. Setting it to another name copies it. Example: Make Dictionary Into [Prices] Keys Wood, Stone Values 5, 7, then [Prices.Data.Stone] reads 7.',
+    stops: ['Keys and Values that are not lists of the same length.', 'A key that is not a name, such as 2nd.'],
+    parameters: [
+      {
+        ...solidScriptParameterWrites(
+          solidScriptParameter('into', 'Into', 'name', 'Prices', 'Variable that gets the Dictionary, such as Prices.'),
+          { rule: 'kind', kind: 'Dictionary', what: 'Dictionary of **{command}**', keys: 'keys' },
+        ),
+        into: 'label',
+      },
+      solidScriptParameterOptional(
+        'keys',
+        'Keys',
+        'value',
+        'The keys, such as Wood, Stone or [Names]. Left off starts empty.',
+      ),
+      solidScriptParameterOptional(
+        'values',
+        'Values',
+        'value',
+        'A value for each key, in the same order, such as 5, 7.',
+      ),
+    ],
+    listing: (read) => [
+      'Make Dictionary',
+      ' Into ',
+      read.value('into'),
+      ...(read.text('keys').trim() === '' ? [] : [' Keys ', read.value('keys'), ' Values ', read.value('values')]),
+    ],
+    execute: (run) => {
+      const made = solidScriptDictionaryFrom(run.list('keys'), run.list('values'), 'Make Dictionary');
+      run.variableSet(run.text('into').trim(), made);
+      return [];
+    },
+  }),
   new SolidScriptCommand({
     id: 'add_entry',
     label: 'Add Entry',
-    category: 'Data',
+    category: 'Dictionaries',
     description: 'Put a value under a key in a Dictionary',
     synonyms: ['set key', 'put', 'store'],
     manual:
@@ -96,7 +146,7 @@ export const SOLID_SCRIPT_COMMANDS_DICTIONARY: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'remove_entry',
     label: 'Remove Entry',
-    category: 'Data',
+    category: 'Dictionaries',
     description: 'Take a key out of a Dictionary',
     manual:
       'Takes a key and its value out of a Dictionary, so it reads as empty again. A key that is not in the Dictionary changes nothing. Example: Prices holds Wood 5 and Stone 7. Remove Entry Key Wood From Prices leaves Stone 7.',
@@ -112,7 +162,7 @@ export const SOLID_SCRIPT_COMMANDS_DICTIONARY: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'merge_dictionary',
     label: 'Merge Dictionary',
-    category: 'Data',
+    category: 'Dictionaries',
     description: 'Add every entry of one Dictionary to another',
     manual:
       'Adds every key of the From Dictionary to the Dictionary named in Into: a key both have gets the value of From, and new keys go last in the order From has them. From stays as it was. An Into that does not exist yet is made as a copy of From. Example: Prices holds Wood 5, Extra holds Wood 6 and Glass 12. Merge Dictionary [Extra] Into Prices leaves Wood 6, Glass 12.',

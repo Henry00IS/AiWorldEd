@@ -18,9 +18,16 @@ describe('Block palette categories', () => {
     ['set_positions', 'Vertices'],
     ['points_from_path', 'Points'],
     ['scatter_points', 'Points'],
+    ['find_on', 'Points'],
     ['select_faces', 'Faces'],
     ['unwrap', 'UVs'],
     ['blur_data', 'Data'],
+    ['rename_data', 'Data'],
+    ['remove_data', 'Data'],
+    ['make_dictionary', 'Dictionaries'],
+    ['add_entry', 'Dictionaries'],
+    ['remove_entry', 'Dictionaries'],
+    ['merge_dictionary', 'Dictionaries'],
   ])('puts %s in %s', (id, category) => {
     expect(solidScriptCommandFind(id)?.category).toBe(category);
   });

@@ -56,6 +56,7 @@ describe('SolidScript editor', () => {
       'Widgets',
       'Logic',
       'Lists',
+      'Dictionaries',
       'Parts',
     ]);
     expect(root.querySelector('.solid-script-editor-palette-item[data-command="cylinder"]')).not.toBeNull();
