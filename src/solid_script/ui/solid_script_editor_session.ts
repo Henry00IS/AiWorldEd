@@ -21,7 +21,10 @@ import {
   MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND,
   MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY,
 } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
-import { solidScriptInspectorInputValues } from './solid_script_inspector_inputs.js';
+import {
+  solidScriptInspectorInputValues,
+  solidScriptInspectorPersistentValues,
+} from './solid_script_inspector_inputs.js';
 import {
   solidScriptDocumentEditModeAfter,
   solidScriptDocumentNormalize,
@@ -105,9 +108,7 @@ export class SolidScriptEditorSession {
    */
   persistent(): Record<string, unknown> {
     const stored = modifierStackParametersRead(this.node, this.stepId)?.[MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY];
-    return stored && typeof stored === 'object' && !Array.isArray(stored)
-      ? { ...(stored as Record<string, unknown>) }
-      : {};
+    return solidScriptInspectorPersistentValues(stored);
   }
 
   /**

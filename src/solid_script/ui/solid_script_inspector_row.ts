@@ -1,4 +1,5 @@
 import { modifierStackParametersCommit } from '@/modifier/stack/modifier_stack_parameters_commit.js';
+import { MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import type { ModifierStackActionTarget, ModifierStackWidget } from '@/modifier/stack/modifier_stack_types.js';
 import {
   modifierStackUiRow,
@@ -22,7 +23,10 @@ import { modifierStackSolidScriptRunStart } from '@/modifier/stack/kinds/generat
 import { modifierStackSolidScriptRunShown } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_run_share.js';
 import { SOLID_SCRIPT_FILE_EXTENSION } from '@/solid_script/file/solid_script_file.js';
 import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
-import { solidScriptInspectorInputValues } from './solid_script_inspector_inputs.js';
+import {
+  solidScriptInspectorInputValues,
+  solidScriptInspectorPersistentValues,
+} from './solid_script_inspector_inputs.js';
 import { solidScriptFileDropBind, type SolidScriptFileDropResult } from './solid_script_file_drop.js';
 
 /** Builds what the row's buttons act on, with a status line. */
@@ -64,8 +68,14 @@ export function solidScriptInspectorRow(
     const target = targetOf(() => {});
     const start = target ? modifierStackSolidScriptRunStart(target.volume, target.stepId, use) : {};
     const inputs = solidScriptInspectorInputValues(parameters[inputsKey]);
+    const persistent = solidScriptInspectorPersistentValues(parameters[MODIFIER_STACK_SOLID_SCRIPT_PERSISTENT_KEY]);
     const document = solidScriptDocumentNormalize(parameters[key]);
-    solidScriptInspectorWrite(parts, document, use, solidScriptInspectorRun(target, document, { ...start, inputs }));
+    solidScriptInspectorWrite(
+      parts,
+      document,
+      use,
+      solidScriptInspectorRun(target, document, { ...start, inputs, persistent }),
+    );
   };
   return { element: modifierStackUiRow('Script', card, SOLID_SCRIPT_INSPECTOR_HINT), write };
 }

@@ -53,6 +53,17 @@ export function solidScriptInspectorInputValues(value: unknown): Record<string, 
 }
 
 /**
+ * Reads the structured persistent record stored on a generator.
+ *
+ * @param value Stored record, or anything else when it is missing.
+ * @returns A copy of the record, or an empty one.
+ */
+export function solidScriptInspectorPersistentValues(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return { ...(value as Record<string, unknown>) };
+}
+
+/**
  * Builds the inspector rows of a script's Input lines: one control per input,
  * like the settings of a built-in generator, hidden when the script has none. A
  * change, or a press of a button input, first runs the script's When Input
