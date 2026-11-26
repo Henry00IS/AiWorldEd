@@ -491,13 +491,8 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Stamp a snapshot of a part or objects',
     manual:
-      "Places a snapshot of a Part or of objects right where this line sits, including the Part's CSG group and Mode. A wall Part with a subtractive door always comes out as a wall with a hole. To make a cutter that reaches the world, set the Part's Mode to Subtractive, or to Pass-Through to let its solids join the CSG order around it. Blocks around this line move the stamp; objects move only by the blocks they were not already built inside, so a cube held in Into and stamped in the same Place At Points block lands on its point. Later changes to the Part do not reach copies already stamped. The Part line must have run already. Enabled No stamps nothing, so a formula such as [=[Steps] > 0] can switch the stamp off. Example: Output [Post] inside Transform Move 2, 0, 0 stamps the post two metres to the right.",
-    stops: [
-      'No part or objects with this name.',
-      'A value that is not a part or an object.',
-      'Nothing to stamp.',
-      'An Enabled that is not Yes or No.',
-    ],
+      "Places a snapshot of a Part or of objects right where this line sits, including the Part's CSG group and Mode. A wall Part with a subtractive door always comes out as a wall with a hole. To make a cutter that reaches the world, set the Part's Mode to Subtractive, or to Pass-Through to let its solids join the CSG order around it. Blocks around this line move the stamp; objects move only by the blocks they were not already built inside, so a cube held in Into and stamped in the same Place At Points block lands on its point. Later changes to the Part do not reach copies already stamped. The Part line must have run already. Put Output inside an If to stamp only sometimes, such as If [Steps] > 0 around Output [Post]. Example: Output [Post] inside Transform Move 2, 0, 0 stamps the post two metres to the right.",
+    stops: ['No part or objects with this name.', 'A value that is not a part or an object.', 'Nothing to stamp.'],
     parameters: [
       {
         ...solidScriptParameter(
@@ -510,25 +505,9 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         nameGroups: ['Parts', 'Objects'],
         accepts: ['Object', 'Object List', 'Text', 'List'],
       },
-      solidScriptParameter(
-        'enabled',
-        'Enabled',
-        'boolean',
-        'Yes',
-        'Yes: stamp. No: stamp nothing, so a formula can turn this line off, such as [=[Steps] > 0].',
-      ),
     ],
-    listing: (read) => [
-      'Output',
-      read.value('of'),
-      ...(read.changed('enabled') ? [' Enabled ', read.value('enabled')] : []),
-    ],
-    execute: (run) => {
-      const of = run.value('of');
-      const enabled = run.value('enabled');
-      if (typeof enabled !== 'boolean') throw new Error('Output needs Yes or No in Enabled');
-      return enabled ? run.outputStamp(of) : [];
-    },
+    listing: (read) => ['Output', read.value('of')],
+    execute: (run) => run.outputStamp(run.value('of')),
   }),
   new SolidScriptCommand({
     id: 'stop_script',
