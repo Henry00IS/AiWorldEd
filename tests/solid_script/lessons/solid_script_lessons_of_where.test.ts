@@ -39,7 +39,7 @@ describe('Where on lines with Of', () => {
   });
 
   it('copies only the objects that pass Array Where', () => {
-    const result = run({ command: 'array', values: { count: '3', where: '[=[$Index] == 0]' } });
+    const result = run({ command: 'array_in_line', values: { count: '3', where: '[=[$Index] == 0]' } });
     expect(result.error).toBeNull();
     expect(solidScriptGeometryLeaves(result.shapes)).toHaveLength(4);
   });

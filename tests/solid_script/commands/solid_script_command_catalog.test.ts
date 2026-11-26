@@ -183,7 +183,9 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
       'mirror',
       'resize',
       'matrix',
-      'array',
+      'array_in_line',
+      'array_in_circle',
+      'array_along_path',
       'randomize',
     ].includes(command.id)
   )

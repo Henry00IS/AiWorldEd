@@ -62,7 +62,7 @@ export const SOLID_SCRIPT_COMMANDS_ROTATION: readonly SolidScriptCommand[] = [
     description: 'Make a Rotation to turn objects by, around X, then Y, then Z',
     manual:
       'Writes a Rotation to Into that turns around X, then Y, then Z by Degrees, the same way an object rotation does. Example: Make Rotation 0, 0, 45 Degrees Into [Tilt].',
-    stops: [],
+    stops: ['Degrees that are not x, y, z.'],
     fields: [
       solidScriptParameter(
         'degrees',

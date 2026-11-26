@@ -9,7 +9,7 @@ describe('Array copy numbers', () => {
         { command: 'cube', values: { size: '1' } },
         { command: 'cube', values: { size: '2' } },
         { command: 'select_objects', values: {} },
-        { command: 'array', values: { count: '[=[$Index] + 2]', offset: '3, 0, 0' } },
+        { command: 'array_in_line', values: { count: '[=[$Index] + 2]', offset: '3, 0, 0' } },
         { command: 'select_objects', values: { into: 'All' } },
         { command: 'echo', values: { value: '[All.Count]' } },
       ]),
@@ -23,7 +23,7 @@ describe('Array copy numbers', () => {
       solidScriptDocumentCreate([
         { command: 'cube', values: { size: '1' } },
         { command: 'select_objects', values: {} },
-        { command: 'array', values: { count: '3', offset: '2, 0, 0' } },
+        { command: 'array_in_line', values: { count: '3', offset: '2, 0, 0' } },
         { command: 'select_objects', values: { into: 'All' } },
         { command: 'move_by', values: { by: '[=Vector(0, [$Item.Data.Copy], 0)]', of: '[All]' } },
         { command: 'select_objects', values: { into: 'Moved' } },

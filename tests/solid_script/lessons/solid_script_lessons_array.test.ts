@@ -27,7 +27,7 @@ function centers(...lines: SolidScriptLine[]): number[][] | string {
 
 describe('Array', () => {
   it('makes Count objects in a Line, each Offset further', () => {
-    expect(centers({ command: 'array', values: { count: '3', offset: '2, 0, 0' } })).toEqual([
+    expect(centers({ command: 'array_in_line', values: { count: '3', offset: '2, 0, 0' } })).toEqual([
       [0, 0, 0],
       [2, 0, 0],
       [4, 0, 0],
@@ -38,7 +38,7 @@ describe('Array', () => {
     expect(
       centers(
         { command: 'move_by', values: { by: '2, 0, 0' } },
-        { command: 'array', values: { count: '4', shape: 'Circle' } },
+        { command: 'array_in_circle', values: { count: '4'} },
       ),
     ).toEqual([
       [2, 0, 0],
@@ -50,7 +50,7 @@ describe('Array', () => {
 
   it('places them evenly along a Path, the first at its start', () => {
     expect(
-      centers({ command: 'array', values: { count: '3', shape: 'Along Path', path: '[0, 0, 0], [4, 0, 0]' } }),
+      centers({ command: 'array_along_path', values: { count: '3', path: '[0, 0, 0], [4, 0, 0]' } }),
     ).toEqual([
       [0, 0, 0],
       [2, 0, 0],
@@ -63,7 +63,7 @@ describe('Array', () => {
       solidScriptDocumentCreate([
         { command: 'cube' },
         { command: 'select_objects' },
-        { command: 'array', values: { count: '3', into: 'Copies' } },
+        { command: 'array_in_line', values: { count: '3', into: 'Copies' } },
         { command: 'echo', values: { value: '[Copies.Count]' } },
       ]),
     );
