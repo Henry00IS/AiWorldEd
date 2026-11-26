@@ -75,4 +75,17 @@ describe('SolidScript fields picking resources', () => {
     const names = solidScriptDocumentNamesAt(document, 0).filter((name) => name.category === 'Resources');
     expect(names).toEqual([expect.objectContaining({ name: '$Resources.Arch', kinds: ['Curve'] })]);
   });
+  it('shows the picked text at once after switching from Pick to Type, in curve and texture fields', () => {
+    const drawn = (field: ReturnType<typeof build>) =>
+      field.element.querySelector('.solid-script-editor-field-code-layer')?.textContent ?? '';
+    const curve = build(curveParameter(), '');
+    const select = curve.element.querySelector<HTMLSelectElement>('select[aria-label$="resource"]')!;
+    select.value = '[$Resources.Ramp]';
+    select.dispatchEvent(new Event('change'));
+    curve.element.querySelector<HTMLButtonElement>('button[aria-pressed="false"]')!.click();
+    expect(drawn(curve)).toBe('[$Resources.Ramp]');
+    const texture = build(solidScriptCommandFind('texture')!.parameters[0]!, '[$Resources.Brick]');
+    texture.element.querySelector<HTMLButtonElement>('button[aria-label="Type Texture"]')!.click();
+    expect(drawn(texture)).toBe('[$Resources.Brick]');
+  });
 });

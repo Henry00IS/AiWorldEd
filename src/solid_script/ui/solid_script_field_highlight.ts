@@ -106,5 +106,27 @@ export function solidScriptFieldMirrorAttach(
   };
   for (const type of ['input', 'change', 'scroll', 'select', 'click', 'keyup', 'focus', 'blur'])
     input.addEventListener(type, sync);
+  solidScriptFieldMirrorFollowWrites(input, sync);
   sync();
+}
+
+/**
+ * Redraws a highlighted input whenever code writes its text, such as a Pick and
+ * Type switch or the formula window, which fire no input event.
+ *
+ * @param input Text input.
+ * @param sync Redraws the highlighted text.
+ */
+function solidScriptFieldMirrorFollowWrites(input: HTMLInputElement, sync: () => void): void {
+  const own = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  if (!own?.get || !own.set) return;
+  const { get, set } = own;
+  Object.defineProperty(input, 'value', {
+    configurable: true,
+    get: () => get.call(input) as string,
+    set: (text: string) => {
+      set.call(input, text);
+      sync();
+    },
+  });
 }
