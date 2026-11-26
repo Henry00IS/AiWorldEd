@@ -50,7 +50,7 @@ describe('modifier stack buttons and drawings', () => {
     expect([toggle?.kind, toggle?.label, toggle?.on]).toEqual(['Toggle', 'Show Rails', false]);
     expect(toggle?.at.distanceTo(centre.clone().add(new THREE.Vector3(0, 1, 0)))).toBeLessThan(1e-9);
     expect(modifierStackButtonPress(node, toggle!)).toEqual({
-      patch: { inputs: { ShowRails: 'Yes' } },
+      patch: { inputs: { ShowRails: 'Yes' }, persistent: {} },
       notices: [],
       error: null,
     });
