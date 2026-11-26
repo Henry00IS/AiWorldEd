@@ -1,102 +1,98 @@
-import { SolidScriptCommand } from './solid_script_command.js';
-import {
-  solidScriptParameter,
-  solidScriptParameterWhen,
-  solidScriptParameterWords,
-  solidScriptParameterWrites,
-} from './solid_script_command_parameters.js';
+import { SolidScriptCommand, type SolidScriptCommandParameter } from './solid_script_command.js';
+import type { SolidScriptListingPiece, SolidScriptListingValues } from './solid_script_command_listing.js';
+import { solidScriptParameter, solidScriptParameterWrites } from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { SOLID_SCRIPT_FUNCTIONS_ROTATION } from '@/solid_script/language/solid_script_functions_rotation.js';
 import type { SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
 
-/** How Make Rotation reads its turn. */
-const SOLID_SCRIPT_ROTATION_AXIS_ANGLE = 'Axis And Angle';
+/** Into of a rotation block: the variable that gets the Rotation. */
+const SOLID_SCRIPT_ROTATION_INTO = {
+  ...solidScriptParameterWrites(
+    solidScriptParameter('into', 'Into', 'name', 'Spin', 'Variable that gets the Rotation, such as Spin.'),
+    { rule: 'kind', kind: 'Rotation', what: 'Rotation of **{command}**' },
+  ),
+  into: 'label' as const,
+};
+
+/** Text both rotation blocks' manuals end with. */
+const SOLID_SCRIPT_ROTATION_MANUAL_END =
+  'Rotate By, Rotate To and the Rotate of Transform take a Rotation as well as three numbers. Rotations combine and blend without ever locking up the way three angles can: CombineRotations, MixRotation, InvertRotation and ApplyRotation work on them in formulas, and RotationDegrees gives the three numbers back.';
+
+/** What differs between the two rotation blocks. */
+interface SolidScriptRotationSpec {
+  id: string;
+  label: string;
+  description: string;
+  manual: string;
+  stops: readonly string[];
+  fields: readonly SolidScriptCommandParameter[];
+  listing: (read: SolidScriptListingValues) => SolidScriptListingPiece[];
+  make: (run: SolidScriptBlockRun) => SolidScriptValue;
+}
 
 /**
- * Works out the Rotation of a Make Rotation line: degrees around X, then Y,
- * then Z, or a turn around an axis.
+ * Builds one rotation block that writes a Rotation to Into.
  *
- * @param run Running line.
- * @returns Rotation.
+ * @param spec Rotation block.
+ * @returns Command.
  */
-function solidScriptMakeRotation(run: SolidScriptBlockRun): SolidScriptValue {
-  const how = run.text('how').trim().toLowerCase();
-  if (how === SOLID_SCRIPT_ROTATION_AXIS_ANGLE.toLowerCase())
-    return SOLID_SCRIPT_FUNCTIONS_ROTATION.rotation_around([run.value('axis'), run.value('angle')]);
-  if (how !== '' && how !== 'x then y then z')
-    throw new Error(`How needs X Then Y Then Z or Axis And Angle, not ${run.text('how')}`);
-  return SOLID_SCRIPT_FUNCTIONS_ROTATION.rotation(run.fields().vector('degrees', [0, 0, 0]));
+function solidScriptRotationCommand(spec: SolidScriptRotationSpec): SolidScriptCommand {
+  return new SolidScriptCommand({
+    id: spec.id,
+    label: spec.label,
+    category: 'Transforms',
+    description: spec.description,
+    synonyms: ['quaternion', 'turn', 'orientation', 'angle'],
+    manual: `${spec.manual} ${SOLID_SCRIPT_ROTATION_MANUAL_END}`,
+    stops: spec.stops,
+    parameters: [...spec.fields, SOLID_SCRIPT_ROTATION_INTO],
+    listing: (read) => [...spec.listing(read), ' Into ', read.value('into')],
+    execute: (run) => {
+      run.variableSet(run.text('into').trim(), spec.make(run));
+      return [];
+    },
+  });
 }
 
 /** Commands that make Rotation values. */
 export const SOLID_SCRIPT_COMMANDS_ROTATION: readonly SolidScriptCommand[] = [
-  new SolidScriptCommand({
+  solidScriptRotationCommand({
     id: 'make_rotation',
     label: 'Make Rotation',
-    category: 'Transforms',
-    description: 'Make a Rotation to turn objects by, around X, Y and Z or around an axis',
-    synonyms: ['quaternion', 'turn', 'orientation', 'angle'],
+    description: 'Make a Rotation to turn objects by, around X, then Y, then Z',
     manual:
-      'Writes a Rotation to Into: a whole turn that Rotate By, Rotate To and the Rotate of Transform take as well as three numbers. How X Then Y Then Z turns around X, then Y, then Z by Degrees, the same way an object rotation does. How Axis And Angle turns around the direction Axis, which the normal picker can take from a face, by Angle degrees. Rotations combine and blend without ever locking up the way three angles can: CombineRotations, MixRotation, InvertRotation and ApplyRotation work on them in formulas, and RotationDegrees gives the three numbers back. Example: Make Rotation How Axis And Angle Axis 0, 1, 0 Angle 90 Into [Spin], then Rotate By [Spin] Of [Box] gives the box a quarter turn.',
-    stops: ['A How that is not X Then Y Then Z or Axis And Angle.', 'An Axis of 0, 0, 0.'],
-    parameters: [
-      solidScriptParameterWords(
-        'how',
-        'How',
-        'text',
-        'X Then Y Then Z',
-        'How the turn is given. Type X Then Y Then Z or Axis And Angle, such as Axis And Angle.',
-        [
-          { word: 'X Then Y Then Z', detail: 'Degrees around X, then Y, then Z, like an object rotation' },
-          { word: SOLID_SCRIPT_ROTATION_AXIS_ANGLE, detail: 'A number of degrees around one direction' },
-        ],
+      'Writes a Rotation to Into that turns around X, then Y, then Z by Degrees, the same way an object rotation does. Example: Make Rotation 0, 0, 45 Degrees Into [Tilt].',
+    stops: [],
+    fields: [
+      solidScriptParameter(
+        'degrees',
+        'Degrees',
+        'vector3',
+        '0, 90, 0',
+        'Degrees around X, then Y, then Z, such as 0, 90, 0.',
       ),
-      solidScriptParameterWhen(
-        solidScriptParameter(
-          'degrees',
-          'Degrees',
-          'vector3',
-          '0, 90, 0',
-          'Degrees around X, then Y, then Z, such as 0, 90, 0.',
-        ),
-        'how',
-        ['X Then Y Then Z'],
-      ),
-      solidScriptParameterWhen(
-        solidScriptParameter(
-          'axis',
-          'Axis',
-          'vector3',
-          '0, 1, 0',
-          'The direction to turn around, such as 0, 1, 0 for up.',
-        ),
-        'how',
-        [SOLID_SCRIPT_ROTATION_AXIS_ANGLE],
-      ),
-      solidScriptParameterWhen(
-        solidScriptParameter('angle', 'Angle', 'number', '90', 'How many degrees to turn around Axis, such as 90.'),
-        'how',
-        [SOLID_SCRIPT_ROTATION_AXIS_ANGLE],
-      ),
-      {
-        ...solidScriptParameterWrites(
-          solidScriptParameter('into', 'Into', 'name', 'Spin', 'Variable that gets the Rotation, such as Spin.'),
-          { rule: 'kind', kind: 'Rotation', what: 'Rotation of **{command}**' },
-        ),
-        into: 'label',
-      },
     ],
-    listing: (read) => [
-      'Make Rotation',
-      ...(read.text('how').trim().toLowerCase() === SOLID_SCRIPT_ROTATION_AXIS_ANGLE.toLowerCase()
-        ? [' Axis ', read.value('axis'), ' Angle ', read.value('angle')]
-        : [' ', read.value('degrees'), ' Degrees']),
-      ' Into ',
-      read.value('into'),
+    listing: (read) => ['Make Rotation', ' ', read.value('degrees'), ' Degrees'],
+    make: (run) => SOLID_SCRIPT_FUNCTIONS_ROTATION.rotation(run.fields().vector('degrees', [0, 0, 0])),
+  }),
+  solidScriptRotationCommand({
+    id: 'make_rotation_around',
+    label: 'Make Rotation Around',
+    description: 'Make a Rotation to turn objects by, a number of degrees around one direction',
+    manual:
+      'Writes a Rotation to Into that turns around the direction Axis, which the normal picker can take from a face, by Angle degrees. Example: Make Rotation Around 0, 1, 0 Angle 90 Into [Spin], then Rotate By [Spin] Of [Box] gives the box a quarter turn.',
+    stops: ['An Axis of 0, 0, 0.'],
+    fields: [
+      solidScriptParameter(
+        'axis',
+        'Axis',
+        'vector3',
+        '0, 1, 0',
+        'The direction to turn around, such as 0, 1, 0 for up.',
+      ),
+      solidScriptParameter('angle', 'Angle', 'number', '90', 'How many degrees to turn around Axis, such as 90.'),
     ],
-    execute: (run) => {
-      run.variableSet(run.text('into').trim(), solidScriptMakeRotation(run));
-      return [];
-    },
+    listing: (read) => ['Make Rotation Around', ' ', read.value('axis'), ' Angle ', read.value('angle')],
+    make: (run) => SOLID_SCRIPT_FUNCTIONS_ROTATION.rotation_around([run.value('axis'), run.value('angle')]),
   }),
 ];

@@ -88,11 +88,11 @@ describe('Rotation values', () => {
     ).toEqual(['Rotation(0, -90, 0)', '[0, -90, 0]', '[0, 1, 0]']);
   });
 
-  it('builds one with the Make Rotation block, by degrees or around an axis', () => {
+  it('builds one with Make Rotation by degrees, or Make Rotation Around an axis', () => {
     expect(
       printed(
         { command: 'make_rotation', values: { into: 'Tilt', degrees: '0, 0, 45' } },
-        { command: 'make_rotation', values: { into: 'Spin', how: 'Axis And Angle', axis: '0, 1, 0', angle: '90' } },
+        { command: 'make_rotation_around', values: { into: 'Spin', axis: '0, 1, 0', angle: '90' } },
         echo('[Tilt] [Spin]'),
         cube('Box'),
         { command: 'rotate_to', values: { to: '[Spin]', of: '[Box]' } },
@@ -103,10 +103,10 @@ describe('Rotation values', () => {
     ).toEqual(['Rotation(0, 0, 45) Rotation(0, 90, 0)', 'ok']);
   });
 
-  it('picks the axis of Make Rotation with the normal picker', () => {
-    const block = solidScriptCommands.find((command) => command.id === 'make_rotation');
+  it('picks the axis of Make Rotation Around with the normal picker', () => {
+    const block = solidScriptCommands.find((command) => command.id === 'make_rotation_around');
     const axis = block?.parameters.find((parameter) => parameter.key === 'axis');
-    if (!axis) throw new Error('Make Rotation has no Axis');
+    if (!axis) throw new Error('Make Rotation Around has no Axis');
     expect(solidScriptParameterTakesDirection(axis)).toBe(true);
   });
 });

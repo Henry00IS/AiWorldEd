@@ -218,7 +218,7 @@ function toolHost(command: SolidScriptCommand): SolidScriptLine[] {
  * Lines that write Held on their own, with no geometry before them and none
  * after.
  */
-const SCRIPT_ONLY = ['path', 'filter_list', 'points', 'make_dictionary', 'make_rotation'];
+const SCRIPT_ONLY = ['path', 'filter_list', 'points', 'make_dictionary', 'make_rotation', 'make_rotation_around'];
 
 /**
  * Scripts that write only point or pick lists into Held.
