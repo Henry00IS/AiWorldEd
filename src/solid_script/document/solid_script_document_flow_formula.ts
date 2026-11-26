@@ -12,7 +12,10 @@ import { solidScriptExpressionChildren, type SolidScriptExpression } from '@/sol
 import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
 import { solidScriptExpressionParse } from '@/solid_script/language/solid_script_expression_parse.js';
 import { solidScriptFieldPieces } from '@/solid_script/language/solid_script_field.js';
-import { solidScriptFormulaListInline } from '@/solid_script/language/solid_script_formula_list_literal.js';
+import {
+  solidScriptFieldVectorRead,
+  solidScriptFormulaListInline,
+} from '@/solid_script/language/solid_script_formula_list_literal.js';
 import {
   SOLID_SCRIPT_FUNCTION_DOCS,
   solidScriptFunctionArguments,
@@ -344,7 +347,8 @@ function solidScriptFlowCallKinds(name: string, values: readonly string[][], hea
 /**
  * Finds the calls of built-in functions in a formula given a value no run can
  * use: a value whose every possible kind is one the function's input does not
- * declare, such as Abs of a Brush.
+ * declare, such as Abs of a Brush, and math on a written vector of two numbers
+ * with one of three.
  *
  * @param text Formula as typed in brackets, starting with =.
  * @param head Kinds the script's names may hold.
@@ -358,6 +362,7 @@ export function solidScriptFlowFormulaProblems(text: string, head: SolidScriptFl
   const visit = (node: SolidScriptExpression): void => {
     solidScriptExpressionChildren(node).forEach(visit);
     if (node.kind === 'call') problems.push(...solidScriptFlowCallProblems(node, names, head));
+    if (node.kind === 'binary') problems.push(...solidScriptFlowMixedVectors(node, formula.parts));
   };
   visit(formula.tree);
   return problems;
@@ -391,6 +396,42 @@ function solidScriptFlowCallProblems(
       `${solidScriptFunctionSpelling(builtin)}() needs ${needs}, not ${solidScriptFlowArticle(kinds.join(' or '))}`,
     ];
   });
+}
+
+/** Operators that work on vectors number by number. */
+const SOLID_SCRIPT_FLOW_AXIS_MATH: ReadonlySet<string> = new Set(['+', '-', '*', '/']);
+
+/**
+ * Finds math on a vector of two numbers and one of three, both written out,
+ * such as [1, 2] + [1, 2, 3]: it runs, with a Z of 0 for the short one, but is
+ * often a number left out.
+ *
+ * @param node The math.
+ * @param parts Text of the formula's bracketed parts.
+ * @returns A message when the two are written with different counts.
+ */
+function solidScriptFlowMixedVectors(node: SolidScriptFlowExpressionOf<'binary'>, parts: readonly string[]): string[] {
+  if (!SOLID_SCRIPT_FLOW_AXIS_MATH.has(node.operator)) return [];
+  const [left, right] = [node.left, node.right].map((side) => solidScriptFlowWrittenVector(side, parts));
+  if (!left || !right || left.length === right.length) return [];
+  const [flat, full] = left.length === 2 ? [left, right] : [right, left];
+  const shown = (numbers: readonly number[]) => `[${numbers.join(', ')}]`;
+  return [
+    `${shown(left)} ${node.operator} ${shown(right)} mixes a vector of 2 numbers with one of 3; ${shown(flat)} counts as ${shown([...flat, 0])}, so ${shown(full)} keeps its Z`,
+  ];
+}
+
+/**
+ * Reads a side of math that is a vector of numbers written out in brackets.
+ *
+ * @param node Side of the math.
+ * @param parts Text of the formula's bracketed parts.
+ * @returns Its numbers, or undefined when it is anything else.
+ */
+function solidScriptFlowWrittenVector(node: SolidScriptExpression, parts: readonly string[]): number[] | undefined {
+  if (node.kind !== 'variable' || !node.name.startsWith(SOLID_SCRIPT_FLOW_PART)) return undefined;
+  const part = parts[Number(node.name.slice(SOLID_SCRIPT_FLOW_PART.length))];
+  return part === undefined ? undefined : (solidScriptFieldVectorRead(part) ?? undefined);
 }
 
 /**

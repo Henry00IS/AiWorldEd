@@ -49,7 +49,7 @@ export const SOLID_SCRIPT_COMMANDS_SCALE_EDGES: readonly SolidScriptCommand[] = 
     description: 'Grow or shrink edges about their middle',
     manual:
       'Moves the corners of edges toward or away from their middle. Edges that share corners scale as one island about the average of their midpoints, so a rim or a border loop shrinks as a whole, while edges that touch nothing scale about their own midpoints. Factor is how much: 0.5 halves, 2 doubles, 0 pulls each island into one point. Center is the point to scale about instead. Axis scales only along that direction. Of gives edges, or the edges of faces or objects; empty uses [$Selected.Edges], else the edges of [$Selected.Faces], else every edge of [$Selected.Objects]. Where is a 🔁 condition an edge must pass. Example: Grid Mesh, then Scale Edges By 0.5 Where [$Edge.IsBoundary] pulls its border in to half size.',
-    stops: ['No edges.', 'A Factor that is not a number.', 'A Center or Axis that is not three numbers.'],
+    stops: ['No edges.', 'A Factor that is not a number.', 'A Center or Axis that is not two or three numbers.'],
     parameters: [
       solidScriptParameter(
         'factor',

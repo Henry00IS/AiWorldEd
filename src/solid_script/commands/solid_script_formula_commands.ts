@@ -103,7 +103,8 @@ export const SOLID_SCRIPT_FORMULA_LEAVES: readonly (SolidScriptFormulaBlockText 
     kind: 'vector',
     label: 'Vector',
     description: 'Three numbers, such as 0, 1, 0 for up',
-    manual: 'A direction or point of three numbers, X, Y and Z. Example: Vector 0, 1, 0 points up.',
+    manual:
+      'A direction or point of three numbers, X, Y and Z; two numbers x, y are the same as x, y, 0. Example: Vector 0, 1, 0 points up.',
     hint: 'X, Y and Z separated by commas, such as 0, 1, 0.',
   },
   {

@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { solidScriptPathFlat, solidScriptPathLoopOpen } from './solid_script_path_flat.js';
 import { solidScriptPathSample } from './solid_script_path_model.js';
 import { solidScriptPolygonArea, type SolidScriptPoint2 } from './solid_script_polygon.js';
+import { solidScriptVectorOfNumbers } from './solid_script_vector.js';
 
 /**
  * How the text typed into a block field is read. Field text is plain text
@@ -348,6 +349,9 @@ function solidScriptFieldGroupCompile(pieces: readonly SolidScriptFieldPiece[]):
   };
 }
 
+/** What a vector in brackets is, for messages. */
+const SOLID_SCRIPT_FIELD_VECTOR_RULE = 'a vector in brackets needs 2 or 3 numbers, such as [1, 2] or [1, 2, 3]';
+
 /** Start of bracket text no name has: a digit, a minus or a dot. */
 const SOLID_SCRIPT_FIELD_NUMBER_START = /^\s*[-.\d]/;
 
@@ -365,11 +369,10 @@ function solidScriptFieldVectorProblem(text: string): string {
   const items = solidScriptFieldSplit(inner, ',');
   // More than three items or brackets inside: a list written in brackets, such as pasted Echo output.
   if (items.length > 3 || items.some((item) => item.includes('[')))
-    return `[${inner}] is not a vector: a vector in brackets needs exactly 3 numbers, such as [1, 2, 3]. Did you mean to write ${items.filter((item) => item !== '').join(', ')}?`;
+    return `[${inner}] is not a vector: ${SOLID_SCRIPT_FIELD_VECTOR_RULE}. Did you mean to write ${items.filter((item) => item !== '').join(', ')}?`;
   const written = items.filter((item) => item !== '');
   const numbers = written.every((item) => Number.isFinite(Number(item)));
-  // Missing numbers are filled in with 0, so [3,] means [3, 0, 0].
-  const padded = [...written, '0', '0', '0'].slice(0, 3);
+  const padded = [...written, '0', '0', '0'].slice(0, Math.max(2, items.length));
   const meant =
     items.length === 1
       ? numbers
@@ -380,12 +383,12 @@ function solidScriptFieldVectorProblem(text: string): string {
         : written.length <= 3
           ? `[${padded.join(', ')}]`
           : written.join(', ');
-  return `[${inner}] is not a vector: a vector in brackets needs exactly 3 numbers, such as [1, 2, 3]. Did you mean to write ${meant}?`;
+  return `[${inner}] is not a vector: ${SOLID_SCRIPT_FIELD_VECTOR_RULE}. Did you mean to write ${meant}?`;
 }
 
 /**
- * Reads bracket text once its inner brackets are put in: three numbers are a
- * vector, anything else names a variable.
+ * Reads bracket text once its inner brackets are put in: two or three numbers
+ * are a vector, anything else names a variable.
  *
  * @param inner Bracket text.
  * @param context Running script.
@@ -594,20 +597,21 @@ function solidScriptFieldFolded(text: string, compiled: SolidScriptFieldCompiled
 
 /**
  * Reads the points of a points field: vectors in brackets separated by commas,
- * a list of them such as [Path], or one point as plain numbers. Flat outlines
- * take x and y and ignore z.
+ * a list of them such as [Path], or one point as plain numbers. A point of two
+ * numbers has a Z of 0; flat outlines take x and y and ignore z.
  *
  * @param values Items of the field, each read.
  * @param size 2 for x, y outlines, 3 for x, y, z points.
  * @returns Points.
  */
 export function solidScriptFieldPoints(values: readonly SolidScriptValue[], size: 2 | 3): number[][] {
-  const example = size === 3 ? '[0, 0, 0], [1, 0, 0]' : '[0, 0, 0], [1, 0, 0] (z is ignored)';
+  const example = size === 3 ? '[0, 0, 0], [1, 0, 0]' : '[0, 0], [1, 0]';
   const wrong = (found: SolidScriptValue): Error =>
     new Error(`${solidScriptValueText(found)} is no point; write points as vectors in brackets, such as ${example}`);
   const fit = (numbers: readonly number[], found: SolidScriptValue): number[] => {
-    if (numbers.length === size || (size === 2 && numbers.length === 3)) return numbers.slice(0, size);
-    throw wrong(found);
+    const vector = solidScriptVectorOfNumbers(numbers);
+    if (!vector) throw wrong(found);
+    return vector.slice(0, size);
   };
   const numeric = (value: SolidScriptValue): value is number[] =>
     Array.isArray(value) && value.length > 0 && value.every((entry) => typeof entry === 'number');
@@ -863,9 +867,9 @@ function solidScriptFieldCheckRead(text: string, formula: boolean): string {
 }
 
 /**
- * Checks the contents of a bracketed part that names a variable: three numbers
- * are a vector, text that starts like a number must be one, and a dotted name
- * must read a member.
+ * Checks the contents of a bracketed part that names a variable: two or three
+ * numbers are a vector, text that starts like a number must be one, and a
+ * dotted name must read a member.
  *
  * @param pieces Contents of the brackets.
  * @returns Problem, or an empty string.

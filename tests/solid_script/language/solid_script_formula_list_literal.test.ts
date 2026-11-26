@@ -121,10 +121,11 @@ describe('SolidScript list brackets: what is a list and what stays a name', () =
       expect(solidScriptFormulaListLiteral(group(text)), text).toBe(false);
   });
 
-  it('leaves three plain numbers to be read as a vector, the way every field reads them', () => {
+  it('leaves two or three plain numbers to be read as a vector, the way every field reads them', () => {
     expect(solidScriptFormulaListInline(group('[1, 2, 3]'))).toBe(false);
+    expect(solidScriptFormulaListInline(group('[1, 2]'))).toBe(false);
     expect(solidScriptFormulaListInline(group('[1, 2, [X]]'))).toBe(true);
-    expect(solidScriptFormulaListInline(group('[1, 2]'))).toBe(true);
+    expect(solidScriptFormulaListInline(group('[1, 2, 3, 4]'))).toBe(true);
   });
 
   it('writes a list as brackets, or List() for one item brackets would read as a name', () => {
@@ -141,7 +142,8 @@ describe('SolidScript list brackets: what is a list and what stays a name', () =
     expect(solidScriptFieldCheck('[=Len([0, 1])]')).toBe('');
     expect(solidScriptFieldCheck('[=Len([0, [1.5], "a.b"])]')).toBe('');
     expect(solidScriptFieldCheck('Len([0, 1]) == 2', true)).toBe('');
-    expect(solidScriptFieldCheck('[0, 1]')).toMatch(/is not a vector/);
+    expect(solidScriptFieldCheck('[0, 1]')).toBe('');
+    expect(solidScriptFieldCheck('[0, 1, 2, 3]')).toMatch(/is not a vector/);
     expect(solidScriptFormulaProblem('Reversed(["a", "b"])')).toBe('');
     expect(solidScriptFormulaProblem('[0, [1, 1, 1], "Easy"]')).toBe('');
   });

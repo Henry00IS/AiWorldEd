@@ -213,6 +213,6 @@ describe('SolidScript formula words', () => {
         line('add_item', { value: '[=vector(1, 2)]', list: 'outline' }),
         line('echo', { value: '[outline.count] [outline(0)]' }),
       ),
-    ).toEqual(['1 [1, 2]']);
+    ).toEqual(['1 [1, 2, 0]']);
   });
 });

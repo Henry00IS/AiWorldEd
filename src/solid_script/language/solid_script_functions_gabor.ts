@@ -2,6 +2,7 @@ import { solidScriptNoiseWord } from './solid_script_functions_noise.js';
 import { solidScriptExtraNumber } from './solid_script_functions_extra.js';
 import { solidScriptMemberRound } from './solid_script_members.js';
 import { solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptVectorRequire } from './solid_script_vector.js';
 
 /** How to call Gabor, for messages. */
 const SOLID_SCRIPT_GABOR_USAGE = 'Gabor(position, scale, frequency, anisotropy, orientation, output)';
@@ -139,8 +140,10 @@ function solidScriptGaborSum(
  * @returns Value or Phase from 0 to 1, or Intensity from 0 up.
  */
 function solidScriptGabor(args: readonly SolidScriptValue[]): number {
-  const position = solidScriptValueNumbers(args[0]);
-  if (position?.length !== 3) throw new Error(`${SOLID_SCRIPT_GABOR_USAGE} needs a position of three numbers`);
+  const position = solidScriptVectorRequire(
+    args[0],
+    `${SOLID_SCRIPT_GABOR_USAGE} needs a position vector, such as Vector(x, y, z)`,
+  );
   const scale = args.length > 1 ? solidScriptExtraNumber(args, 1, SOLID_SCRIPT_GABOR_USAGE) : 5;
   const frequency = Math.max(0, args.length > 2 ? solidScriptExtraNumber(args, 2, SOLID_SCRIPT_GABOR_USAGE) : 2);
   const anisotropy = Math.min(

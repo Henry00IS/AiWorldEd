@@ -1,15 +1,12 @@
 import * as THREE from 'three';
 import type { SolidScriptCommandWord } from './solid_script_command.js';
-import {
-  solidScriptValueNumber,
-  solidScriptValueNumbers,
-  solidScriptValueText,
-} from '@/solid_script/language/solid_script_value.js';
+import { solidScriptValueNumber, solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import type {
   SolidScriptUvPackMethod,
   SolidScriptUvPackSettings,
 } from '@/solid_script/language/solid_script_uv_islands.js';
+import { solidScriptVectorThreeRequire } from '@/solid_script/language/solid_script_vector.js';
 
 /** How Unwrap may lay islands flat, each with its meaning. */
 export const SOLID_SCRIPT_UVS_UNWRAP_METHODS: readonly SolidScriptCommandWord[] = [
@@ -104,13 +101,7 @@ export function solidScriptUvsVector(
 ): THREE.Vector3 {
   const text = solidScriptValueText(run.value(key)).trim();
   if (text === '') return new THREE.Vector3(...fallback);
-  const numbers = solidScriptValueNumbers(run.value(key));
-  const x = numbers?.[0];
-  const y = numbers?.[1];
-  const z = numbers?.[2];
-  if (x === undefined || y === undefined || z === undefined || numbers?.length !== 3)
-    throw new Error(`${label} needs three numbers, such as 0, 1, 0`);
-  return new THREE.Vector3(x, y, z);
+  return solidScriptVectorThreeRequire(run.value(key), `${label} needs a vector, such as 0, 1, 0`);
 }
 
 /**

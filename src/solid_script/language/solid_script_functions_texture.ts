@@ -1,7 +1,8 @@
 import { solidScriptNoiseWord } from './solid_script_functions_noise.js';
 import { solidScriptExtraNumber, solidScriptExtraSeeded } from './solid_script_functions_extra.js';
 import { solidScriptMemberRound } from './solid_script_members.js';
-import { solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
+import { type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptVectorRequire } from './solid_script_vector.js';
 
 /** Arguments of a procedural texture. */
 type SolidScriptTextureArgs = readonly SolidScriptValue[];
@@ -14,8 +15,7 @@ type SolidScriptTextureArgs = readonly SolidScriptValue[];
  * @returns Coordinates in texture space.
  */
 function solidScriptTexturePosition(args: SolidScriptTextureArgs, usage: string): number[] {
-  const position = solidScriptValueNumbers(args[0]);
-  if (position?.length !== 3) throw new Error(`${usage} needs a position vector of three numbers`);
+  const position = solidScriptVectorRequire(args[0], `${usage} needs a position vector, such as Vector(x, y, z)`);
   const scale = solidScriptTextureNumber(args, 1, 1, usage);
   return position.map((value) => value * scale);
 }
@@ -166,8 +166,7 @@ const SOLID_SCRIPT_TEXTURE_GRADIENTS = {
  * @returns Value from 0 to 1.
  */
 function solidScriptTextureGradient(args: SolidScriptTextureArgs): number {
-  const position = solidScriptValueNumbers(args[0]);
-  if (position?.length !== 3) throw new Error('Gradient needs a position vector of three numbers');
+  const position = solidScriptVectorRequire(args[0], 'Gradient needs a position vector, such as Vector(x, y, z)');
   const kinds = Object.keys(SOLID_SCRIPT_TEXTURE_GRADIENTS) as (keyof typeof SOLID_SCRIPT_TEXTURE_GRADIENTS)[];
   const kind = solidScriptNoiseWord(args[1], kinds, 'Gradient Type');
   const value = SOLID_SCRIPT_TEXTURE_GRADIENTS[kind](position);

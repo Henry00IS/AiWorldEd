@@ -31,6 +31,14 @@ describe('Points', () => {
       ),
     ).toBe('0');
     expect(ran({ command: 'points', values: { count: '1.5', into: 'P' } })).toMatch(/Count needs a whole number/);
-    expect(ran({ command: 'points', values: { count: '2', at: '1, 2', into: 'P' } })).toMatch(/At needs three/);
+    expect(ran({ command: 'points', values: { count: '2', at: '1, 2, 3, 4', into: 'P' } })).toMatch(
+      /At needs a vector/,
+    );
+    expect(
+      ran(
+        { command: 'points', values: { count: '2', at: '1, 2', into: 'P' } },
+        { command: 'echo', values: { value: '[P]' } },
+      ),
+    ).toBe('[[1, 2, 0], [1, 2, 0]]');
   });
 });

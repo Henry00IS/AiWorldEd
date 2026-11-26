@@ -334,7 +334,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     manual:
       'Builds a mesh of quads in a plane, for a floor, a wall or a terrain to Displace. Size is width (X), height (Y) and depth (Z) in metres; set one of them to 0 so the grid lies in that plane, such as 2, 0, 2 for a grid on the ground, or 2, 2, 0 for a wall facing the front. Columns is how many faces across, Rows how many the other way. Anchor picks the spot of the box that sits on the origin, the same as on a Cube. Texture coordinates run from 0 to 1 across the grid. Example: Grid Mesh Size 8, 0, 8 Columns 16 Rows 16, then Displace with a Noise formula, gives a hilly floor.',
     stops: [
-      'A Size with a negative length, or that is not one number or three numbers separated by commas.',
+      'A Size with a negative length, or that is not one, two or three numbers separated by commas.',
       'A Size that is not flat: set Width, Height or Depth to 0, such as 2, 0, 2.',
       `Columns or Rows outside ${SOLID_SCRIPT_GRID_MESH_COUNT_MIN} to ${SOLID_SCRIPT_GRID_MESH_COUNT_MAX}, or a count with decimals.`,
     ],
@@ -457,7 +457,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     ],
     execute: (run) => {
       const xyz = run.fields().vector('position', [0, 0, 0]);
-      const uv = run.text('uv').trim() === '' ? null : (run.fields().vector('uv', [0, 0]) as SolidScriptUv);
+      const uv = run.text('uv').trim() === '' ? null : run.fields().flat('uv', [0, 0]);
       return run.point(new THREE.Vector3(xyz[0], xyz[1], xyz[2]), uv);
     },
   }),

@@ -4,6 +4,7 @@ import {
   solidScriptValueNumeric,
   solidScriptValueShow,
   solidScriptValueTruthy,
+  solidScriptValueVectorsMatched,
   type SolidScriptValue,
 } from './solid_script_value.js';
 
@@ -35,7 +36,10 @@ export function solidScriptArithmeticBinary(
     return left.map((entry) => solidScriptArithmeticBinary(operator, entry, right));
   if ((operator === '*' || operator === '/') && typeof left === 'number' && Array.isArray(right))
     return right.map((entry) => solidScriptArithmeticBinary(operator, left, entry));
-  // Two vectors combine part by part; Dot and Cross are functions.
+  if (Array.isArray(left) && Array.isArray(right) && left.length !== right.length) {
+    const [first, second] = solidScriptValueVectorsMatched(left, right);
+    if (first && second && first.length === second.length) return solidScriptArithmeticBinary(operator, first, second);
+  }
   if (['+', '-', '*', '/'].includes(operator) && Array.isArray(left) && Array.isArray(right)) {
     if (left.length !== right.length)
       throw new Error(

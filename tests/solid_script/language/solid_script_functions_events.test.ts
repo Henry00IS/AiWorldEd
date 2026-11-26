@@ -243,13 +243,16 @@ describe('Vector inputs', () => {
     expect(given.messages).toEqual(['4 6']);
   });
 
-  it('stop on a value that is not three numbers, or a part outside Minimum and Maximum', () => {
+  it('stop on a value that is not two or three numbers, or a part outside Minimum and Maximum', () => {
     // A bad value falls back to the Default, and stops the script when that is bad too.
-    expect(runWith({ inputs: { size: '4, 5' } }, size({ default: '' })).error?.message).toContain('three numbers');
+    expect(runWith({ inputs: { size: '4' } }, size({ default: '' })).error?.message).toContain('two or three numbers');
+    expect(runWith({ inputs: { size: '4, 5' } }, size({ default: '' }), echo('[size]')).messages).toEqual([
+      '[4, 5, 0]',
+    ]);
     expect(runWith({ inputs: { size: '1, 9, 1' } }, size({ max: '5', default: '9, 9, 9' })).error?.message).toContain(
       'from any to 5',
     );
-    expect(runWith({ inputs: { size: '4, 5' } }, size(), echo('[size]')).messages).toEqual([
+    expect(runWith({ inputs: { size: '4' } }, size(), echo('[size]')).messages).toEqual([
       runWith({}, size(), echo('[size]')).messages[0],
     ]);
   });

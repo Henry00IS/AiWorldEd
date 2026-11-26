@@ -3,10 +3,11 @@ import { solidScriptExtraNumber, solidScriptExtraVector } from './solid_script_f
 import { solidScriptPathSample } from './solid_script_path_model.js';
 import {
   SolidScriptPathElement,
-  solidScriptValueNumbers,
   solidScriptValueText,
+  solidScriptValueVectorsMatched,
   type SolidScriptValue,
 } from './solid_script_value.js';
+import { solidScriptVectorRequire } from './solid_script_vector.js';
 
 /** A built-in function over evaluated arguments. */
 type SolidScriptCoordinatesBuiltin = (args: SolidScriptValue[]) => SolidScriptValue;
@@ -19,11 +20,7 @@ type SolidScriptCoordinatesBuiltin = (args: SolidScriptValue[]) => SolidScriptVa
  * @returns X, Y and Z.
  */
 function solidScriptCoordinatesVector(args: readonly SolidScriptValue[], usage: string): [number, number, number] {
-  const numbers = solidScriptExtraVector(args, 0, usage);
-  const [x, y, z] = numbers;
-  if (numbers.length !== 3 || x === undefined || y === undefined || z === undefined)
-    throw new Error(`${usage} needs a vector of three numbers`);
-  return [x, y, z];
+  return solidScriptVectorRequire(solidScriptExtraVector(args, 0, usage), `${usage} needs a vector, such as 0, 1, 0`);
 }
 
 /**
@@ -35,8 +32,8 @@ function solidScriptCoordinatesVector(args: readonly SolidScriptValue[], usage: 
  */
 function solidScriptCoordinatesFlipToward(args: readonly SolidScriptValue[]): number[] {
   const usage = 'FlipToward(vector, reference)';
-  const vector = solidScriptExtraVector(args, 0, usage);
-  const reference = solidScriptExtraVector(args, 1, usage);
+  const given = [solidScriptExtraVector(args, 0, usage), solidScriptExtraVector(args, 1, usage)];
+  const [vector = [], reference = []] = solidScriptValueVectorsMatched(...given);
   if (vector.length !== reference.length) throw new Error(`${usage} needs two vectors of the same size`);
   const facing = vector.reduce((total, value, axis) => total + value * (reference[axis] ?? 0), 0);
   return facing < 0 ? vector.map((value) => -value) : vector;
@@ -143,9 +140,7 @@ function solidScriptCoordinatesSlerp(args: readonly SolidScriptValue[]): number[
   const usage = 'Slerp(from, to, amount)';
   const from = new THREE.Vector3(...solidScriptCoordinatesSlerpVector(args, 0, usage));
   const to = new THREE.Vector3(...solidScriptCoordinatesSlerpVector(args, 1, usage));
-  const size = solidScriptExtraVector(args, 0, usage).length;
-  if (size !== solidScriptExtraVector(args, 1, usage).length)
-    throw new Error(`${usage} needs two vectors of the same size`);
+  const size = Math.max(solidScriptExtraVector(args, 0, usage).length, solidScriptExtraVector(args, 1, usage).length);
   const amount = solidScriptExtraNumber(args, 2, usage);
   const length = from.length() + (to.length() - from.length()) * amount;
   const turned = solidScriptCoordinatesTurned(from.clone().normalize(), to.clone().normalize(), amount);
@@ -166,9 +161,9 @@ function solidScriptCoordinatesSlerpVector(
   usage: string,
 ): [number, number, number] {
   const numbers = solidScriptExtraVector(args, index, usage);
-  if (numbers.length !== 2 && numbers.length !== 3) throw new Error(`${usage} needs vectors of two or three numbers`);
-  if (Math.hypot(...numbers) === 0) throw new Error(`${usage} needs vectors with a length, not ${numbers.join(', ')}`);
-  return [numbers[0]!, numbers[1]!, numbers[2] ?? 0];
+  const vector = solidScriptVectorRequire(numbers, `${usage} needs vectors of two or three numbers`);
+  if (Math.hypot(...vector) === 0) throw new Error(`${usage} needs vectors with a length, not ${numbers.join(', ')}`);
+  return vector;
 }
 
 /** Angle in radians below which two directions count as the same or opposite. */
@@ -247,10 +242,10 @@ function solidScriptCoordinatesAxis(value: SolidScriptValue, usage: string): (ve
  * @returns Three numbers.
  */
 function solidScriptCoordinatesPadVector(value: SolidScriptValue, usage: string): [number, number, number] {
-  const numbers = solidScriptValueNumbers(value);
-  if (!numbers || (numbers.length !== 2 && numbers.length !== 3))
-    throw new Error(`${usage} needs vectors of 2 or 3 numbers, not ${solidScriptValueText(value)}`);
-  return [numbers[0] ?? 0, numbers[1] ?? 0, numbers[2] ?? 0];
+  return solidScriptVectorRequire(
+    value,
+    `${usage} needs vectors of 2 or 3 numbers, not ${solidScriptValueText(value)}`,
+  );
 }
 
 /**

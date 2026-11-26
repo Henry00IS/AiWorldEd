@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import { solidScriptPathDistinct } from './solid_script_path.js';
-import { SolidScriptPoint, solidScriptValueNumber, solidScriptValueNumbers } from './solid_script_value.js';
+import { SolidScriptPoint, solidScriptValueNumber } from './solid_script_value.js';
+import { solidScriptVectorThreeRequire } from './solid_script_vector.js';
 
 /**
  * Sizes each ring of a sweep by the Scale of its path point, about that point,
@@ -59,9 +60,10 @@ export function solidScriptSweepUps(
   if (run.source('up').trim() === '') return stored?.map(([x = 0, y = 1, z = 0]) => new THREE.Vector3(x, y, z)) ?? [];
   const points = solidScriptPathDistinct(path, closed);
   return points.map((point, index) => {
-    const numbers = solidScriptValueNumbers(run.valueWith('up', solidScriptSweepFills(point, index, points.length)));
-    if (numbers?.length !== 3) throw new Error('Up needs three numbers, such as 0, 0, 1 or [=[$Point.Normal]]');
-    const up = new THREE.Vector3(numbers[0], numbers[1], numbers[2]);
+    const up = solidScriptVectorThreeRequire(
+      run.valueWith('up', solidScriptSweepFills(point, index, points.length)),
+      'Up needs a vector, such as 0, 0, 1 or [=[$Point.Normal]]',
+    );
     return up.lengthSq() > 0 ? up.normalize() : null;
   });
 }

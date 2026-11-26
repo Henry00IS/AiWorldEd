@@ -22,6 +22,7 @@ import {
   solidScriptValueText,
   type SolidScriptValue,
 } from './solid_script_value.js';
+import { solidScriptVectorRead } from './solid_script_vector.js';
 
 /** Degrees to radians. */
 const SOLID_SCRIPT_DEGREES = Math.PI / 180;
@@ -50,11 +51,11 @@ function solidScriptUnary(name: string, operation: (value: number) => number): S
  * @returns Cross product, or undefined.
  */
 function solidScriptCross(args: SolidScriptValue[]): SolidScriptValue {
-  const a = solidScriptValueNumbers(args[0]);
-  const b = solidScriptValueNumbers(args[1]);
-  if (!a || !b || a.length !== 3 || b.length !== 3) return undefined;
-  const [ax, ay, az] = a as [number, number, number];
-  const [bx, by, bz] = b as [number, number, number];
+  const a = solidScriptVectorRead(args[0]);
+  const b = solidScriptVectorRead(args[1]);
+  if (!a || !b) return undefined;
+  const [ax, ay, az] = a;
+  const [bx, by, bz] = b;
   return [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
 }
 

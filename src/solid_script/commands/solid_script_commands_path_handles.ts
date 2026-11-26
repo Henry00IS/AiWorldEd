@@ -39,8 +39,12 @@ import {
   SolidScriptPathElement,
   SolidScriptPoint,
   solidScriptValueNumber,
-  solidScriptValueNumbers,
 } from '@/solid_script/language/solid_script_value.js';
+import {
+  solidScriptVectorRead,
+  solidScriptVectorRequire,
+  solidScriptVectorThree,
+} from '@/solid_script/language/solid_script_vector.js';
 
 /** Most steps a Bezier stretch is sampled in. */
 const SOLID_SCRIPT_PATH_RESOLUTION_MAX = 256;
@@ -56,8 +60,8 @@ function solidScriptPathHandlesSource(run: SolidScriptBlockRun, label: string): 
   const raw = run.values('path');
   if (raw.length === 1 && raw[0] instanceof SolidScriptPathElement) return raw[0].path;
   const given = run.value('path');
-  const points = Array.isArray(given) ? given.map((point) => solidScriptValueNumbers(point)) : [];
-  if (points.length < 2 || points.some((point) => point?.length !== 3))
+  const points = Array.isArray(given) ? given.map((point) => solidScriptVectorRead(point)) : [];
+  if (points.length < 2 || points.some((point) => point === undefined))
     throw new Error(`${label} needs a Path or a list of points in Path, such as [Rail]`);
   return solidScriptPathStraight(points as number[][], false);
 }
@@ -114,9 +118,7 @@ function solidScriptPathHandlesRead(
       $Index: index,
       $Count: points.length,
     });
-    const numbers = solidScriptValueNumbers(value);
-    if (numbers?.length !== 3) throw new Error('Set Handles needs three numbers per handle, such as 1, 2, 0');
-    return numbers;
+    return solidScriptVectorRequire(value, 'Set Handles needs a vector per handle, such as 1, 2, 0');
   });
 }
 
@@ -203,10 +205,9 @@ const SOLID_SCRIPT_PATH_NORMAL_MODES = ['Minimum Twist', 'Up', 'Free'] as const;
  */
 function solidScriptSetPathNormalsRead(run: SolidScriptBlockRun, points: readonly (readonly number[])[]): number[][] {
   return points.map((point, index) => {
-    const numbers = solidScriptValueNumbers(
+    const normal = solidScriptVectorThree(
       run.valueWith('normal', { $Point: new SolidScriptPoint([...point]), $Index: index, $Count: points.length }),
     );
-    const normal = numbers?.length === 3 ? new THREE.Vector3(numbers[0], numbers[1], numbers[2]) : undefined;
     if (!normal || normal.lengthSq() === 0)
       throw new Error('Set Path Normal needs a direction per point that is not 0, 0, 0, such as 0, 1, 0');
     return normal.normalize().toArray();
@@ -294,7 +295,7 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
       "Writes to Into a copy of a Path whose points have a Left and a Right handle, with every stretch bent into a Bezier curve: a stretch leaves its start toward that point's Right handle and comes into its end from that point's Left handle. Left and Right are 🔁 positions, with [$Point] the point and [$Index] its number from 0, such as [=[$Point.Position] + Vector(0, 1, 0)]; left off, a field keeps the handles the path has, which on a straight stretch lie a third of the way along it. Resolution is how many steps each stretch is drawn in. Read the handles back with [Path.HandlesLeft] and [Path.HandlesRight]. Path is a Path or a list of points for a straight open one. Example: Path From Points [0, 0, 0], [4, 0, 0] Into [Arch], then Set Handles Path [Arch] Right 1, 2, 0 Left 3, 2, 0 Into [Arch] bends it into an arch.",
     stops: [
       'A Path that is not a Path or a list of at least 2 points.',
-      'A handle that is not three numbers.',
+      'A handle that is not two or three numbers.',
       'A Resolution that is not a whole number from 1 to 256.',
     ],
     parameters: [

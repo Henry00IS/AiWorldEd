@@ -84,7 +84,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     manual:
       'Changes only the space of the lines between this line and its End. Move, Rotate and Scale are applied in that order after On. On takes a face or an object: a face uses the same frame as Place On Face, a solid uses its center with world axes, and leaving On off keeps the parent space. What the lines build is stored in ordinary script space. Transform never groups solids for CSG. Example: Transform On [Wall.Faces.First] Move 0, 0.1, 0 around a Cube stands the cube just above that wall face.',
     stops: [
-      'A Move, Rotate or Scale that is not one number or three numbers separated by commas.',
+      'A Move, Rotate or Scale that is not one, two or three numbers separated by commas.',
       'An On that is not one face or one object.',
       SOLID_SCRIPT_STOPS_END,
     ],
@@ -135,7 +135,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     description: 'Move existing objects or points by a distance',
     manual:
       'Moves the objects or points in Of, or [$Selected.Objects] when Of is left off, by a distance in the current space, in metres. The distance is literal: a By of 1, 0, 0 moves them one metre along X, no matter how small or large they are. Without Into the change happens where the items already are; with Into the originals stay and the moved copies are only in that variable. Example: Move By 0, 2, 0 Of [Box] raises the box two metres.',
-    stops: ['No objects or points.', 'A By that is not one number or three numbers separated by commas.'],
+    stops: ['No objects or points.', 'A By that is not one, two or three numbers separated by commas.'],
     parameters: [
       solidScriptParameter('by', 'By', 'vector3', '0, 0, 0', 'Distance along X, Y and Z in metres, such as 0, 2, 0.'),
     ],
@@ -148,7 +148,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     description: 'Move existing objects or points so their center sits at a point',
     manual:
       'Moves the objects or points in Of, or [$Selected.Objects] when Of is left off, so their combined center sits at To, a point in script space in metres. The combined center is the middle of the box around every point of the selection, the same middle a Center, Center, Center anchor uses. Without Into the change happens where the items already are; with Into the originals stay and the moved copies are only in that variable. Example: Move To 3, 1, 0 Of [Door] slides the door so its center sits at 3, 1, 0.',
-    stops: ['No objects or points.', 'A To that is not one number or three numbers separated by commas.'],
+    stops: ['No objects or points.', 'A To that is not one, two or three numbers separated by commas.'],
     parameters: [
       solidScriptParameter(
         'to',
@@ -167,7 +167,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     description: 'Turn existing objects or points by an angle',
     manual:
       'Turns the objects or points in Of, or [$Selected.Objects] when Of is left off, around the origin of the current space, first around X, then Y, then Z, in degrees. Around Combined Center turns them about the middle of all of them, and Each Center turns every item about its own middle, in place. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. By also takes a Rotation, such as one from Make Rotation. Example: Rotate By 0, 90, 0 Of [Box] turns the box a quarter turn around the upright Y axis of the current space.',
-    stops: ['No objects or points.', 'A By that is not one number or three numbers separated by commas.'],
+    stops: ['No objects or points.', 'A By that is not one, two or three numbers separated by commas.'],
     parameters: [
       solidScriptParameterRotation(
         'by',
@@ -191,7 +191,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     description: 'Turn existing objects or points around their center to an angle',
     manual:
       'Turns the objects or points in Of, or [$Selected.Objects] when Of is left off, around their combined center, first around X, then Y, then Z, in degrees, in the current space. The combined center is the middle of the box around the selection, the same point Move To uses. These angles are applied to the solids as they are now, so a second Rotate To of the same angles turns them again. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. To also takes a Rotation, such as one from Make Rotation. Example: Rotate To 0, 90, 0 Of [Box] turns the box a quarter turn around the upright Y axis through its center.',
-    stops: ['No objects or points.', 'A To that is not one number or three numbers separated by commas.'],
+    stops: ['No objects or points.', 'A To that is not one, two or three numbers separated by commas.'],
     parameters: [
       solidScriptParameterRotation(
         'to',
@@ -208,7 +208,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     description: 'Stretch or shrink existing objects or points by a factor',
     manual:
       'Stretches or shrinks the objects or points in Of, or [$Selected.Objects] when Of is left off, measured from the origin of the current space: 1 keeps the size, 2 doubles it, 0.5 halves it. Around Combined Center scales them about the middle of all of them, and Each Center scales every item about its own middle. Without Into the change happens where the items already are; with Into the originals stay and the scaled copies are only in that variable. Example: Scale By 1, 1, 2 Of [Sphere] makes the sphere twice as tall, like an egg.',
-    stops: ['No objects or points.', 'A By that is not one number or three numbers separated by commas.'],
+    stops: ['No objects or points.', 'A By that is not one, two or three numbers separated by commas.'],
     parameters: [
       solidScriptParameter(
         'by',
@@ -233,11 +233,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     description: 'Move, turn and scale each object or point by a random amount',
     manual:
       'Gives every object or point in Of, or [$Selected.Objects] when Of is left off, its own random change: a move of up to Move metres either way on each axis, a turn of up to Turn degrees either way around X, then Y, then Z, and one Scale factor between the two given, all about its own center. ID picks the random numbers of each item, [$Id] by default, so deleting one item keeps the others where they are; Seed gives another set. The same ID and Seed always give the same change. Without Into the change happens where the items already are; with Into the originals stay and the changed copies are only in that variable. Example: Scatter Points, Place At Points with a Cylinder inside Into [Rocks], then Randomize Of [Rocks] Turn 0, 180, 0 Scale 0.8, 1.2 makes every rock face its own way and size.',
-    stops: [
-      'No objects or points.',
-      'A Scale of 0 or below.',
-      'A Move or Turn that is not one number or three numbers.',
-    ],
+    stops: ['No objects or points.', 'A Scale of 0 or below.', 'A Move or Turn that is not one, two or three numbers.'],
     parameters: [
       solidScriptParameter(
         'move',

@@ -456,8 +456,8 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATH = {
   vector: {
     usage: 'Vector(x, y, z)',
     summary: solidScriptFunctionDocSummary(
-      'Makes a point or a direction from three numbers: X (right), Y (up) and Z (forward). You can also write 0, 2, 0 in a Vector field.',
-      ['Vector(0, 2, 0) is [0, 2, 0].', 'Vector(1, 0, 0) is [1, 0, 0].'],
+      'Makes a point or a direction from three numbers: X (right), Y (up) and Z (forward). Leave off Z for a flat point, since [x, y] is the same as [x, y, 0]; one number is that number on every axis. You can also write 0, 2, 0 in a Vector field.',
+      ['Vector(0, 2, 0) is [0, 2, 0].', 'Vector(1, 2) is [1, 2, 0].', 'Vector(1) is [1, 1, 1].'],
       'Use it to name a point, a size or a direction you want to pass into other blocks.',
     ),
     group: 'Vector',

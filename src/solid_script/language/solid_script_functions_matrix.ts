@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { solidScriptRotationDegrees, solidScriptRotationDegreesMatrix } from './solid_script_transforms.js';
 import { solidScriptValueNumbers, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptVectorThreeRequire } from './solid_script_vector.js';
 
 /** A built-in function over evaluated arguments. */
 type SolidScriptMatrixFunction = (args: SolidScriptValue[]) => SolidScriptValue;
 
 /**
- * Reads a vector of three numbers.
+ * Reads a vector of two or three numbers.
  *
  * @param value Argument.
  * @param usage How to call the function, for the message.
@@ -14,9 +15,7 @@ type SolidScriptMatrixFunction = (args: SolidScriptValue[]) => SolidScriptValue;
  * @returns The vector.
  */
 function solidScriptMatrixVector(value: SolidScriptValue, usage: string, what: string): THREE.Vector3 {
-  const numbers = solidScriptValueNumbers(value);
-  if (numbers?.length !== 3) throw new Error(`${usage} needs ${what} as three numbers, such as 0, 1, 0`);
-  return new THREE.Vector3(numbers[0], numbers[1], numbers[2]);
+  return solidScriptVectorThreeRequire(value, `${usage} needs ${what} as a vector, such as 0, 1, 0`);
 }
 
 /**

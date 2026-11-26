@@ -5,8 +5,10 @@ import {
   solidScriptValueNumber,
   solidScriptValueNumbers,
   solidScriptValueText,
+  solidScriptValueVectorsMatched,
   type SolidScriptValue,
 } from './solid_script_value.js';
+import { solidScriptVectorOfNumbers } from './solid_script_vector.js';
 
 /**
  * Pads text to a width with a fill character.
@@ -77,10 +79,27 @@ export function solidScriptExtraVector(args: readonly SolidScriptValue[], index:
  * @returns Both vectors.
  */
 function solidScriptExtraPair(args: readonly SolidScriptValue[], usage: string): [number[], number[]] {
-  const a = solidScriptExtraVector(args, 0, usage);
-  const b = solidScriptExtraVector(args, 1, usage);
+  const given = [solidScriptExtraVector(args, 0, usage), solidScriptExtraVector(args, 1, usage)];
+  const [a = [], b = []] = solidScriptValueVectorsMatched(...given);
   if (a.length !== b.length) throw new Error(`${usage} needs two vectors of the same size`);
   return [a, b];
+}
+
+/**
+ * Makes a vector of one, two or three numbers: one number fills every axis, and
+ * two give a flat vector with Z 0.
+ *
+ * @param args Numbers.
+ * @returns X, Y and Z.
+ */
+function solidScriptExtraVectorMade(args: readonly SolidScriptValue[]): number[] {
+  const usage = 'Vector(x, y, z)';
+  const numbers = args.map((_, index) => solidScriptExtraNumber(args, index, usage));
+  const [only] = numbers;
+  if (numbers.length === 1 && only !== undefined) return [only, only, only];
+  const vector = solidScriptVectorOfNumbers(numbers);
+  if (!vector) throw new Error(`${usage} takes one, two or three numbers, not ${numbers.length}`);
+  return vector;
 }
 
 /**
@@ -443,5 +462,5 @@ export const SOLID_SCRIPT_FUNCTIONS_EXTRA = {
     const [a, b] = solidScriptExtraPair(args, 'Distance(a, b)');
     return Math.hypot(...a.map((value, index) => value - b[index]!));
   },
-  vector: (args) => args.map((_, index) => solidScriptExtraNumber(args, index, 'Vector(x, y, z)')),
+  vector: solidScriptExtraVectorMade,
 } satisfies Readonly<Record<string, SolidScriptExtra>>;

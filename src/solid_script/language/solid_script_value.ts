@@ -279,6 +279,24 @@ export function solidScriptValueNumbers(value: SolidScriptValue): number[] | und
 }
 
 /**
+ * Makes vectors that work together as long as each other when some are flat and
+ * some are full: a vector of two numbers is the same as one of three with Z 0,
+ * so [1, 2] works with [1, 2, 3] as [1, 2, 0]. Lists of other lengths, and
+ * lists that are not all numbers, stay as they are.
+ *
+ * @param lists Lists.
+ * @returns The lists, each flat one given a Z of 0 when flat and full vectors
+ *   meet.
+ */
+export function solidScriptValueVectorsMatched<Entry extends SolidScriptValue>(...lists: Entry[][]): Entry[][] {
+  if (!lists.some((list) => list.length === 2) || !lists.some((list) => list.length === 3)) return lists;
+  const vector = (list: Entry[]): boolean =>
+    (list.length === 2 || list.length === 3) && list.every((entry) => solidScriptValueNumber(entry) !== undefined);
+  if (!lists.every(vector)) return lists;
+  return lists.map((list) => (list.length === 2 ? [...list, 0 as Entry] : list));
+}
+
+/**
  * How far apart two numbers may be and still count as equal, so 0.1 + 0.2 ==
  * 0.3.
  */
@@ -299,10 +317,11 @@ export function solidScriptValueEquals(
   tolerance = SOLID_SCRIPT_EQUAL_TOLERANCE,
 ): boolean {
   if (Array.isArray(left) && Array.isArray(right)) {
-    return (
-      left.length === right.length &&
-      left.every((entry, index) => solidScriptValueEquals(entry, right[index], tolerance))
-    );
+    if (left.length !== right.length) {
+      const [first = left, second = right] = solidScriptValueVectorsMatched(left, right);
+      return first.length === second.length && solidScriptValueEquals(first, second, tolerance);
+    }
+    return left.every((entry, index) => solidScriptValueEquals(entry, right[index], tolerance));
   }
   const a = solidScriptValueNumeric(left);
   const b = solidScriptValueNumeric(right);

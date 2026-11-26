@@ -4,12 +4,8 @@ import { solidScriptGeometryFrame } from './solid_script_geometry.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import { solidScriptEachUsed } from './solid_script_each_uses.js';
 import { solidScriptAlignDirectionMatrix, solidScriptForwardMatrix } from './solid_script_transforms.js';
-import {
-  SolidScriptPoint,
-  solidScriptValueNumber,
-  solidScriptValueNumbers,
-  type SolidScriptValue,
-} from './solid_script_value.js';
+import { SolidScriptPoint, solidScriptValueNumber, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptVectorRequire, solidScriptVectorThreeRequire } from './solid_script_vector.js';
 
 /** Per-point values of one Place At Points copy, such as $Point and $Index. */
 type SolidScriptPlaceFills = Readonly<Record<string, SolidScriptValue>>;
@@ -31,21 +27,14 @@ export function solidScriptPlacePoints(run: SolidScriptBlockRun, key: string, la
 }
 
 /**
- * Reads one x, y, z point.
+ * Reads one point of x, y or x, y, z.
  *
  * @param value Value.
  * @param label Field caption, for messages.
  * @returns Point.
  */
-function solidScriptPlacePoint(value: unknown, label: string): THREE.Vector3 {
-  if (!Array.isArray(value) || value.length < 3 || value.some((entry) => typeof entry !== 'number'))
-    throw new Error(`${label} needs points written as vectors, such as [0, 0, 0], [1, 0, 0]`);
-  const x = value[0];
-  const y = value[1];
-  const z = value[2];
-  if (typeof x !== 'number' || typeof y !== 'number' || typeof z !== 'number')
-    throw new Error(`${label} needs points written as vectors, such as [0, 0, 0], [1, 0, 0]`);
-  return new THREE.Vector3(x, y, z);
+function solidScriptPlacePoint(value: SolidScriptValue, label: string): THREE.Vector3 {
+  return solidScriptVectorThreeRequire(value, `${label} needs points written as vectors, such as [0, 0], [1, 0, 0]`);
 }
 
 /** Where one copy of Place At Points stands, and which line inside builds it. */
@@ -313,13 +302,8 @@ function solidScriptPlaceEachVector(
   fills: SolidScriptPlaceFills,
   fallback: readonly [number, number, number],
 ): [number, number, number] {
-  const numbers = solidScriptValueNumbers(run.valueWith(key, fills));
-  if (!numbers || numbers.length < 3)
-    throw new Error(`${key === 'rotation' ? 'Rotation' : 'Scale'} needs three numbers, such as ${fallback.join(', ')}`);
-  const x = numbers[0];
-  const y = numbers[1];
-  const z = numbers[2];
-  if (typeof x !== 'number' || typeof y !== 'number' || typeof z !== 'number')
-    throw new Error(`${key === 'rotation' ? 'Rotation' : 'Scale'} needs three numbers, such as ${fallback.join(', ')}`);
-  return [x, y, z];
+  return solidScriptVectorRequire(
+    run.valueWith(key, fills),
+    `${key === 'rotation' ? 'Rotation' : 'Scale'} needs a vector, such as ${fallback.join(', ')}`,
+  );
 }

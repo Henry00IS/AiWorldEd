@@ -75,7 +75,17 @@ export function solidScriptCirclePoints(radius: number, count: number): SolidScr
  * @returns Sizes.
  */
 function solidScriptSizes(args: SolidScriptBlockArguments, fallback: number[]): number[] {
-  const size = args.vector('size', fallback);
+  return solidScriptSizesPositive(args, args.vector('size', fallback));
+}
+
+/**
+ * Checks that sizes are all greater than zero.
+ *
+ * @param args Block fields, for the message.
+ * @param size Sizes.
+ * @returns The sizes.
+ */
+function solidScriptSizesPositive<Sizes extends number[]>(args: SolidScriptBlockArguments, size: Sizes): Sizes {
   if (size.some((entry) => !(entry > 0))) throw args.error('size', 'must be greater than 0 on every axis', size);
   return size;
 }
@@ -176,7 +186,7 @@ export function solidScriptPolyhedronPoints(
  * @returns Points, counter-clockwise.
  */
 export function solidScriptSquarePoints(args: SolidScriptBlockArguments): SolidScriptPoint2[] {
-  const [x, y] = solidScriptSizes(args, [1, 1]) as [number, number];
+  const [x, y] = solidScriptSizesPositive(args, args.flat('size', [1, 1]));
   const [sx = 0, sy = 0] = solidScriptAnchorMin([x, y], args.anchor(SOLID_SCRIPT_ANCHOR_FLAT));
   return [
     [sx, sy],

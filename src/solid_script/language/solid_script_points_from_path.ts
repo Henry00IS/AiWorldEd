@@ -1,6 +1,7 @@
 import { solidScriptPathAt, solidScriptPathDirection, solidScriptPathLength } from './solid_script_path.js';
 import { solidScriptPathWalk } from './solid_script_path_model.js';
-import { SolidScriptPathElement, solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
+import { SolidScriptPathElement, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptVectorRead } from './solid_script_vector.js';
 
 /**
  * Points spread along a path, with the way the path runs at each and how far
@@ -30,8 +31,8 @@ export function solidScriptPathWalked(given: SolidScriptValue): { walked: number
     return { walked: solidScriptPathWalk(given.path) as number[][], closed: given.path.closed };
   if (Array.isArray(given) && given.length === 1 && given[0] instanceof SolidScriptPathElement)
     return solidScriptPathWalked(given[0]);
-  const points = Array.isArray(given) ? given.map((point) => solidScriptValueNumbers(point)) : [];
-  if (points.length === 0 || points.some((point) => point?.length !== 3))
+  const points = Array.isArray(given) ? given.map((point) => solidScriptVectorRead(point)) : [];
+  if (points.length === 0 || points.some((point) => point === undefined))
     throw new Error('Path needs a Path or a list of points, such as [Path]');
   return { walked: points as number[][], closed: false };
 }

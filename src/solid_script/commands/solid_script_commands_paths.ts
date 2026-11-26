@@ -42,8 +42,8 @@ import {
   SolidScriptPathElement,
   SolidScriptPoint,
   solidScriptValueNumber,
-  solidScriptValueNumbers,
 } from '@/solid_script/language/solid_script_value.js';
+import { solidScriptVectorThreeRequire } from '@/solid_script/language/solid_script_vector.js';
 
 /** Most sides of a round Sweep Along Path profile. */
 const SOLID_SCRIPT_SWEEP_SIDES_MAX = 64;
@@ -95,7 +95,7 @@ function solidScriptPathShapeOf(run: SolidScriptBlockRun): SolidScriptPathShape 
 }
 
 /**
- * Reads a three-number vector field.
+ * Reads a vector field.
  *
  * @param run Running line.
  * @param key Field key.
@@ -103,13 +103,7 @@ function solidScriptPathShapeOf(run: SolidScriptBlockRun): SolidScriptPathShape 
  * @returns Vector.
  */
 function solidScriptPathFieldVector(run: SolidScriptBlockRun, key: string, label: string): THREE.Vector3 {
-  const numbers = solidScriptValueNumbers(run.value(key));
-  const x = numbers?.[0];
-  const y = numbers?.[1];
-  const z = numbers?.[2];
-  if (!numbers || numbers.length !== 3 || x === undefined || y === undefined || z === undefined)
-    throw new Error(`${label} needs three numbers as x, y, z, such as 0, 1, 0`);
-  return new THREE.Vector3(x, y, z);
+  return solidScriptVectorThreeRequire(run.value(key), `${label} needs a vector as x, y, z, such as 0, 1, 0`);
 }
 
 /**
@@ -644,7 +638,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         'profile',
         'Profile',
         'points2',
-        'Optional: a closed 2D Path such as [Ring], or x, y points written as vectors whose z is ignored, such as [0, 0, 0], [0.2, 0, 0], [0.2, 0.1, 0].',
+        'Optional: a closed 2D Path such as [Ring], or x, y points such as [0, 0], [0.2, 0], [0.2, 0.1]; a third number of a point is ignored.',
       ),
       solidScriptParameterEach(
         solidScriptParameter(

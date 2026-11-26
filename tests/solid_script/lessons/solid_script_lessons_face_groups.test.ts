@@ -36,7 +36,7 @@ describe('Face Groups', () => {
   });
 
   it('finds the edges between groups through the faces they join', () => {
-    const tag = [
+    const tag: SolidScriptLine[] = [
       { command: 'tag_faces', values: { tag: 'A', of: '[G(0)]' } },
       {
         command: 'select_edges',

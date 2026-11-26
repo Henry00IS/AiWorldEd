@@ -3,6 +3,7 @@ import { solidScriptGeneratorPieces } from '@/solid_script/language/solid_script
 import { SolidScriptCommand, type SolidScriptCommandParameter } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
+  SOLID_SCRIPT_CURVE_ACCEPTS,
   SOLID_SCRIPT_WORDS_ACCEPTS,
   solidScriptParameter,
   solidScriptParameterAnchor,
@@ -128,7 +129,7 @@ function solidScriptGeneratorParameter(
   if (field.type === 'curve')
     return {
       ...solidScriptParameter(field.key, field.label, 'message', '', solidScriptGeneratorHintExample(field, hint)),
-      accepts: ['Text', 'Number'],
+      accepts: SOLID_SCRIPT_CURVE_ACCEPTS,
       curve: {
         presets: field.curvePresets ?? [],
         markers: field.curveMarkers === true,

@@ -12,6 +12,7 @@ import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from './solid_script_functions_builtin
 import { solidScriptHits, solidScriptHitsBox } from './solid_script_hits.js';
 import { solidScriptFunctionKey, solidScriptFunctionSpelling, solidScriptNameKey } from './solid_script_name_key.js';
 import { SOLID_SCRIPT_VECTOR_AXES } from './solid_script_members.js';
+import { solidScriptVectorIsFlat } from './solid_script_vector.js';
 import { solidScriptSystemBareHint } from './solid_script_system_names.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptWhereHelperFills } from './solid_script_where_helpers.js';
@@ -325,7 +326,9 @@ function solidScriptCompileMember(expression: Extract<SolidScriptExpression, { k
   const path = solidScriptCompileMemberPath(expression);
   return (evaluator, scope) => {
     const builtIn = path ? solidScriptCompileSystemRead(evaluator, scope, path.root, path.dotted) : undefined;
-    return builtIn !== undefined ? builtIn : evaluator.evaluateIndex(target(evaluator, scope), index);
+    if (builtIn !== undefined) return builtIn;
+    const value = target(evaluator, scope);
+    return index === 2 && solidScriptVectorIsFlat(value) ? 0 : evaluator.evaluateIndex(value, index);
   };
 }
 

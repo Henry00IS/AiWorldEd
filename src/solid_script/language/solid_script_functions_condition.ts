@@ -6,7 +6,8 @@ import {
   solidScriptInBoxHolds,
   solidScriptNearHolds,
 } from './solid_script_condition.js';
-import { solidScriptValueNumber, solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptValueNumber, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptVectorOrSize } from './solid_script_vector.js';
 
 /** Built-in function implementation over evaluated positional arguments. */
 type SolidScriptBuiltin = (args: SolidScriptValue[]) => SolidScriptValue;
@@ -19,10 +20,7 @@ type SolidScriptBuiltin = (args: SolidScriptValue[]) => SolidScriptValue;
  * @returns Numbers, or undefined.
  */
 function solidScriptConditionVector(value: SolidScriptValue, uniform: boolean): number[] | undefined {
-  const numbers = solidScriptValueNumbers(value);
-  if (numbers && numbers.length === 3) return numbers;
-  const size = solidScriptValueNumber(value);
-  return uniform && size !== undefined ? [size] : undefined;
+  return solidScriptVectorOrSize(value, uniform);
 }
 
 /**

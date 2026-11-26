@@ -1,10 +1,6 @@
 import { SOLID_SCRIPT_GEOMETRY_EPSILON } from './solid_script_geometry.js';
-import {
-  SolidScriptElement,
-  solidScriptValueNumber,
-  solidScriptValueNumbers,
-  type SolidScriptValue,
-} from './solid_script_value.js';
+import { SolidScriptElement, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptVectorOrSize } from './solid_script_vector.js';
 
 /** How an element's box is tested against a target box. */
 export type SolidScriptHitsHow = 'Touching' | 'Overlapping' | 'Fully Inside';
@@ -191,10 +187,7 @@ export function solidScriptHitsAny(
  * @returns Numbers, or undefined.
  */
 function solidScriptHitsVector(value: SolidScriptValue, uniform: boolean): number[] | undefined {
-  const numbers = solidScriptValueNumbers(value);
-  if (numbers && numbers.length === 3) return numbers;
-  const size = solidScriptValueNumber(value);
-  return uniform && size !== undefined ? [size] : undefined;
+  return solidScriptVectorOrSize(value, uniform);
 }
 
 /**

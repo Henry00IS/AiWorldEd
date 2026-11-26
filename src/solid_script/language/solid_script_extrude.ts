@@ -29,7 +29,7 @@ export function solidScriptExtrude(
 ): SolidScriptShape {
   const height = args.positive('height', args.number('height', 1));
   const [base = 0] = solidScriptAnchorMin([height], args.anchor(SOLID_SCRIPT_ANCHOR_HEIGHT));
-  const [scaleX, scaleY] = args.vector('scale', [1, 1]) as [number, number];
+  const [scaleX, scaleY] = args.flat('scale', [1, 1]);
   const lift = matrix.clone().multiply(SOLID_SCRIPT_AXES_FLAT);
   return solidScriptShapeMapLeaves(shape, (leaf) => {
     if (leaf.kind !== 'polygon')

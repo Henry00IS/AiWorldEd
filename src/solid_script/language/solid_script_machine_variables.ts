@@ -1,5 +1,6 @@
 import { solidScriptNameIsSystem } from './solid_script_name_key.js';
 import { solidScriptKindNamed } from './solid_script_kinds.js';
+import { solidScriptVectorIsFlat } from './solid_script_vector.js';
 import { SOLID_SCRIPT_SYSTEM_GLOBALS, type SolidScriptSystemReader } from './solid_script_system.js';
 import type { SolidScriptExpression } from './solid_script_ast.js';
 import { SolidScriptExpressionEvaluator } from './solid_script_expression_evaluator.js';
@@ -185,6 +186,7 @@ function solidScriptVectorComponentParse(name: string): SolidScriptVectorPart | 
  * @returns Number.
  */
 function solidScriptVectorComponentRead(part: SolidScriptVectorPart, vector: SolidScriptValue): SolidScriptValue {
+  if (part.index === 2 && solidScriptVectorIsFlat(vector)) return 0;
   if (!Array.isArray(vector) || vector[part.index] === undefined)
     throw new Error(`[${part.name}] is ${solidScriptKindNamed(vector)}, not a vector with a .${part.axis}`);
   return vector[part.index];
@@ -203,9 +205,10 @@ export function solidScriptVectorComponentWrite(
   vector: SolidScriptValue,
   value: SolidScriptValue,
 ): SolidScriptValue {
-  if (!Array.isArray(vector) || vector.length < 2 || vector.length > 3 || part.index >= vector.length)
+  const full = part.index === 2 && solidScriptVectorIsFlat(vector) ? [...(vector as SolidScriptValue[]), 0] : vector;
+  if (!Array.isArray(full) || full.length < 2 || full.length > 3 || part.index >= full.length)
     throw new Error(`[${part.name}] is ${solidScriptKindNamed(vector)}, not a vector with a .${part.axis}`);
-  const changed = [...vector];
+  const changed = [...full];
   changed[part.index] = value;
   return changed;
 }

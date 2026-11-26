@@ -9,11 +9,8 @@ import {
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptConditionHolds } from '@/solid_script/language/solid_script_condition.js';
 import { solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
-import {
-  solidScriptValueNumbers,
-  type SolidScriptElement,
-  type SolidScriptValue,
-} from '@/solid_script/language/solid_script_value.js';
+import { type SolidScriptElement, type SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
+import { solidScriptVectorRequire } from '@/solid_script/language/solid_script_vector.js';
 
 /**
  * What a To or Where field of Set Positions reads for one corner: the corner,
@@ -41,10 +38,8 @@ function solidScriptSetPositionsFills(
  */
 function solidScriptSetPositionsOffset(to: SolidScriptValue, offset: SolidScriptValue): SolidScriptValue {
   if (offset === undefined || (typeof offset === 'string' && offset.trim() === '')) return to;
-  const moves = solidScriptValueNumbers(offset);
-  if (moves?.length !== 3) throw new Error('Offset needs three numbers, such as 0, 1, 0');
-  const numbers = solidScriptValueNumbers(to);
-  if (numbers?.length !== 3) throw new Error('To needs three numbers, such as 0, 1, 0');
+  const moves = solidScriptVectorRequire(offset, 'Offset needs a vector, such as 0, 1, 0');
+  const numbers = solidScriptVectorRequire(to, 'To needs a vector, such as 0, 1, 0');
   return numbers.map((number, axis) => number + (moves[axis] ?? 0));
 }
 
@@ -81,7 +76,7 @@ export const SOLID_SCRIPT_COMMANDS_POSITIONS: readonly SolidScriptCommand[] = [
       'Moves each corner in Of to the position To works out for it. To is worked out once per corner, and Offset, when given, is added after it, so Offset 0, 0.5, 0 lifts every corner by half a metre without writing [=[$Vertex.Position] + …]. Where, when given, is a 🔁 condition a corner must pass to move. Every position is read from the shape before the line, and all corners move together. Of gives vertices, or the corners of faces, edges, objects; empty uses [$Selected.Vertices], or the corners of [$Selected.Faces] when no vertices are selected. A mesh takes any position. A solid stays a solid, rebuilt around its corners while they make a convex solid. A solid may be left not convex for now, so later lines can keep moving its corners; only when the script ends does a warning list the solids still not convex, which are not built. The same as Set [$Selected.Vertices.Positions], with Of and Where added. Example: Cube, Select Vertices Where [=[$Vertex.Position.Y] > 0], then Set Positions To [=[$Vertex.Position] * Vector(0.5, 1, 0.5)] narrows the top into a frustum.',
     stops: [
       'No corners: an empty Of with nothing in [$Selected.Vertices] or [$Selected.Faces].',
-      'A To that is not three numbers, such as 0, 1, 0.',
+      'A To that is not two or three numbers, such as 0, 1, 0.',
     ],
     parameters: [
       solidScriptParameterEach(

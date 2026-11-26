@@ -21,7 +21,8 @@ import {
   type SolidScriptMeshExtrudePick,
 } from '@/solid_script/language/solid_script_mesh_extrude.js';
 import type { SolidScriptShapeSolid } from '@/solid_script/language/solid_script_shape.js';
-import { solidScriptValueNumbers, type SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
+import { type SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
+import { solidScriptVectorThree } from '@/solid_script/language/solid_script_vector.js';
 
 /** What a Distance that is not a number stops with. */
 const SOLID_SCRIPT_EXTRUDE_DISTANCE_NEEDS = 'Distance needs a number of metres, such as 0.2';
@@ -57,9 +58,8 @@ interface SolidScriptExtrudeMade {
  */
 function solidScriptExtrudeDirection(value: SolidScriptValue, face: SolidScriptFaceFacts): THREE.Vector3 {
   if (value === undefined || (typeof value === 'string' && value.trim() === '')) return face.normal.clone();
-  const [x = Number.NaN, y = Number.NaN, z = Number.NaN] = solidScriptValueNumbers(value) ?? [];
-  const direction = new THREE.Vector3(x, y, z);
-  if (!(direction.lengthSq() > 0)) throw new Error('Direction needs three numbers that are not all 0, such as 0, 1, 0');
+  const direction = solidScriptVectorThree(value) ?? new THREE.Vector3();
+  if (!(direction.lengthSq() > 0)) throw new Error('Direction needs a vector that is not 0, 0, 0, such as 0, 1, 0');
   return direction.normalize();
 }
 

@@ -177,13 +177,14 @@ describe('SolidScript paths', () => {
   });
 
   it('sweeps a Circle 2D polygon Into a Path along straight and curved paths as a closed tube', () => {
-    for (const pathLine of [
+    const pathLines: SolidScriptLine[] = [
       { command: 'path', values: { shape: 'Line', from: '0, 0, 0', to: '2, 0, 0', count: '2', into: 'Rail' } },
       {
         command: 'path',
         values: { shape: 'Arc', center: '0, 0, 0', radius: '2', start: '0', end: '180', count: '13', into: 'Rail' },
       },
-    ]) {
+    ];
+    for (const pathLine of pathLines) {
       for (const meshFlag of ['Yes', 'No']) {
         const doc = solidScriptDocumentCreate([
           { command: 'circle', values: { r: '0.2', sides: '12', into: 'Ring' } },
@@ -192,15 +193,15 @@ describe('SolidScript paths', () => {
         ]);
         expect(solidScriptKindCheck(doc)).toEqual([]);
         const result = solidScriptProgramRun(doc);
-        expect(result.error, `${pathLine.values.shape} mesh=${meshFlag}`).toBeNull();
+        expect(result.error, `${pathLine.values?.['shape']} mesh=${meshFlag}`).toBeNull();
         if (meshFlag === 'Yes') {
           const [mesh] = solidScriptShapeMeshes(result.shapes);
-          expect(mesh, pathLine.values.shape).toBeTruthy();
+          expect(mesh, pathLine.values?.['shape']).toBeTruthy();
           expect(volume(mesh!)).toBeGreaterThan(0.15);
           const box = new THREE.Box3().setFromPoints(mesh!.points);
           const size = box.getSize(new THREE.Vector3());
           expect(size.y).toBeCloseTo(0.4, 2);
-          if (pathLine.values.shape === 'Line') {
+          if (pathLine.values?.['shape'] === 'Line') {
             expect(size.x).toBeCloseTo(2, 4);
             expect(size.z).toBeCloseTo(0.4, 2);
           } else {

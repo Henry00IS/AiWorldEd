@@ -88,7 +88,7 @@ describe('Unwrap Seams', () => {
     expect(unwrap({ margin: '0.2' })).toEqual(unwrap({ pack: 'No' }, { margin: '0.2' }));
   });
 
-  it.each([{}, { seams: '[=[$Edge.Angle] > 45]' }])(
+  it.each<Record<string, string>>([{}, { seams: '[=[$Edge.Angle] > 45]' }])(
     'packs every face of a cube apart, never two on one spot (%o)',
     (values) => {
       const boxes = unwrap(values).map((face) => {

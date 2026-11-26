@@ -4,38 +4,24 @@ import { curvePresetBuild } from '@/curve/model/curve_preset.js';
 import { CURVE_PRESETS_ARCHITECTURE } from '@/curve/model/curve_preset_architecture.js';
 import { CURVE_PRESETS_EXTENDED } from '@/curve/model/curve_preset_extended.js';
 import { CURVE_PRESETS_TURNERY } from '@/curve/model/curve_preset_turnery.js';
-import { solidScriptFieldSplit } from './solid_script_field.js';
+import { solidScriptVectorTextItems, solidScriptVectorTextPoints } from './solid_script_vector_text.js';
 
 /** Catalog of built-in curve presets resolved by name or id in Solid Script. */
 const SOLID_SCRIPT_CURVE_PRESETS = [...CURVE_PRESETS_ARCHITECTURE, ...CURVE_PRESETS_TURNERY, ...CURVE_PRESETS_EXTENDED];
 
 /**
- * Parses a Solid Script 2D point list such as "[0, 1], [0.5, 0.5], [1, 0]" into
- * polyline points.
+ * Reads a curve written as points in brackets, such as [0, 1], [0.5, 0.5], [1,
+ * 0]: X from 0 to 1 along the curve and Y its height. A Z is left out, as on
+ * every flat point.
  *
  * @param text Field text.
- * @returns Polyline points, or null when not a valid curve point list.
+ * @returns Polyline points, or null when the text is no such list.
  */
 function solidScriptCurvePointsParse(text: string): [number, number][] | null {
-  let body = text.trim();
-  if (body.startsWith('[[') && body.endsWith(']]')) body = body.slice(1, -1).trim();
-  if (!body.startsWith('[')) return null;
-  const parts = solidScriptFieldSplit(body, ',');
-  if (parts.length < 2) return null;
-  const points: [number, number][] = [];
-  for (const part of parts) {
-    const item = part.trim();
-    if (!item.startsWith('[') || !item.endsWith(']')) return null;
-    const nums = item
-      .slice(1, -1)
-      .split(',')
-      .map((entry) => (entry.trim() === '' ? NaN : Number(entry)));
-    if (nums.length !== 2 || !nums.every(Number.isFinite)) return null;
-    const x = nums[0]!;
-    if (x < 0 || x > 1) return null;
-    points.push([x, nums[1]!]);
-  }
-  return points;
+  if (!text.trim().startsWith('[')) return null;
+  const points = solidScriptVectorTextPoints(solidScriptVectorTextItems(text));
+  if (!points || points.length < 2 || points.some(([x]) => x < 0 || x > 1)) return null;
+  return points.map(([x, y]) => [x, y]);
 }
 
 /**
@@ -57,7 +43,7 @@ function solidScriptCurvePresetRead(text: string): Curve | null {
 
 /**
  * Reads a curve from Solid Script text: a number for a flat line, a preset name
- * such as "Classic Column", a Solid Script 2D point list "[0, 1], [1, 0]", or
+ * such as "Classic Column", points in brackets such as "[0, 1], [1, 0]", or
  * encoded curve JSON from the inspector CurveField.
  *
  * @param text Stored or typed curve text.

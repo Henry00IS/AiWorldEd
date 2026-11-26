@@ -81,7 +81,9 @@ describe('SolidScript Set Positions', () => {
     );
     expect(result.error?.message).toBeUndefined();
     expect(bounds(result.shapes)).toEqual([-1, -1, -1, 1, 2, 1]);
-    expect(run(BOX, line('set_positions', { of: 'Box', offset: '1, 2' })).error?.message).toMatch(/Offset needs three/);
+    expect(run(BOX, line('set_positions', { of: 'Box', offset: '1, 2, 3, 4' })).error?.message).toMatch(
+      /Offset needs a vector/,
+    );
   });
 
   it('reads every position before moving any, so later corners see the shape before the line', () => {

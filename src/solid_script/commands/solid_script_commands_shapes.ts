@@ -13,6 +13,7 @@ import { solidScriptCurveFromText } from '@/solid_script/language/solid_script_c
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
+  SOLID_SCRIPT_CURVE_ACCEPTS,
   solidScriptParameter,
   solidScriptParameterAnchor,
   solidScriptParameterMode,
@@ -41,7 +42,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     description: 'Build a box',
     manual:
       'Builds a box with the given width (X), height (Y) and depth (Z) in metres. Anchor picks the spot of the box that sits on the origin, the center of the generator: Center, Center, Center ⭐ by default, so its middle sits there; Center, Bottom, Center ⭐ makes it stand on the origin, and Left, Bottom, Back puts its corner there so it grows along X, Y and Z. Mode chooses how the solid combines with the ones before it: Additive, Subtractive or Intersecting. Example: a size of 2, 0.2, 1 gives a flat slab two metres wide.',
-    stops: ['A size of 0 or less on any axis.', 'A size that is not one number or three numbers separated by commas.'],
+    stops: ['A size of 0 or less on any axis.', 'A size that is not one, two or three numbers separated by commas.'],
     parameters: [
       solidScriptParameter(
         'size',
@@ -186,14 +187,14 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     description: 'Add a corner to a Polyhedron or Polygon',
     manual:
       'Adds one corner point at X, Y and Z in metres to the Polyhedron or Polygon around this line, moved by any Transform, Rotate or other move between them. A Polygon uses X and Y of its drawing and ignores Z. Each value may be a variable or a formula, so a Repeat around a Point can place many corners. Example: inside Repeat [I] From 0 To 5, Point [=Cos([I] * 60)], [=Sin([I] * 60)], 0 adds the six corners of a hexagon.',
-    stops: ['Being placed outside a Polyhedron or Polygon.', 'A position that is not x, y, z.'],
+    stops: ['Being placed outside a Polyhedron or Polygon.', 'A position that is not x, y or x, y, z.'],
     parameters: [
       solidScriptParameter(
         'position',
         'Position',
         'vector3',
         '0, 0, 0',
-        'X, Y and Z of the corner in metres, such as 1, 0, 0.',
+        'X, Y and Z of the corner in metres, such as 1, 0, 0. Two numbers, such as 1, 2, are the same as 1, 2, 0.',
       ),
     ],
     listing: (read) => ['Point', read.value('position')],
@@ -221,7 +222,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
         'Size',
         'vector2',
         '1, 1',
-        'Width (X) and depth (drawing Y) in metres, such as 2, 2.',
+        'Width (X) and depth (drawing Y) in metres, such as 2, 2 or [2, 2].',
       ),
       solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_FLAT),
     ],
@@ -332,7 +333,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
           '',
           'Profile curve along the height, or a Curve input such as [Moulding].',
         ),
-        accepts: ['Text', 'Number'],
+        accepts: SOLID_SCRIPT_CURVE_ACCEPTS,
         curve: {
           presets: SOLID_SCRIPT_CURVE_PROFILE_PRESETS,
           markers: false,
@@ -424,7 +425,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
         'points',
         'Points From List',
         'points2',
-        'Optional: a list of x, y points in path order, such as a list variable [Path]. Point lines inside add more.',
+        'Optional: a list of x, y points in path order, such as [0, 0], [2, 0], [2, 2] or a list variable [Path]. Point lines inside add more.',
       ),
     ],
     listing: (read) => [

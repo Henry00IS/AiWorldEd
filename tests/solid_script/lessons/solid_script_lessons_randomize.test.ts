@@ -12,7 +12,7 @@ import { solidScriptGeometryLeaves } from '@/solid_script/language/solid_script_
  * @returns Center and size of each cube, in X order.
  */
 function randomized(values: Record<string, string>): { center: THREE.Vector3; size: THREE.Vector3 }[] {
-  const cubes: SolidScriptLine[] = [0, 1, 2].flatMap((index) => [
+  const cubes: SolidScriptLine[] = [0, 1, 2].flatMap((index): SolidScriptLine[] => [
     { command: 'cube', values: { size: '1', anchor: 'Center, Center, Center', label: `C${index}` } },
     { command: 'move_by', values: { by: `${index * 3}, 0, 0`, of: `C${index}` } },
   ]);

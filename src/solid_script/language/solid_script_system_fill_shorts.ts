@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import type { SolidScriptElements } from './solid_script_elements.js';
 import { solidScriptMemberRead } from './solid_script_members.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
-import { SolidScriptElement, solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
+import { SolidScriptElement, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptVectorRead } from './solid_script_vector.js';
 
 /**
  * Where a current item is and which way it faces, by the name it is filled in
@@ -78,11 +79,10 @@ function solidScriptSystemFillAxis(
   elements: SolidScriptElements,
 ): SolidScriptValue {
   if (member === '') return undefined;
-  const plain = solidScriptValueNumbers(held)?.length === 3 || held instanceof THREE.Vector3;
+  const plain = solidScriptVectorRead(held) !== undefined || held instanceof THREE.Vector3;
   const source = plain ? held : solidScriptSystemFillMember(held, member, elements);
   if (source instanceof THREE.Vector3) return source.getComponent(axis);
-  const numbers = solidScriptValueNumbers(source);
-  return numbers?.length === 3 ? numbers[axis] : undefined;
+  return solidScriptVectorRead(source)?.[axis];
 }
 
 /**

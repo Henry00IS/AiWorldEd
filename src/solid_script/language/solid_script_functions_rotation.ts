@@ -2,12 +2,8 @@ import * as THREE from 'three';
 import { solidScriptExtraNumber } from './solid_script_functions_extra.js';
 import { solidScriptMemberRound } from './solid_script_members.js';
 import { solidScriptRotationDegrees, solidScriptRotationDegreesMatrix } from './solid_script_transforms.js';
-import {
-  SolidScriptRotation,
-  solidScriptValueNumbers,
-  solidScriptValueText,
-  type SolidScriptValue,
-} from './solid_script_value.js';
+import { SolidScriptRotation, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptVectorRead, solidScriptVectorRequire } from './solid_script_vector.js';
 
 /**
  * Reads a Rotation, or a turn in X, Y, Z degrees, as a quaternion.
@@ -18,11 +14,10 @@ import {
  */
 function solidScriptRotationRead(value: SolidScriptValue, usage: string): THREE.Quaternion {
   if (value instanceof SolidScriptRotation) return new THREE.Quaternion(...value.quaternion);
-  const numbers = solidScriptValueNumbers(value);
-  if (numbers?.length !== 3)
-    throw new Error(
-      `${usage} needs a Rotation or a turn as three numbers, such as Rotation(0, 90, 0) or Vector(0, 90, 0), not ${solidScriptValueText(value)}`,
-    );
+  const numbers = solidScriptVectorRequire(
+    value,
+    `${usage} needs a Rotation or a turn as numbers, such as Rotation(0, 90, 0) or Vector(0, 90, 0), not ${solidScriptValueText(value)}`,
+  );
   return new THREE.Quaternion().setFromRotationMatrix(solidScriptRotationDegreesMatrix(numbers));
 }
 
@@ -69,9 +64,9 @@ function solidScriptRotationLike(turn: THREE.Quaternion, like: SolidScriptValue)
  */
 function solidScriptRotationAround(args: SolidScriptValue[]): SolidScriptRotation {
   const usage = 'RotationAround(axis, angle)';
-  const axis = solidScriptValueNumbers(args[0]);
-  if (axis?.length !== 3 || Math.hypot(...axis) === 0)
-    throw new Error(`${usage} needs an axis as three numbers that are not all 0, such as Vector(0, 1, 0)`);
+  const axis = solidScriptVectorRead(args[0]);
+  if (!axis || Math.hypot(...axis) === 0)
+    throw new Error(`${usage} needs an axis as a vector that is not 0, 0, 0, such as Vector(0, 1, 0)`);
   const angle = THREE.MathUtils.degToRad(solidScriptExtraNumber(args, 1, usage));
   const unit = new THREE.Vector3(...axis).normalize();
   return solidScriptRotationOf(new THREE.Quaternion().setFromAxisAngle(unit, angle));
@@ -85,8 +80,7 @@ function solidScriptRotationAround(args: SolidScriptValue[]): SolidScriptRotatio
  */
 function solidScriptRotationApply(args: SolidScriptValue[]): number[] {
   const usage = 'ApplyRotation(vector, rotation)';
-  const vector = solidScriptValueNumbers(args[0]);
-  if (vector?.length !== 3) throw new Error(`${usage} needs a vector as three numbers, such as Vector(1, 0, 0)`);
+  const vector = solidScriptVectorRequire(args[0], `${usage} needs a vector, such as Vector(1, 0, 0)`);
   const turned = new THREE.Vector3(...vector).applyQuaternion(solidScriptRotationRead(args[1], usage));
   return turned.toArray().map(solidScriptMemberRound);
 }

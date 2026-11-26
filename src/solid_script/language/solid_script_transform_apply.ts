@@ -377,8 +377,7 @@ function solidScriptTransformVectorField(
 ): [number, number, number] {
   const value = args.value(key);
   if (value === undefined || value === '') return [fallback[0] ?? 0, fallback[1] ?? 0, fallback[2] ?? 0];
-  if (solidScriptKindOf(value) !== 'Vector')
-    throw new Error('To needs one number or three numbers separated by commas');
+  if (solidScriptKindOf(value) !== 'Vector') throw new Error('To needs one, two or three numbers separated by commas');
   const items = Array.isArray(value) ? value : [];
   return [
     typeof items[0] === 'number' ? items[0] : 0,

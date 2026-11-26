@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { SOLID_SCRIPT_GEOMETRY_EPSILON, type SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import { solidScriptNameIsPositionWrite } from './solid_script_name_rules.js';
 import { solidScriptSolidEdited } from './solid_script_solid_validate.js';
-import { solidScriptValueNumber, solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptValueNumber, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptVectorThreeRequire } from './solid_script_vector.js';
 
 /** Axis of a Vertex.Position.X write, or none for a whole position. */
 export type SolidScriptPositionAxis = 'x' | 'y' | 'z';
@@ -63,9 +64,7 @@ export function solidScriptPositionValue(
     next[axis] = number;
     return next;
   }
-  const numbers = solidScriptValueNumbers(value);
-  if (numbers?.length !== 3) throw new Error('Position needs three numbers, such as 0, 1, 0');
-  return new THREE.Vector3(numbers[0], numbers[1], numbers[2]);
+  return solidScriptVectorThreeRequire(value, 'Position needs a vector, such as 0, 1, 0');
 }
 
 /**

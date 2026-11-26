@@ -2,12 +2,7 @@ import * as THREE from 'three';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import type { SolidScriptFaceFacts } from './solid_script_geometry.js';
 import { solidScriptGeometryFacesOutside } from './solid_script_geometry_outside.js';
-import {
-  SolidScriptPoint,
-  solidScriptValueNumber,
-  solidScriptValueNumbers,
-  type SolidScriptValue,
-} from './solid_script_value.js';
+import { SolidScriptPoint, solidScriptValueNumber, type SolidScriptValue } from './solid_script_value.js';
 import {
   SOLID_SCRIPT_SCATTER_MOST,
   solidScriptScatterByCount,
@@ -23,6 +18,7 @@ import {
   solidScriptScatterTetPoint,
   solidScriptScatterWeighted,
 } from './solid_script_scatter_inside.js';
+import { solidScriptVectorThree } from './solid_script_vector.js';
 
 /** Where Scatter Points can put its points. */
 export const SOLID_SCRIPT_SCATTER_ON = ['On Faces', 'Inside', 'In Box', 'Grid'] as const;
@@ -282,18 +278,13 @@ function solidScriptScatterCountsFit(counts: THREE.Vector3): boolean {
 }
 
 /**
- * Reads a three-number vector field.
+ * Reads a vector field.
  *
  * @param value Field value.
  * @returns Vector, or undefined when it is not three numbers.
  */
 function solidScriptScatterVector(value: SolidScriptValue): THREE.Vector3 | undefined {
-  const numbers = solidScriptValueNumbers(value);
-  const x = numbers?.[0];
-  const y = numbers?.[1];
-  const z = numbers?.[2];
-  if (!numbers || numbers.length !== 3 || x === undefined || y === undefined || z === undefined) return undefined;
-  return new THREE.Vector3(x, y, z);
+  return solidScriptVectorThree(value);
 }
 
 /**

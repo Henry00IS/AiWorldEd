@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { solidScriptExtraNumber, solidScriptExtraVector } from './solid_script_functions_extra.js';
 import { solidScriptMeshMergeNear } from './solid_script_mesh_merge.js';
-import { solidScriptValueNumbers, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptVectorThreeRequire } from './solid_script_vector.js';
 
 /** How the usage of Cluster reads in messages. */
 const SOLID_SCRIPT_CLUSTER_USAGE = 'Cluster(points, distance, groups)';
@@ -46,10 +47,7 @@ function solidScriptClusterPoints(
 ): THREE.Vector3[] {
   if (!Array.isArray(value)) throw new Error(`${usage} needs a list of points`);
   return value.map((entry) => {
-    const numbers = solidScriptValueNumbers(entry);
-    if (numbers?.length !== 3)
-      throw new Error(`${usage} needs points of three numbers, not ${solidScriptValueText(entry)}`);
-    return new THREE.Vector3(numbers[0], numbers[1], numbers[2]);
+    return solidScriptVectorThreeRequire(entry, `${usage} needs points as vectors, not ${solidScriptValueText(entry)}`);
   });
 }
 

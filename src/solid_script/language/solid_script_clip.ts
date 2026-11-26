@@ -10,8 +10,8 @@ import {
   type SolidScriptUv,
 } from './solid_script_mesh.js';
 import type { SolidScriptFaceTag, SolidScriptShapeSolid } from './solid_script_shape.js';
-import { solidScriptValueNumbers } from './solid_script_value.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
+import { solidScriptVectorThreeRequire } from './solid_script_vector.js';
 
 /**
  * The tag Clip gives the faces it makes over a cut, so Where can pick or skip
@@ -70,11 +70,10 @@ export function solidScriptClipLeaf(
  * @returns Vector.
  */
 function solidScriptClipVector(run: SolidScriptBlockRun, key: string, label: string): THREE.Vector3 {
-  const numbers = solidScriptValueNumbers(run.value(key));
-  if (!numbers || numbers.length !== 3)
-    throw new Error(`${label} needs three numbers as x, y, z, such as 0, 1, 0, not ${String(run.value(key))}`);
-  const [x, y, z] = numbers;
-  return new THREE.Vector3(x, y, z);
+  return solidScriptVectorThreeRequire(
+    run.value(key),
+    `${label} needs a vector as x, y, z, such as 0, 1, 0, not ${String(run.value(key))}`,
+  );
 }
 
 /**

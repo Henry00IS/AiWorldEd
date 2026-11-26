@@ -3,7 +3,8 @@ import { solidScriptFaceEach, solidScriptFaceEachNumber } from './solid_script_f
 import type { SolidScriptFaceFacts } from '@/solid_script/language/solid_script_geometry.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import type { SolidScriptScaleFaceHow } from '@/solid_script/language/solid_script_scale_faces.js';
-import { solidScriptValueNumbers, type SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
+import { type SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
+import { solidScriptVectorThreeRequire } from '@/solid_script/language/solid_script_vector.js';
 
 /**
  * Reads how Scale Faces scales each face: its Factor, its Center (the face's
@@ -40,7 +41,5 @@ export function solidScriptScaleFacesHowOf(
  */
 export function solidScriptScaleFacesVector(value: SolidScriptValue, label: string): THREE.Vector3 | null {
   if (value === undefined || (typeof value === 'string' && value.trim() === '')) return null;
-  const numbers = solidScriptValueNumbers(value);
-  if (numbers?.length !== 3) throw new Error(`${label} needs three numbers, such as 0, 1, 0`);
-  return new THREE.Vector3(numbers[0], numbers[1], numbers[2]);
+  return solidScriptVectorThreeRequire(value, `${label} needs a vector, such as 0, 1, 0`);
 }

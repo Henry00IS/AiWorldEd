@@ -213,6 +213,13 @@ export function solidScriptParameterRings(): SolidScriptCommandParameter {
 }
 
 /**
+ * Kinds a Curve field takes: a curve as text, such as a Curve input or a preset
+ * name, a number for a flat line, or a list of points such as [[0, 1], [1,
+ * 0]].
+ */
+export const SOLID_SCRIPT_CURVE_ACCEPTS: readonly string[] = ['Text', 'Number', 'Vector List'];
+
+/**
  * The optional Name of a shape line.
  *
  * @returns Field.

@@ -13,6 +13,7 @@ import { solidScriptPathHandleTypesOf } from './solid_script_path_handle_types.j
 import type { SolidScriptElements } from './solid_script_elements.js';
 import type { SolidScriptEdgeFacts, SolidScriptFaceFacts } from './solid_script_geometry.js';
 import { solidScriptKindNamed } from './solid_script_kinds.js';
+import { solidScriptVectorRead } from './solid_script_vector.js';
 import { solidScriptFaceCornerUvs } from './solid_script_uvs.js';
 import {
   solidScriptFaceCornerMember,
@@ -499,8 +500,8 @@ function solidScriptMemberList(
       if (list.length === 0) throw new Error(`the list is empty, so it has no .${written}; check its .Count first`);
       return key === 'first' ? list[0] : list[list.length - 1];
   }
-  const numbers = solidScriptValueNumbers([...list]);
-  if (numbers && numbers.length === 3) {
+  const numbers = solidScriptVectorRead([...list]);
+  if (numbers) {
     const axis = SOLID_SCRIPT_VECTOR_AXES.findIndex((name) => solidScriptNameKey(name) === key);
     if (axis >= 0) return numbers[axis];
     if (key === 'length') return solidScriptMemberRound(Math.hypot(...numbers));

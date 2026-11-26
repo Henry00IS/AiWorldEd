@@ -3,7 +3,8 @@ import {
   solidScriptExtraNumber,
   solidScriptExtraSeeded,
 } from './solid_script_functions_extra.js';
-import { solidScriptValueNumbers, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptVectorRequire } from './solid_script_vector.js';
 
 /** A built-in function over evaluated arguments. */
 type SolidScriptNoiseFunction = (args: SolidScriptValue[]) => SolidScriptValue;
@@ -37,13 +38,14 @@ interface SolidScriptNoiseAt {
  * @returns Point in noise space and the seed.
  */
 function solidScriptNoiseAt(args: readonly SolidScriptValue[], usage: string): SolidScriptNoiseAt {
-  const position = solidScriptValueNumbers(args[0]);
-  if (position?.length !== 3 || Array.isArray(args[0]) === false)
-    throw new Error(`${usage} needs a position vector first; try ${usage.split('(')[0]}(Vector(x, y, z), scale, seed)`);
+  const position = solidScriptVectorRequire(
+    args[0],
+    `${usage} needs a position vector first; try ${usage.split('(')[0]}(Vector(x, y, z), scale, seed)`,
+  );
   const scale = args.length > 1 ? solidScriptExtraNumber(args, 1, usage) : 1;
   if (!(scale > 0)) throw new Error(`${usage} needs a scale greater than 0; try 1`);
   const seed = args.length > 2 ? solidScriptExtraNumber(args, 2, usage) : 0;
-  const [x = 0, y = 0, z = 0] = position;
+  const [x, y, z] = position;
   return { point: [x / scale, y / scale, z / scale], seed };
 }
 

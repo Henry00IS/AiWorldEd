@@ -1,6 +1,8 @@
 import type { SolidScriptValue } from './solid_script_value.js';
 import { solidScriptParameterValueEffective } from '@/solid_script/commands/solid_script_parameter_default.js';
 import { solidScriptNameWords } from './solid_script_name_words.js';
+import { solidScriptFieldVectorRead } from './solid_script_formula_list_literal.js';
+import { solidScriptVectorOfNumbers } from './solid_script_vector.js';
 
 /** Kinds of value a script input takes, as the inspector edits them. */
 export const SOLID_SCRIPT_INPUT_TYPES = [
@@ -169,17 +171,21 @@ export function solidScriptInputValue(input: SolidScriptInput, text: string): So
 }
 
 /**
- * Reads a vector input: three numbers with commas, each inside the limits.
+ * Reads a vector input: two or three numbers with commas, maybe in brackets,
+ * each inside the limits; two numbers have a Z of 0.
  *
  * @param input Vector input.
  * @param text Value as typed.
  * @returns X, Y and Z.
  */
 function solidScriptInputVector(input: SolidScriptInput, text: string): number[] {
-  const parts = text.split(',').map((part) => part.trim());
-  if (parts.length !== 3 || parts.some((part) => part === '' || !Number.isFinite(Number(part))))
-    throw new Error(`input "${input.name}" must be three numbers with commas, such as 1, 2, 3, not "${text}"`);
-  return parts.map((part) => solidScriptInputNumber(input, part));
+  const trimmed = text.trim();
+  const bracketed = trimmed.startsWith('[') && trimmed.endsWith(']');
+  const written = solidScriptFieldVectorRead(bracketed ? trimmed.slice(1, -1) : trimmed);
+  const vector = written ? solidScriptVectorOfNumbers(written) : undefined;
+  if (!vector)
+    throw new Error(`input "${input.name}" must be two or three numbers with commas, such as 1, 2, 3, not "${text}"`);
+  return vector.map((number) => solidScriptInputNumber(input, String(number)));
 }
 
 /**

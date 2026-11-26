@@ -4,23 +4,27 @@ import { SolidScriptLexer, type SolidScriptToken } from './solid_script_lexer.js
 /** A bracketed part of field text, with where its brackets stand. */
 type SolidScriptFieldGroup = Extract<SolidScriptFieldPiece, { kind: 'group' }>;
 
-/** Three items separated by commas, such as 20, 30, 10: a vector in brackets. */
-const SOLID_SCRIPT_FIELD_VECTOR = /^([^,]+),([^,]+),([^,]+)$/;
+/**
+ * Two or three items separated by commas, such as 20, 30 or 20, 30, 10: a
+ * vector in brackets.
+ */
+const SOLID_SCRIPT_FIELD_VECTOR = /^([^,]+),([^,]+)(?:,([^,]+))?$/;
 
 /** Stands for a bracketed part inside a bracket while its text is read. */
 const SOLID_SCRIPT_LIST_LITERAL_PART = ' _ ';
 
 /**
  * Reads the text of a bracket, with its inner brackets already put in, as a
- * vector when it is exactly three numbers, such as [20, 30, 10].
+ * vector when it is two or three numbers, such as [20, 30] or [20, 30, 10].
  *
  * @param text Bracket text.
- * @returns Vector, or null when it is not three numbers.
+ * @returns Vector as written, or null when it is not two or three numbers.
  */
 export function solidScriptFieldVectorRead(text: string): number[] | null {
   const parts = SOLID_SCRIPT_FIELD_VECTOR.exec(text);
   if (!parts) return null;
-  const vector = parts.slice(1).map((part) => (part.trim() === '' ? NaN : Number(part)));
+  const written = parts.slice(1).filter((part) => part !== undefined);
+  const vector = written.map((part) => (part.trim() === '' ? NaN : Number(part)));
   return vector.every(Number.isFinite) ? vector : null;
 }
 
@@ -46,8 +50,8 @@ export function solidScriptFormulaListLiteral(group: SolidScriptFieldGroup): boo
 
 /**
  * Tells whether a bracketed part inside a formula is a list the formula reads
- * itself: a list in brackets other than three plain numbers, which keep being
- * read as a vector the way every field reads them.
+ * itself: a list in brackets other than two or three plain numbers, which keep
+ * being read as a vector the way every field reads them.
  *
  * @param group Bracketed part.
  * @returns True when the formula reads it as a list.

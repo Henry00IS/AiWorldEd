@@ -1,4 +1,5 @@
 import { solidScriptKindOf } from './solid_script_kinds.js';
+import { solidScriptVectorRead, solidScriptVectorReadFlat, type SolidScriptVector2 } from './solid_script_vector.js';
 import { solidScriptAnchorRead, type SolidScriptAnchorAxis } from './solid_script_anchor.js';
 import {
   solidScriptValueNumber,
@@ -62,7 +63,8 @@ export class SolidScriptBlockArguments {
   }
 
   /**
-   * Reads a list of numbers of a fixed length; one number fills every entry.
+   * Reads a list of numbers of a fixed length; one number fills every entry. A
+   * vector of three takes two numbers too, as [1, 2] is the same as [1, 2, 0].
    *
    * @param key Field key.
    * @param fallback Value when the field is missing; sets the length.
@@ -73,13 +75,40 @@ export class SolidScriptBlockArguments {
     if (value === undefined) return fallback;
     const single = solidScriptValueNumber(value);
     if (single !== undefined) return fallback.map(() => single);
-    const list = solidScriptValueNumbers(value);
+    const list = fallback.length === 3 ? solidScriptVectorRead(value) : solidScriptValueNumbers(value);
     if (list?.length === fallback.length) return list;
-    throw this.error(
-      key,
-      `needs a number, or ${fallback.length} numbers separated by commas such as ${fallback.map((_, index) => index + 1).join(', ')}`,
-      value,
-    );
+    throw this.vectorError(key, fallback.length, value);
+  }
+
+  /**
+   * Reads a flat X and Y, such as the size of a Square: one number fills both,
+   * and the Z of a vector of three is left out.
+   *
+   * @param key Field key.
+   * @param fallback Value when the field is missing.
+   * @returns X and Y.
+   */
+  flat(key: string, fallback: SolidScriptVector2): SolidScriptVector2 {
+    const value = this.value(key);
+    if (value === undefined) return fallback;
+    const single = solidScriptValueNumber(value);
+    if (single !== undefined) return [single, single];
+    const flat = solidScriptVectorReadFlat(value);
+    if (flat) return flat;
+    throw this.vectorError(key, 2, value);
+  }
+
+  /**
+   * Builds the error of a field that needs a number or a vector.
+   *
+   * @param key Field key.
+   * @param size How many numbers the field takes.
+   * @param value Given value.
+   * @returns Error.
+   */
+  private vectorError(key: string, size: number, value: SolidScriptValue): Error {
+    const example = Array.from({ length: size }, (_, index) => index + 1).join(', ');
+    return this.error(key, `needs a number, or ${size} numbers separated by commas such as ${example}`, value);
   }
 
   /**

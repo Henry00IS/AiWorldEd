@@ -36,8 +36,8 @@ describe('SolidScript stops at the first mistake', () => {
     expect(failure({ command: 'cube', values: { size: 'big' } })).toBe(
       'Line 1: Size needs a number, or 3 numbers separated by commas such as 1, 2, 3, not "big" (Text).',
     );
-    expect(failure({ command: 'cube', values: { size: '1, 2' } })).toBe(
-      'Line 1: Size needs a number, or 3 numbers separated by commas such as 1, 2, 3, not [1, 2] (Vector).',
+    expect(failure({ command: 'cube', values: { size: '1, 2, 3, 4' } })).toBe(
+      'Line 1: Size needs a number, or 3 numbers separated by commas such as 1, 2, 3, not [1, 2, 3, 4] (Number List).',
     );
     expect(failure({ command: 'cube', values: { anchor: 'Middle, Bottom, Back' } })).toBe(
       'Line 1: Anchor takes Left, Center, Right for X, not "Middle, Bottom, Back" (Text).',

@@ -41,7 +41,7 @@ describe('RingPoint', () => {
   it('takes a full size as a vector, using its width and depth, so a box size fits the box', () => {
     expect(value('RingPoint(0, Vector(6, 9, 2))')).toEqual([3, 0, 0]);
     expect(value('RingPoint(90, Vector(6, 9, 2), -1)')).toEqual([0, -1, -1]);
-    expect(value('RingPoint(90, Vector(6, 2))')).toEqual([0, 0, -1]);
+    expect(value('RingPoint(90, [6, 2])')).toEqual([0, 0, -1]);
   });
 
   it('turns the way Cos and Sin do, for any angle', () => {
@@ -83,11 +83,12 @@ describe('Slerp', () => {
 
   it('works on flat vectors too', () => {
     const half = Math.round(Math.SQRT1_2 * 1e6) / 1e6;
-    expect(value('Slerp(Vector(1, 0), Vector(0, 1), 0.5)')).toEqual([half, half]);
+    expect(value('Slerp([1, 0], [0, 1], 0.5)')).toEqual([half, half]);
+    expect(value('Slerp(Vector(1, 0), [0, 1], 0.5)')).toEqual([half, half, 0]);
   });
 
-  it('stops on vectors of different sizes or with no length', () => {
-    expect(value('Slerp(Vector(1, 0, 0), Vector(0, 1), 0.5)')).toMatch(/Slerp/);
+  it('stops on vectors that are no vectors or have no length', () => {
+    expect(value('Slerp(Vector(1, 0, 0), [0, 1, 0, 1], 0.5)')).toMatch(/Slerp/);
     expect(value('Slerp(Vector(0, 0, 0), Vector(0, 1, 0), 0.5)')).toMatch(/Slerp/);
   });
 });

@@ -6,8 +6,10 @@ import {
   solidScriptValueEquals,
   solidScriptValueNumbers,
   solidScriptValueText,
+  solidScriptValueVectorsMatched,
   type SolidScriptValue,
 } from './solid_script_value.js';
+import { solidScriptVectorRead } from './solid_script_vector.js';
 
 /** A built-in function over evaluated arguments. */
 type SolidScriptMath = (args: SolidScriptValue[]) => SolidScriptValue;
@@ -60,8 +62,10 @@ function solidScriptMathWrap(value: number, low: number, high: number): number {
  * @returns The two vectors.
  */
 function solidScriptMathVectors(args: readonly SolidScriptValue[], usage: string): [number[], number[]] {
-  const a = solidScriptValueNumbers(args[0]);
-  const b = solidScriptValueNumbers(args[1]);
+  const [a, b] = solidScriptValueVectorsMatched(
+    solidScriptValueNumbers(args[0]) ?? [],
+    solidScriptValueNumbers(args[1]) ?? [],
+  );
   if (!a || !b || a.length !== b.length || a.length === 0)
     throw new Error(`${usage} needs two vectors of the same size`);
   return [a, b];
@@ -75,10 +79,10 @@ function solidScriptMathVectors(args: readonly SolidScriptValue[], usage: string
  */
 function solidScriptMathRotate(args: readonly SolidScriptValue[]): number[] {
   const usage = 'RotateVector(vector, axis, degrees, center)';
-  const vector = solidScriptMathTriple(solidScriptValueNumbers(args[0]));
-  const axis = solidScriptMathTriple(solidScriptValueNumbers(args[1]));
-  const center = args.length > 3 ? solidScriptMathTriple(solidScriptValueNumbers(args[3])) : [0, 0, 0];
-  if (!vector || !axis || !center) throw new Error(`${usage} needs vectors of three numbers, and an angle in degrees`);
+  const vector = solidScriptVectorRead(args[0]);
+  const axis = solidScriptVectorRead(args[1]);
+  const center = args.length > 3 ? solidScriptVectorRead(args[3]) : [0, 0, 0];
+  if (!vector || !axis || !center) throw new Error(`${usage} needs vectors, such as 0, 1, 0, and an angle in degrees`);
   const [ax, ay, az] = axis;
   const size = Math.hypot(ax, ay, az);
   if (size === 0) throw new Error(`${usage} cannot use 0, 0, 0 as an axis; write a direction such as 0, 1, 0`);
@@ -96,8 +100,8 @@ function solidScriptMathRotate(args: readonly SolidScriptValue[]): number[] {
  */
 function solidScriptMathRotateEuler(args: readonly SolidScriptValue[]): number[] {
   const usage = 'RotateEuler(vector, angles)';
-  const vector = solidScriptMathTriple(solidScriptValueNumbers(args[0]));
-  const angles = solidScriptMathTriple(solidScriptValueNumbers(args[1]));
+  const vector = solidScriptVectorRead(args[0]);
+  const angles = solidScriptVectorRead(args[1]);
   if (!vector || !angles) throw new Error(`${usage} needs a vector and three angles in degrees, such as 0, 90, 0`);
   const axes: [number, number, number][] = [
     [1, 0, 0],
@@ -122,18 +126,6 @@ function solidScriptMathProjectOnto(args: readonly SolidScriptValue[]): number[]
   const unit = solidScriptMathUnit(direction, usage, 'direction');
   const along = vector.reduce((sum, value, index) => sum + value * (unit[index] ?? 0), 0);
   return unit.map((value) => value * along);
-}
-
-/**
- * Reads three numbers as a 3D vector.
- *
- * @param values Numbers, or none.
- * @returns Three numbers, or none when the value is not a 3D vector.
- */
-function solidScriptMathTriple(values: number[] | undefined): [number, number, number] | null {
-  if (!values || values.length !== 3) return null;
-  const [x, y, z] = values;
-  return x === undefined || y === undefined || z === undefined ? null : [x, y, z];
 }
 
 /**
@@ -185,10 +177,10 @@ function solidScriptMathAngle(args: readonly SolidScriptValue[]): number {
  */
 function solidScriptMathProject(args: readonly SolidScriptValue[]): number[] {
   const usage = 'ProjectOnPlane(point, through, normal)';
-  const point = solidScriptValueNumbers(args[0]);
-  const through = solidScriptValueNumbers(args[1]);
-  const normal = solidScriptMathUnit(solidScriptValueNumbers(args[2]), usage, 'normal');
-  if (!point || !through || point.length !== through.length || point.length !== normal.length)
+  const given = [args[0], args[1], args[2]].map((value) => solidScriptValueNumbers(value) ?? []);
+  const [point = [], through = [], unit] = solidScriptValueVectorsMatched(...given);
+  const normal = solidScriptMathUnit(unit, usage, 'normal');
+  if (point.length === 0 || point.length !== through.length || point.length !== normal.length)
     throw new Error(`${usage} needs three vectors of the same size`);
   const offset = point.reduce((sum, value, index) => sum + (value - (through[index] ?? 0)) * (normal[index] ?? 0), 0);
   return point.map((value, index) => value - (normal[index] ?? 0) * offset);
@@ -202,9 +194,11 @@ function solidScriptMathProject(args: readonly SolidScriptValue[]): number[] {
  */
 function solidScriptMathReflect(args: readonly SolidScriptValue[]): number[] {
   const usage = 'Reflect(vector, normal)';
-  const vector = solidScriptValueNumbers(args[0]);
-  const normal = solidScriptMathUnit(solidScriptValueNumbers(args[1]), usage, 'normal');
-  if (!vector || vector.length !== normal.length) throw new Error(`${usage} needs two vectors of the same size`);
+  const given = [args[0], args[1]].map((value) => solidScriptValueNumbers(value) ?? []);
+  const [vector = [], unit] = solidScriptValueVectorsMatched(...given);
+  const normal = solidScriptMathUnit(unit, usage, 'normal');
+  if (vector.length === 0 || vector.length !== normal.length)
+    throw new Error(`${usage} needs two vectors of the same size`);
   const twice = 2 * vector.reduce((sum, value, index) => sum + value * (normal[index] ?? 0), 0);
   return vector.map((value, index) => value - (normal[index] ?? 0) * twice);
 }

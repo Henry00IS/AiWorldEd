@@ -1,7 +1,12 @@
 import * as THREE from 'three';
 import { solidScriptExtraNumber, solidScriptExtraSeeded } from './solid_script_functions_extra.js';
-import { solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
+import {
+  solidScriptValueNumbers,
+  solidScriptValueVectorsMatched,
+  type SolidScriptValue,
+} from './solid_script_value.js';
 import { solidScriptRotationDegrees } from './solid_script_transforms.js';
+import { solidScriptVectorRead, solidScriptVectorThree } from './solid_script_vector.js';
 
 /** Built-in function implementation over evaluated positional arguments. */
 type SolidScriptBuiltin = (args: SolidScriptValue[]) => SolidScriptValue;
@@ -45,9 +50,11 @@ function solidScriptWhereMix(
   amount: (axis: number) => number,
   usage: string,
 ): SolidScriptValue {
-  const low = typeof from === 'number' ? [from] : solidScriptValueNumbers(from);
-  const high = typeof to === 'number' ? [to] : solidScriptValueNumbers(to);
-  if (!low || !high || low.length !== high.length || low.length === 0)
+  const given = [from, to].map((value) =>
+    typeof value === 'number' ? [value] : (solidScriptValueNumbers(value) ?? []),
+  );
+  const [low = [], high = []] = solidScriptValueVectorsMatched(...given);
+  if (low.length !== high.length || low.length === 0)
     throw new Error(`${usage} needs two numbers, or two vectors of the same size`);
   const mixed = low.map((start, axis) => start + ((high[axis] ?? start) - start) * amount(axis));
   return Array.isArray(from) || Array.isArray(to) ? mixed : mixed[0];
@@ -141,11 +148,9 @@ export const SOLID_SCRIPT_FUNCTIONS_WHERE = {
   },
   along: (args) => {
     const usage = 'Along(point, direction, distance)';
-    const point = solidScriptValueNumbers(args[0]);
-    const direction = solidScriptValueNumbers(args[1]);
-    if (!point || point.length !== 3 || !direction || direction.length !== 3)
-      throw new Error(`${usage} needs a point and a direction, each three numbers`);
-    const way = new THREE.Vector3(direction[0], direction[1], direction[2]);
+    const point = solidScriptVectorRead(args[0]);
+    const way = solidScriptVectorThree(args[1]);
+    if (!point || !way) throw new Error(`${usage} needs a point and a direction, each a vector such as 0, 1, 0`);
     if (way.lengthSq() < 1e-18) throw new Error(`${usage} needs a direction that is not 0, 0, 0`);
     const moved = new THREE.Vector3(point[0], point[1], point[2]).addScaledVector(
       way.normalize(),

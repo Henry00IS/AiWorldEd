@@ -81,12 +81,12 @@ describe('SolidScript vector literals', () => {
   });
 
   it('explains a bracket that starts with a number but is no vector, with what was meant', () => {
-    expect(outcome(set('V', '[1, 2]'))[0]).toMatch(/needs exactly 3 numbers.*Did you mean to write \[1, 2, 0\]\?/);
+    expect(outcome(set('V', '[1,]'))[0]).toMatch(/needs 2 or 3 numbers.*Did you mean to write \[1, 0\]\?/);
     expect(outcome(set('V', '[0*2]'))[0]).toMatch(/Did you mean to write \[=0\*2\]\?/);
     expect(outcome(set('V', '[1, 2, 3, 4]'))[0]).toMatch(/Did you mean to write 1, 2, 3, 4\?/);
-    expect(solidScriptFieldCheck('[1, 2]')).toMatch(/Did you mean to write \[1, 2, 0\]\?/);
-    expect(solidScriptFieldCheck('[3,]')).toMatch(/Did you mean to write \[3, 0, 0\]\?/);
-    expect(solidScriptFieldCheck('[3,2]')).toMatch(/Did you mean to write \[3, 2, 0\]\?/);
+    expect(solidScriptFieldCheck('[1, 2]')).toBe('');
+    expect(solidScriptFieldCheck('[3,]')).toMatch(/Did you mean to write \[3, 0\]\?/);
+    expect(solidScriptFieldCheck('[3,2]')).toBe('');
     expect(outcome(set('L', '[2,5,[3, 2, 3],[3,2,0]]'))[0]).toMatch(
       /is not a vector.*Did you mean to write 2, 5, \[3, 2, 3\], \[3, 2, 0\]\?/,
     );

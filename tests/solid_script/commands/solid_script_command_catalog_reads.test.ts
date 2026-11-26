@@ -10,7 +10,7 @@ import { solidScriptUseSolidOf } from '../language/solid_script_use_solid.js';
 const RUN_KEYED = new Set(['value', 'text', 'source', 'list', 'values', 'valueItems', 'valueWith']);
 
 /** Methods of the strict field view whose first argument is a field key. */
-const FIELDS_KEYED = new Set(['value', 'number', 'positive', 'vector', 'flag']);
+const FIELDS_KEYED = new Set(['value', 'number', 'positive', 'vector', 'flat', 'flag']);
 
 /**
  * Fields every command that declares them gets from the script machine rather

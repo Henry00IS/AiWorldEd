@@ -31,7 +31,8 @@ describe('Clamp with reversed limits, Lerp per axis and Slice on text', () => {
     expect(formula('Lerp(Vector(0, 0, 0), Vector(10, 10, 10), Vector(0, 0.5, 1))')).toBe('[0, 5, 10]');
     expect(formula('Lerp(Vector(0, 0, 0), Vector(10, 10, 10), 0.5)')).toBe('[5, 5, 5]');
     expect(formula('Lerp(0, 10, 0.25)')).toBe('2.5');
-    expect(formula('Lerp(Vector(0, 0, 0), Vector(10, 10, 10), Vector(0, 1))')).toContain('per axis');
+    expect(formula('Lerp(Vector(0, 0, 0), Vector(10, 10, 10), [0, 1, 0, 1])')).toContain('per axis');
+    expect(formula('Lerp(Vector(0, 0, 0), Vector(10, 10, 10), Vector(0, 1))')).toBe('[0, 10, 0]');
   });
 
   it('slices characters out of a text like items out of a list', () => {

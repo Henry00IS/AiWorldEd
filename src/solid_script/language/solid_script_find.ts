@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import type { SolidScriptFaceFacts } from './solid_script_geometry.js';
-import { solidScriptValueNumbers } from './solid_script_value.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import { solidScriptFindAtUv } from './solid_script_find_uv.js';
+import { solidScriptVectorThreeRequire } from './solid_script_vector.js';
 
 /** How Find On can look for a face. */
 export const SOLID_SCRIPT_FIND_HOW = ['Closest', 'Along Ray', 'At UV'] as const;
@@ -166,10 +166,7 @@ function solidScriptFindVectors(
   const items = Array.isArray(value) && value.length > 0 && value.every(Array.isArray) ? value : [value];
   const listed = items.length !== 1 || /^\s*\[[^[\]=,]+\]\s*$/.test(run.source(key));
   const vectors = items.map((item) => {
-    const numbers = solidScriptValueNumbers(item);
-    if (!numbers || numbers.length !== 3)
-      throw new Error(`${label} needs three numbers, such as 0, 0, 0, or a list of them`);
-    return new THREE.Vector3(numbers[0], numbers[1], numbers[2]);
+    return solidScriptVectorThreeRequire(item, `${label} needs a vector, such as 0, 0, 0, or a list of them`);
   });
   return { vectors, listed };
 }

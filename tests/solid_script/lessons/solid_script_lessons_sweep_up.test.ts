@@ -34,7 +34,8 @@ describe('Sweep Along Path Up', () => {
     expect(swept({ up: '[=Vector(0, 1 - [$Index], [$Index])]' }, '[0, 0, 0], [1, 0, 0], [2, 0, 0]')).toBe('[2, 1, 1]');
   });
 
-  it('stops on an Up that is not three numbers', () => {
-    expect(swept({ up: '1, 2' })).toContain('Up');
+  it('stops on an Up that is not two or three numbers, and reads x, y as x, y, 0', () => {
+    expect(swept({ up: '1, 2, 3, 4' })).toContain('Up');
+    expect(swept({ up: '0, 1' })).toBe(swept({ up: '0, 1, 0' }));
   });
 });

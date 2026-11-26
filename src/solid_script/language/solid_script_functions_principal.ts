@@ -3,7 +3,8 @@ import { solidScriptEigenSymmetric } from './solid_script_eigen.js';
 import { solidScriptNoiseWord } from './solid_script_functions_noise.js';
 import { solidScriptMatrixRead, solidScriptMatrixRows } from './solid_script_functions_matrix.js';
 import { solidScriptMemberRound } from './solid_script_members.js';
-import { solidScriptValueNumbers, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptVectorThreeRequire } from './solid_script_vector.js';
 
 /** What PrincipalAxes gives. */
 export const SOLID_SCRIPT_PRINCIPAL_OUTPUTS = ['Axes', 'Spread', 'Center'] as const;
@@ -30,10 +31,7 @@ function solidScriptPrincipalNumbers(vector: THREE.Vector3): number[] {
  */
 function solidScriptPrincipalPoints(value: SolidScriptValue, usage: string): THREE.Vector3[] {
   const points = (Array.isArray(value) ? value : []).map((entry) => {
-    const numbers = solidScriptValueNumbers(entry);
-    if (numbers?.length !== 3)
-      throw new Error(`${usage} needs points of three numbers, not ${solidScriptValueText(entry)}`);
-    return new THREE.Vector3(numbers[0], numbers[1], numbers[2]);
+    return solidScriptVectorThreeRequire(entry, `${usage} needs points as vectors, not ${solidScriptValueText(entry)}`);
   });
   if (points.length === 0) throw new Error(`${usage} needs a list of at least one point`);
   return points;

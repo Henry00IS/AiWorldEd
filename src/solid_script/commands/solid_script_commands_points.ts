@@ -11,11 +11,7 @@ import {
   solidScriptPointsFromVertices,
 } from '@/solid_script/language/solid_script_points_from.js';
 import { solidScriptGeometryFacesOutside } from '@/solid_script/language/solid_script_geometry_outside.js';
-import {
-  solidScriptValueNumber,
-  solidScriptValueNumbers,
-  type SolidScriptValue,
-} from '@/solid_script/language/solid_script_value.js';
+import { solidScriptValueNumber, type SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
 import {
   solidScriptPathPointsSpread,
   solidScriptPathWalked,
@@ -37,6 +33,7 @@ import {
 } from './solid_script_command_parameters.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import { solidScriptFaceTargets, solidScriptFaceWrite } from './solid_script_face_of.js';
+import { solidScriptVectorRequire } from '@/solid_script/language/solid_script_vector.js';
 
 /**
  * Writes points and optional normals from a Points From line.
@@ -75,10 +72,7 @@ function solidScriptPointsRun(run: SolidScriptBlockRun): void {
   const count = solidScriptPointsCount(run);
   const points = Array.from({ length: count }, (_, index) => {
     const at = run.valueWith('at', { $Index: index, $Count: count });
-    const numbers = solidScriptValueNumbers(at);
-    if (numbers?.length !== 3)
-      throw new Error('At needs three numbers for each point, such as [=Vector([$Index], 0, 0)]');
-    return numbers;
+    return solidScriptVectorRequire(at, 'At needs a vector for each point, such as [=Vector([$Index], 0, 0)]');
   });
   solidScriptFaceWrite(run, 'into', points);
 }
@@ -252,7 +246,7 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
     description: 'Make a list of points from a formula',
     manual:
       'Makes Count points and writes them to Into, a list of vectors. At is worked out once per point, with [$Index] its number from 0 and [$Count] how many there are, so one line lays out a row, a ring or a spiral without Repeat and Add Item. Use the points with Place At Points, Path From Points or Sweep Along Path. Example: Points Count 8 At [=Vector(Cos([$Index] * 45) * 3, 0, Sin([$Index] * 45) * 3)] Into [Ring], then Place At Points At [Ring] with a Cylinder inside, makes a ring of 8 posts.',
-    stops: ['A Count that is not a whole number from 0.', 'An At that is not three numbers.'],
+    stops: ['A Count that is not a whole number from 0.', 'An At that is not two or three numbers.'],
     parameters: [
       solidScriptParameter('count', 'Count', 'count', '10', 'How many points to make, such as 10.'),
       solidScriptParameterEach(
