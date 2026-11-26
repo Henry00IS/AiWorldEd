@@ -12,6 +12,13 @@ import {
   solidScriptFunctionArguments,
   solidScriptFunctionKindsText,
 } from '@/solid_script/language/solid_script_function_docs.js';
+import { SEARCH_FUZZY_NONE } from '@/ui/search/search_fuzzy.js';
+import { SearchFuzzyText } from '@/ui/search/search_fuzzy_text.js';
+import {
+  solidScriptSuggestionMembersFit,
+  solidScriptSuggestionScore,
+  solidScriptSuggestionsBestFirst,
+} from './solid_script_suggestion_fit.js';
 import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from '@/solid_script/language/solid_script_functions_builtin.js';
 import { SolidScriptLexer, type SolidScriptToken } from '@/solid_script/language/solid_script_lexer.js';
 import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_script_name_key.js';
@@ -193,22 +200,23 @@ function solidScriptSuggestionGroups(scope: SolidScriptSuggestionScope): readonl
 
 /**
  * Sorts two suggestions by the field's group order, then current-element names
- * first inside This Command, then by match rank and original index.
+ * first inside This Command, then by how well the name fits what is typed, and
+ * original index.
  *
  * @param groups Group names in order.
- * @param a Left suggestion, with its index and optional match rank.
- * @param b Right suggestion, with its index and optional match rank.
+ * @param a Left suggestion, with its index and optional fit score.
+ * @param b Right suggestion, with its index and optional fit score.
  * @returns Sort comparison.
  */
 function solidScriptSuggestionGroupOrder(
   groups: readonly string[],
-  a: { suggestion: SolidScriptSuggestion; index: number; rank?: number },
-  b: { suggestion: SolidScriptSuggestion; index: number; rank?: number },
+  a: { suggestion: SolidScriptSuggestion; index: number; score?: number },
+  b: { suggestion: SolidScriptSuggestion; index: number; score?: number },
 ): number {
   return (
     groups.indexOf(a.suggestion.category) - groups.indexOf(b.suggestion.category) ||
     Number(b.suggestion.each ?? false) - Number(a.suggestion.each ?? false) ||
-    (a.rank ?? 0) - (b.rank ?? 0) ||
+    (b.score ?? 0) - (a.score ?? 0) ||
     a.index - b.index
   );
 }
@@ -347,23 +355,6 @@ export function solidScriptSuggestionContext(
   if (last && (last.kind !== 'symbol' || last.text === ')' || last.text === ']' || last.text === '}'))
     return call ? { kind: 'formula', from: caret, to: caret, prefix: '', offer: false, call } : null;
   return { kind: 'formula', from, to, prefix, offer: true, call };
-}
-
-/**
- * Rates how well a name fits what is typed.
- *
- * @param suggestion Suggestion.
- * @param prefix Typed start, lower case.
- * @returns 0 when the name starts with it, 1 when a word of it does, 2 when it
- *   holds it, -1 when it does not fit.
- */
-function solidScriptSuggestionRank(suggestion: SolidScriptSuggestion, prefix: string): number {
-  if (prefix === '') return 0;
-  const label = suggestion.label.toLowerCase();
-  if (label.startsWith(prefix) || suggestion.alias?.startsWith(prefix)) return 0;
-  const parts = suggestion.label.replace(/([a-z0-9])([A-Z])/g, '$1 $2').split(/[ ._]/);
-  if (parts.some((part) => part.toLowerCase().startsWith(prefix))) return 1;
-  return prefix.length >= 2 && label.includes(prefix) ? 2 : -1;
 }
 
 /**
@@ -685,21 +676,18 @@ export function solidScriptSuggestions(
 ): SolidScriptSuggestion[] {
   if (!context?.offer) return [];
   const prefix = context.prefix.toLowerCase();
+  const typed = SearchFuzzyText.of(context.prefix);
   const paths =
     context.kind === 'word' && scope.paths === true ? solidScriptSuggestionPaths(context.prefix, scope) : null;
-  if (paths) return paths.filter((entry) => entry.label.toLowerCase().startsWith(prefix));
+  if (paths) return solidScriptSuggestionMembersFit(paths, context.prefix);
   const members = context.kind === 'word' ? null : solidScriptSuggestionMembers(context.prefix, scope);
-  if (members) return members.filter((entry) => entry.label.toLowerCase().startsWith(prefix));
+  if (members) return solidScriptSuggestionMembersFit(members, context.prefix);
   const all = solidScriptSuggestionsAll(scope);
   if (context.kind === 'word') {
     const words = all.filter((entry) => entry.pick === 'word');
     // A word typed out in full still lists the others to switch to.
     if (words.some((entry) => entry.label.toLowerCase() === prefix)) return words;
-    return words
-      .map((entry) => ({ entry, rank: solidScriptSuggestionRank(entry, prefix) }))
-      .filter(({ rank }) => rank >= 0)
-      .sort((a, b) => a.rank - b.rank)
-      .map(({ entry }) => entry);
+    return solidScriptSuggestionsBestFirst(words, typed);
   }
   const groups = solidScriptSuggestionGroups(scope);
   const callChoices = context.kind === 'formula' ? solidScriptSuggestionCallChoices(context.call) : [];
@@ -709,8 +697,8 @@ export function solidScriptSuggestions(
     ...all.filter((entry) => (scope.reference ? entry.pick === 'value' : entry.pick !== 'word')),
   ];
   return listed
-    .map((entry, index) => ({ suggestion: entry, index, rank: solidScriptSuggestionRank(entry, prefix) }))
-    .filter(({ rank }) => rank >= 0)
+    .map((entry, index) => ({ suggestion: entry, index, score: solidScriptSuggestionScore(entry, typed) }))
+    .filter(({ score }) => score > SEARCH_FUZZY_NONE)
     .sort((a, b) => solidScriptSuggestionGroupOrder(groups, a, b))
     .map(({ suggestion }) => suggestion)
     .slice(0, SOLID_SCRIPT_SUGGESTIONS_MAX);

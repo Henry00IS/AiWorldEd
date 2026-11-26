@@ -1,3 +1,4 @@
+import { SearchFuzzyEntry } from '@/ui/search/search_fuzzy_entry.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptSentence, solidScriptSentencePlain } from '@/solid_script/language/solid_script_sentence.js';
 import {
@@ -277,8 +278,8 @@ function solidScriptExplorerTypeText(entry: SolidScriptExplorerEntry): string {
  * @returns True when the search is not empty and either holds it.
  */
 function solidScriptExplorerNames(entry: SolidScriptExplorerEntry, query: string): boolean {
-  const needle = query.trim().toLowerCase();
-  return needle !== '' && [entry.name, entry.detail].some((text) => text.toLowerCase().includes(needle));
+  const names = [entry.name, entry.detail];
+  return query.trim() !== '' && SearchFuzzyEntry.fitsClosely(query, names, names.join(' ').toLowerCase());
 }
 
 /**
@@ -289,11 +290,9 @@ function solidScriptExplorerNames(entry: SolidScriptExplorerEntry, query: string
  * @returns True when it matches or the search is empty.
  */
 export function solidScriptExplorerMatches(entry: SolidScriptExplorerEntry, query: string): boolean {
-  const wanted = query.trim().toLowerCase();
-  if (wanted === '') return true;
-  return [entry.name, entry.value ?? '', entry.type, entry.category, entry.detail].some((text) =>
-    text.toLowerCase().includes(wanted),
-  );
+  if (query.trim() === '') return true;
+  const details = [entry.name, entry.value ?? '', entry.type, entry.category, entry.detail].join(' ').toLowerCase();
+  return SearchFuzzyEntry.fitsClosely(query, [entry.name], details);
 }
 
 /**

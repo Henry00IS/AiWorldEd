@@ -120,6 +120,7 @@ describe('SolidScript member suggestions', () => {
       '$Selected.Faces.Count',
       '$Selected.Faces.Center',
       '$Selected.Faces.Centers',
+      '$Selected.Faces.FaceCorners',
     ]);
     expect(labels('[$Input.Objects(0).Faces(1).Normal.')).toEqual(vector('$Input.Objects(0).Faces(1).Normal'));
     expect(labels('[$Selected.Edges.First.Parent.N')).toEqual(['$Selected.Edges.First.Parent.Name']);
@@ -205,8 +206,8 @@ describe('SolidScript suggestions', () => {
     const list = offered('[=Le|').filter((entry) => entry.startsWith('Built-In'));
     expect(list.slice(0, 3)).toEqual([
       'Built-In Functions: Len',
-      'Built-In Functions: Length',
       'Built-In Functions: Lerp',
+      'Built-In Functions: Length',
     ]);
     expect(list).toContain('Built-In Functions: PadLeft');
     expect(list.indexOf('Built-In Functions: Lerp')).toBeLessThan(list.indexOf('Built-In Functions: PadLeft'));

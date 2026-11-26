@@ -198,7 +198,8 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
         catalog: this.catalog,
         noun: 'Blocks',
         singular: 'block',
-        searchHint: 'Type part of a name or what it does, such as "box" or "tag". Enter inserts the highlighted block.',
+        searchHint:
+          'Type a name, its first letters or part of what it does, such as "box" or "tag". Enter inserts the highlighted block.',
         target: 'the formula',
       },
     );

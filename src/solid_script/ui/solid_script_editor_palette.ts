@@ -10,6 +10,8 @@ import { solidScriptEditorMenuShow } from './solid_script_editor_line_menu.js';
 import { DragEdgeAutoScroll } from '@/ui/drag/drag_edge_scroll.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { solidScriptDropOutline } from './solid_script_file_drop.js';
+import { SEARCH_FUZZY_NONE } from '@/ui/search/search_fuzzy.js';
+import { SearchFuzzyEntry } from '@/ui/search/search_fuzzy_entry.js';
 import { solidScriptSentence } from '@/solid_script/language/solid_script_sentence.js';
 
 /** Drag data type carrying the id of a command dragged out of the palette. */
@@ -34,7 +36,8 @@ export const SOLID_SCRIPT_EDITOR_PALETTE_SCRIPT: SolidScriptEditorPaletteOptions
   catalog: SOLID_SCRIPT_COMMAND_CATALOG,
   noun: 'Commands',
   singular: 'command',
-  searchHint: 'Type part of a name or what it does, such as "round" or "cut". Enter inserts the highlighted command.',
+  searchHint:
+    'Type a name, its first letters or part of what it does, such as "foreach", "fe" or "cut". Enter inserts the highlighted command.',
   target: 'the script',
 };
 
@@ -43,11 +46,21 @@ interface SolidScriptEditorPaletteEntry {
   command: SolidScriptCommand;
   element: HTMLElement;
   caption: HTMLElement;
+  /** Label first, then the id and the other words people search for. */
+  names: string[];
   /**
    * Name, description, category and other words people search for, in lower
    * case.
    */
-  text: string;
+  details: string;
+  /** How well the search fits it; higher fits better. */
+  score: number;
+}
+
+/** A category caption and its commands in catalog order. */
+interface SolidScriptEditorPaletteGroup {
+  caption: HTMLElement;
+  entries: SolidScriptEditorPaletteEntry[];
 }
 
 /**
@@ -55,8 +68,8 @@ interface SolidScriptEditorPaletteEntry {
  * click it to insert it at the caret line. Favorites come first, in name order;
  * a right click on any command adds it to them or removes it. The search field
  * on top filters the commands by name, description and category as you type, in
- * their own groups only; the arrow keys move through the results, Enter inserts
- * the highlighted one and Escape clears the search.
+ * their own groups only, the best fit first; the arrow keys move through the
+ * results, Enter inserts the highlighted one and Escape clears the search.
  */
 export class SolidScriptEditorPalette {
   /** Palette element. */
@@ -65,7 +78,11 @@ export class SolidScriptEditorPalette {
   readonly search: HTMLInputElement;
   private readonly list: HTMLElement;
   private readonly empty: HTMLElement;
-  private readonly entries: SolidScriptEditorPaletteEntry[] = [];
+  private readonly groups: SolidScriptEditorPaletteGroup[] = [];
+  /** Captions and commands the list holds, in order. */
+  private placed: readonly HTMLElement[] = [];
+  /** Every command in the order the list shows them. */
+  private entries: SolidScriptEditorPaletteEntry[] = [];
   /** Favorites group: its caption and the favorite commands. */
   private readonly favorites = document.createElement('div');
   private highlighted: SolidScriptEditorPaletteEntry | null = null;
@@ -137,15 +154,16 @@ export class SolidScriptEditorPalette {
       if (commands.length === 0) continue;
       const caption = this.caption(category);
       this.list.append(caption);
+      const group: SolidScriptEditorPaletteGroup = { caption, entries: [] };
       for (const command of commands) {
         const element = this.item(command);
         this.list.append(element);
-        const text = [command.label, command.description, category, command.id, ...command.synonyms]
-          .join(' ')
-          .toLowerCase();
-        this.entries.push({ command, element, caption, text });
+        group.entries.push(this.entryOf(command, element, caption));
       }
+      this.groups.push(group);
     }
+    this.entries = this.groups.flatMap((group) => group.entries);
+    this.placed = this.groups.flatMap((group) => [group.caption, ...group.entries.map((entry) => entry.element)]);
     this.list.append(this.empty);
     this.element.append(this.search, solidScriptScrollerWrap(this.list, '1 1 0', 0));
   }
@@ -188,21 +206,76 @@ export class SolidScriptEditorPalette {
   }
 
   /**
-   * Shows the commands matching every word of the search and highlights the
-   * first.
+   * Builds the entry of a command with the names its search looks at.
+   *
+   * @param command Command.
+   * @param element Its list item.
+   * @param caption Caption of its category.
+   * @returns Entry.
+   */
+  private entryOf(
+    command: SolidScriptCommand,
+    element: HTMLElement,
+    caption: HTMLElement,
+  ): SolidScriptEditorPaletteEntry {
+    const names = [command.label, command.id, ...command.synonyms];
+    const details = [command.label, command.description, command.category, command.id, ...command.synonyms]
+      .join(' ')
+      .toLowerCase();
+    return { command, element, caption, names, details, score: 0 };
+  }
+
+  /**
+   * Shows the commands that fit the search, best fit first, and highlights the
+   * best. Groups follow the fit of their best command and keep their own order
+   * while nothing is typed.
    */
   private filter(): void {
-    const words = this.search.value.toLowerCase().split(/\s+/).filter(Boolean);
-    this.favorites.hidden = words.length > 0 || this.favorites.childElementCount === 0;
-    const captions = new Set<HTMLElement>();
-    for (const entry of this.entries) {
-      const shown = words.every((word) => entry.text.includes(word));
-      entry.element.hidden = !shown;
-      if (shown) captions.add(entry.caption);
+    const query = this.search.value;
+    const typed = SearchFuzzyEntry.words(query).length > 0;
+    this.favorites.hidden = typed || this.favorites.childElementCount === 0;
+    const scores = SearchFuzzyEntry.scoreList(query, this.entries);
+    this.entries.forEach((entry, index) => {
+      entry.score = scores[index] ?? SEARCH_FUZZY_NONE;
+      const hidden = entry.score === SEARCH_FUZZY_NONE;
+      if (entry.element.hidden !== hidden) entry.element.hidden = hidden;
+    });
+    this.listArrange();
+    this.highlight(typed ? (this.entries.find((entry) => !entry.element.hidden) ?? null) : null);
+  }
+
+  /**
+   * Orders the groups and their commands by how well they fit the search, shows
+   * the captions of groups with a shown command and sets the empty notice.
+   */
+  private listArrange(): void {
+    const best = (group: SolidScriptEditorPaletteGroup): number =>
+      group.entries.reduce((top, entry) => Math.max(top, entry.score), SEARCH_FUZZY_NONE);
+    const ordered = [...this.groups].sort((left, right) => best(right) - best(left));
+    const shown: HTMLElement[] = [];
+    this.entries = [];
+    for (const group of ordered) {
+      const entries = [...group.entries].sort((left, right) => right.score - left.score);
+      group.caption.hidden = best(group) === SEARCH_FUZZY_NONE;
+      if (!group.caption.hidden)
+        shown.push(group.caption, ...entries.filter((entry) => !entry.element.hidden).map((entry) => entry.element));
+      this.entries.push(...entries);
     }
-    for (const entry of this.entries) entry.caption.hidden = !captions.has(entry.caption);
-    this.empty.hidden = captions.size > 0;
-    this.highlight(words.length > 0 ? (this.entries.find((entry) => !entry.element.hidden) ?? null) : null);
+    this.empty.hidden = shown.length > 0;
+    this.listPlace(shown);
+  }
+
+  /**
+   * Puts the shown captions and commands in the list in the given order and
+   * takes the others out of it; a list that is already so stays untouched.
+   *
+   * @param shown Captions and commands in the order to show them.
+   */
+  private listPlace(shown: readonly HTMLElement[]): void {
+    const same = shown.length === this.placed.length && shown.every((element, index) => element === this.placed[index]);
+    if (same) return;
+    this.placed = shown;
+    this.list.replaceChildren(this.favorites, ...shown, this.empty);
   }
 
   /**

@@ -1,3 +1,5 @@
+import { SEARCH_FUZZY_NONE } from '@/ui/search/search_fuzzy.js';
+import { SearchFuzzyEntry } from '@/ui/search/search_fuzzy_entry.js';
 import {
   SOLID_SCRIPT_EXAMPLE_ICOSPHERE,
   SOLID_SCRIPT_EXAMPLE_RHOMBICUBOCTAHEDRON,
@@ -309,15 +311,19 @@ export function solidScriptExampleLineCount(example: SolidScriptExample): number
 }
 
 /**
- * Finds the examples whose name, group or summary holds every word of a search.
+ * Finds the examples whose name fits the search, or whose name, group or
+ * summary holds every word of it.
  *
  * @param search Search text.
  * @returns Matching examples in list order.
  */
 export function solidScriptExamplesFind(search: string): SolidScriptExample[] {
-  const words = search.toLowerCase().split(/\s+/).filter(Boolean);
-  return SOLID_SCRIPT_EXAMPLES.filter((example) => {
-    const text = `${example.name} ${example.group} ${example.summary}`.toLowerCase();
-    return words.every((word) => text.includes(word));
-  });
+  const scores = SearchFuzzyEntry.scoreList(
+    search,
+    SOLID_SCRIPT_EXAMPLES.map((example) => ({
+      names: [example.name],
+      details: `${example.name} ${example.group} ${example.summary}`.toLowerCase(),
+    })),
+  );
+  return SOLID_SCRIPT_EXAMPLES.filter((_, index) => (scores[index] ?? SEARCH_FUZZY_NONE) > SEARCH_FUZZY_NONE);
 }
