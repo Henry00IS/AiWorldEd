@@ -9,7 +9,8 @@ import {
 } from '@/curve/model/curve_model.js';
 import { curveConstrain } from '@/curve/model/curve_constrain.js';
 import { SOLID_SCRIPT_CURVE_SEGMENT_KINDS } from './solid_script_curve_members.js';
-import { SolidScriptCurveValue, solidScriptCurveOf } from './solid_script_curve_value.js';
+import { solidScriptCurveOf } from './solid_script_curve_of.js';
+import { SolidScriptCurveValue } from './solid_script_curve_value.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import {
   SolidScriptDictionary,

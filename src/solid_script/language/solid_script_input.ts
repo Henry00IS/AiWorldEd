@@ -46,7 +46,7 @@ export const SOLID_SCRIPT_INPUT_KINDS: Readonly<Record<SolidScriptInputType, str
   Text: 'Text',
   Choice: 'Text',
   Button: 'Yes/No',
-  Curve: 'Text',
+  Curve: 'Curve',
   Texture: 'Text',
   Vector: 'Vector',
   Path: 'Path',

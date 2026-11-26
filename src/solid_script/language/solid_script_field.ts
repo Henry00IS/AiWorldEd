@@ -1,5 +1,6 @@
 import type { SolidScriptExpression } from './solid_script_ast.js';
 import type { SolidScriptCompiled } from './solid_script_expression_compile.js';
+import { SolidScriptCurveValue } from './solid_script_curve_value.js';
 import { solidScriptFieldFormulaCompile } from './solid_script_field_formula_compile.js';
 import { solidScriptNameDotProblem, solidScriptSystemIsVector } from './solid_script_name_rules.js';
 import type { SolidScriptValue } from './solid_script_value.js';
@@ -742,7 +743,7 @@ function solidScriptFieldCompile(kind: SolidScriptFieldKind, text: string): Soli
         return solidScriptFieldGroupCompile([{ kind: 'plain', text: '=' }, ...solidScriptFieldPieces(text, true)]);
       case 'message': {
         const template = solidScriptFieldTemplateCompile(text);
-        return (context) => solidScriptValueText(template(context));
+        return (context) => solidScriptFieldMessage(template(context));
       }
       default:
         return solidScriptFieldAnyCompile(text);
@@ -752,6 +753,17 @@ function solidScriptFieldCompile(kind: SolidScriptFieldKind, text: string): Soli
       throw error;
     };
   }
+}
+
+/**
+ * Turns the value of a message field into its text, keeping a Curve whole so a
+ * Curve field gets the curve itself.
+ *
+ * @param value Resolved value.
+ * @returns Text, or the Curve.
+ */
+export function solidScriptFieldMessage(value: SolidScriptValue): SolidScriptValue {
+  return value instanceof SolidScriptCurveValue ? value : solidScriptValueText(value);
 }
 
 /**

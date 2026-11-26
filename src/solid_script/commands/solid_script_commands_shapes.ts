@@ -9,7 +9,7 @@ import {
   solidScriptCurveProfilePoints,
   solidScriptCurveProfileSideRead,
 } from '@/solid_script/language/solid_script_curve_profile.js';
-import { solidScriptCurveOrFlat } from '@/solid_script/language/solid_script_curve_value.js';
+import { solidScriptCurveOrFlat } from '@/solid_script/language/solid_script_curve_of.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {

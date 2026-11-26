@@ -134,14 +134,15 @@ export function solidScriptFormulaInputFallback(context: SolidScriptFormulaConte
 }
 
 /**
- * Tells how an input of a given kind shows what it holds.
+ * Tells how an input of a given kind shows what it holds; a curve shows as
+ * text, with its curve picker.
  *
  * @param type Kinds the input takes.
  * @returns Vector, text or any.
  */
 function solidScriptFormulaInputKind(type: SolidScriptFunctionKinds): SolidScriptFormulaInputKind {
   if (type === 'Any') return 'any';
-  if (type.length === 1 && type[0] === 'Text') return 'text';
+  if (type.length > 0 && type.every((kind) => kind === 'Text' || kind === 'Curve')) return 'text';
   return type.includes('Vector') && !type.some((kind) => kind === 'Object' || kind === 'List') ? 'vector' : 'any';
 }
 

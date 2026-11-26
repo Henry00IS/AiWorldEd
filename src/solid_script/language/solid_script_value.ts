@@ -5,8 +5,8 @@ export type SolidScriptValue = number | string | boolean | undefined | SolidScri
 
 /**
  * What a geometry value stands for: a brush or mesh, one of its faces, edges or
- * corners, one face's use of a corner, a Dictionary, such as the Data of one,
- * a Rotation or a Curve.
+ * corners, one face's use of a corner, a Dictionary, such as the Data of one, a
+ * Rotation or a Curve.
  */
 export type SolidScriptElementKind =
   'brush' | 'path' | 'face' | 'edge' | 'vertex' | 'facecorner' | 'point' | 'data' | 'rotation' | 'curve';

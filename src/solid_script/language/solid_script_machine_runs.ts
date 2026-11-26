@@ -5,6 +5,7 @@ import {
   solidScriptFieldLone,
   solidScriptFieldTemplate,
   type SolidScriptFieldCompiled,
+  solidScriptFieldMessage,
 } from './solid_script_field.js';
 import { solidScriptKindAccepted, solidScriptKindMismatch, solidScriptKindOf } from './solid_script_kinds.js';
 import { solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
@@ -176,7 +177,7 @@ export function solidScriptLineFieldMake(field: SolidScriptMachineField, text: s
     label: field.label,
     compiled: (context) => {
       const value = check(whole(context));
-      return message ? solidScriptValueText(value) : compiled(context);
+      return message ? solidScriptFieldMessage(value) : compiled(context);
     },
   };
 }

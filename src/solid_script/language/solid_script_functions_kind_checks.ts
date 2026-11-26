@@ -98,6 +98,12 @@ export const SOLID_SCRIPT_KIND_CHECKS = {
     summary: 'Yes for a Rotation, such as IsRotation(Rotation(0, 90, 0)); No for three numbers.',
     checks: ['Rotation'],
   },
+  Curve: {
+    key: 'is_curve',
+    usage: 'IsCurve(value)',
+    summary: 'Yes for a Curve, such as IsCurve(Curve([[0, 0], [1, 1]])) or a Curve input.',
+    checks: ['Curve'],
+  },
 } as const satisfies Record<string, SolidScriptKindCheck>;
 
 /** Built-in function implementation over evaluated positional arguments. */
@@ -141,6 +147,7 @@ export const SOLID_SCRIPT_FUNCTIONS_KIND_CHECKS = {
   is_path: solidScriptKindCheck('Path'),
   is_dictionary: solidScriptKindCheck('Dictionary'),
   is_rotation: solidScriptKindCheck('Rotation'),
+  is_curve: solidScriptKindCheck('Curve'),
 } as const satisfies Readonly<Record<string, SolidScriptBuiltin>>;
 
 /** Docs for the new kind checks, with literal keys so the catalog types them. */
@@ -155,6 +162,7 @@ export const SOLID_SCRIPT_KIND_CHECK_DOCS = {
   is_path: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Path),
   is_dictionary: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Dictionary),
   is_rotation: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Rotation),
+  is_curve: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Curve),
 } as const;
 
 /** Input help for the new kind checks. */
@@ -169,4 +177,5 @@ export const SOLID_SCRIPT_KIND_CHECK_ARGUMENTS = {
   is_path: { value: { type: 'Any', about: 'The value to check.' } },
   is_dictionary: { value: { type: 'Any', about: 'The value to check.' } },
   is_rotation: { value: { type: 'Any', about: 'The value to check.' } },
+  is_curve: { value: { type: 'Any', about: 'The value to check.' } },
 } as const;

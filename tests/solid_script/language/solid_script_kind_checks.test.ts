@@ -58,6 +58,7 @@ describe('SolidScript kind checks', () => {
       'is_list',
       'is_dictionary',
       'is_rotation',
+      'is_curve',
     ]);
     for (const check of Object.values(SOLID_SCRIPT_KIND_CHECKS)) {
       expect(SOLID_SCRIPT_FUNCTIONS_BUILTIN[check.key], check.key).toBeTypeOf('function');

@@ -73,7 +73,10 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_CURVE_MAKE = {
     usage: 'Curve(points, segments)',
     summary: solidScriptFunctionDocSummary(
       'A Curve through points as [x, y], X from 0 to 1 left to right and Y from 0 to 1, such as Curve([[0, 0], [0.5, 1], [1, 0]]). Segments is a list with one Dictionary per segment, like .Segments gives: Kind is Linear, Quadratic or Bezier, Handles the places of its two handles and Detail its straight pieces; segments left out are straight. A curve, a number or a preset name such as "Classic Column" makes that curve.',
-      ['Curve([[0, 0], [1, 1]]) is a straight ramp.', 'Curve([C.Points], [C.Segments]) copies the shape of curve C.'],
+      [
+        'Curve([[0, 0], [1, 1]]) makes a straight ramp.',
+        'Curve([C.Points], [C.Segments]) copies the shape of curve C.',
+      ],
       'Use .Points, .Length and .Segments to read a curve, and Curve to make a changed one.',
     ),
     group: 'Curve',

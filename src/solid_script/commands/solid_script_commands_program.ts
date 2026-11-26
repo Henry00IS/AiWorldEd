@@ -38,7 +38,8 @@ import {
   SOLID_SCRIPT_PART_DEPTH_MAX,
 } from '@/solid_script/language/solid_script_machine_calls.js';
 import { solidScriptInputBrushesBuild } from '@/solid_script/language/solid_script_input_brushes.js';
-import { SolidScriptCurveValue, solidScriptCurveOrFlat } from '@/solid_script/language/solid_script_curve_value.js';
+import { solidScriptCurveOrFlat } from '@/solid_script/language/solid_script_curve_of.js';
+import { SolidScriptCurveValue } from '@/solid_script/language/solid_script_curve_value.js';
 import { solidScriptInputPath } from '@/solid_script/language/solid_script_input_path.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 

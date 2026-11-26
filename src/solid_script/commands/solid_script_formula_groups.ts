@@ -386,7 +386,7 @@ function solidScriptFormulaFunctionStart(key: string): SolidScriptCommandPart[] 
     const types = input.type === 'Any' ? [] : input.type;
     const start = input.start ?? '';
     const vector = types.includes('Vector') && (start.includes(',') || !types.includes('Number'));
-    const text = types.length > 0 && types.every((type) => type === 'Text');
+    const text = types.length > 0 && types.every((type) => type === 'Text' || type === 'Curve');
     const number = types.length > 0 && types.every((type) => type === 'Number' || type === 'Vector');
     const command = vector
       ? SOLID_SCRIPT_FORMULA_COMMAND.vector
