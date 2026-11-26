@@ -2,7 +2,7 @@ import type { SolidScriptCommand, SolidScriptCommandParameter } from '@/solid_sc
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import type { SolidScriptRun } from '@/solid_script/language/solid_script_machine_types.js';
-import { solidScriptAuditFieldValues, solidScriptAuditScript } from './solid_script_audit_lines.js';
+import { solidScriptAuditScript } from './solid_script_audit_lines.js';
 
 /**
  * Writes a Vector3-like object as three numbers.
@@ -95,8 +95,8 @@ export function solidScriptAuditDefaultProblem(
 ): string {
   const fallback = parameter.default;
   if (fallback === '') return `${command.id}.${parameter.key} has no declared default`;
-  const empty = solidScriptAuditDefaultRun(command, solidScriptAuditFieldValues(parameter, ''));
-  const filled = solidScriptAuditDefaultRun(command, solidScriptAuditFieldValues(parameter, fallback));
+  const empty = solidScriptAuditDefaultRun(command, { [parameter.key]: '' });
+  const filled = solidScriptAuditDefaultRun(command, { [parameter.key]: fallback });
   const mode = command.parameters.find((entry) => entry.key === 'mode')?.default ?? '';
   const left = solidScriptAuditRunSummary(empty, mode);
   const right = solidScriptAuditRunSummary(filled, mode);

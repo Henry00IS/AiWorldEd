@@ -1,6 +1,5 @@
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import type { SolidScriptCommand, SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
-import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
 import {
   SOLID_SCRIPT_COMMAND_EACH_ICON,
   solidScriptEachNote,
@@ -121,17 +120,15 @@ export class SolidScriptEditorHelp {
     const stored = Object.fromEntries(
       command.entries(block?.values ?? command.valuesDefault()).map((entry) => [entry.key, entry.value]),
     );
-    return command.parameters
-      .filter((parameter) => solidScriptParameterApplies(parameter, stored, command.parameters))
-      .map((parameter) =>
-        solidScriptEditorHelpParameter(
-          parameter,
-          this.open,
-          command.id,
-          solidScriptEditorHelpValue(parameter, stored[parameter.key] ?? parameter.default),
-          stored,
-        ),
-      );
+    return command.parameters.map((parameter) =>
+      solidScriptEditorHelpParameter(
+        parameter,
+        this.open,
+        command.id,
+        solidScriptEditorHelpValue(parameter, stored[parameter.key] ?? parameter.default),
+        stored,
+      ),
+    );
   }
 }
 

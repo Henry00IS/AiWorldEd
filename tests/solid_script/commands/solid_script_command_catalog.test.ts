@@ -275,6 +275,17 @@ describe('solid script command catalog', () => {
     );
   });
 
+  it('shows every field of every block at all times: no field hides behind another field', () => {
+    const toggles = solidScriptCommands.flatMap((command) =>
+      command.parameters
+        .filter((parameter) =>
+          Object.keys(parameter).some((key) => /^(when|show|hide|visible|hidden|applies)/i.test(key)),
+        )
+        .map((parameter) => `${command.id}.${parameter.key}`),
+    );
+    expect(toggles).toEqual([]);
+  });
+
   it('has no Select In Box command; InBox in Where picks items in a box', () => {
     expect(solidScriptCommands.map((command) => command.id)).not.toContain('select_in_box');
     expect(solidScriptCommands.some((command) => command.label.toLowerCase() === 'select in box')).toBe(false);

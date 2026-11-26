@@ -246,13 +246,6 @@ export interface SolidScriptCommandParameter {
   into?: SolidScriptInto;
   /** Greyed text an empty field shows, such as the list an empty Of uses. */
   placeholder?: string;
-  /**
-   * When set, the configurator and the help show this field only while the
-   * named field holds one of these words. A value that is not one of that
-   * field's words, such as a variable, shows the field, because the choice is
-   * only known when the script runs.
-   */
-  when?: { readonly field: string; readonly words: readonly string[] };
   /** Axes of an Anchor field, which the window shows as one choice per axis. */
   anchor?: readonly SolidScriptAnchorAxis[];
   /**

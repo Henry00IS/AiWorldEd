@@ -14,7 +14,6 @@ import type {
   SolidScriptInto,
 } from './solid_script_command.js';
 import { SOLID_SCRIPT_SHAPE_NAME_KEY } from '@/solid_script/language/solid_script_shape.js';
-import { solidScriptParameterValueEffective } from './solid_script_parameter_default.js';
 import { SOLID_SCRIPT_RINGS, SOLID_SCRIPT_SIDES } from '@/solid_script/language/solid_script_primitives.js';
 import {
   SOLID_SCRIPT_GROUP_MODE_DEFAULT,
@@ -368,49 +367,6 @@ export function solidScriptParameterWrites(
   offers: SolidScriptCommandParameterWrites = 'name',
 ): SolidScriptCommandParameter {
   return { ...parameter, writes: { offers, gives } };
-}
-
-/**
- * Marks a field as shown only while another field holds one of a few words.
- *
- * @param parameter Field.
- * @param field Key of the field that chooses.
- * @param words Words that show this field.
- * @returns Field, marked.
- */
-export function solidScriptParameterWhen(
-  parameter: SolidScriptCommandParameter,
-  field: string,
-  words: readonly string[],
-): SolidScriptCommandParameter {
-  return { ...parameter, when: { field, words } };
-}
-
-/**
- * Tells whether a field applies to the values as typed: fields with no When
- * always do, and a When whose choice is not one of that field's known words
- * (such as a variable) also shows, because the choice is only known when the
- * script runs. A field whose choosing field is hidden is hidden too.
- *
- * @param parameter Field.
- * @param values Stored or default values by key.
- * @param parameters Every field of the command, so the choice can use its
- *   default and its words.
- * @returns True when the field is used.
- */
-export function solidScriptParameterApplies(
-  parameter: SolidScriptCommandParameter,
-  values: Readonly<Record<string, string>>,
-  parameters: readonly SolidScriptCommandParameter[],
-): boolean {
-  const rule = parameter.when;
-  if (!rule) return true;
-  const source = parameters.find((entry) => entry.key === rule.field);
-  const text = solidScriptParameterValueEffective(values[rule.field], source?.default ?? '').trim();
-  const folded = text.toLowerCase();
-  const known = source?.words?.map((entry) => entry.word.toLowerCase()) ?? [];
-  const holds = rule.words.some((word) => word.toLowerCase() === folded) || (text !== '' && !known.includes(folded));
-  return holds && (!source || solidScriptParameterApplies(source, values, parameters));
 }
 
 /**

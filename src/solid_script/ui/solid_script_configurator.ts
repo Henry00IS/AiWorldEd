@@ -5,7 +5,6 @@ import type {
   SolidScriptCommandValues,
   SolidScriptCommandWord,
 } from '@/solid_script/commands/solid_script_command.js';
-import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
 import {
   solidScriptCommandValuesStored,
   solidScriptParameterAllowsEmpty,
@@ -176,7 +175,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
   }
 
   /**
-   * Lists the fields the current values make use of, and hides the rest.
+   * Lists the fields of the command; every field is always shown.
    *
    * @returns Visible fields, in command order.
    */
@@ -186,15 +185,13 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
     for (const parameter of this.command.parameters) {
       const field = this.fields.get(parameter.key);
       if (!field) continue;
-      const applies = solidScriptParameterApplies(parameter, values, this.command.parameters);
-      const active = applies && solidScriptParameterEachActive(parameter, values) !== undefined;
-      field.element.hidden = !applies;
+      const active = solidScriptParameterEachActive(parameter, values) !== undefined;
       field.element.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.fieldEach, active);
       const icon = field.element.querySelector<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.fieldEachIcon}`);
       if (icon) icon.hidden = !active;
       field.fillsSet(this.fillsOf(parameter, values));
       if (!parameter.writes) field.choicesSet(this.choicesOf(parameter, values, field.read()));
-      if (applies) shown.push(field);
+      shown.push(field);
     }
     return shown;
   }

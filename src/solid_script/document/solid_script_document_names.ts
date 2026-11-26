@@ -32,7 +32,6 @@ import {
   solidScriptCommandFieldFills,
   solidScriptSystemFillEach,
 } from '@/solid_script/commands/solid_script_command_each.js';
-import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
 import { solidScriptSystemFill } from '@/solid_script/language/solid_script_system_names.js';
 import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
 import {
@@ -779,7 +778,6 @@ function solidScriptParameterUnknownKeys(
   text: string,
 ): string[] {
   if (solidScriptFieldAsTyped(parameter) || !/[[(]/.test(text)) return [];
-  if (!solidScriptParameterApplies(parameter, values, command.parameters)) return [];
   return solidScriptFieldUnknown(
     text,
     solidScriptFieldKnown(names, solidScriptCommandFieldFills(command, parameter, values)),
