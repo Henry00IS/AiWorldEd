@@ -49,6 +49,8 @@ export interface PanelProjectGridHandlers {
   thumbnail: (record: ProjectFileRecord) => string | null;
   /** Context menu items of a tile; none means no menu. */
   menu?: (record: ProjectFileRecord) => MenuContextItem[];
+  /** Runs when a file tile is clicked and so selected. */
+  select?: (record: ProjectFileRecord) => void;
   /** Runs when a file tile gets a key press, such as Delete. */
   key?: (record: ProjectFileRecord, event: KeyboardEvent) => void;
 }
@@ -160,7 +162,10 @@ export class PanelProjectGrid {
     const name = panelProjectDiv('name');
     name.textContent = record.name;
     tile.append(this.thumbElement(record), name);
-    tile.addEventListener('click', () => this.select(record.path));
+    tile.addEventListener('click', () => {
+      this.select(record.path);
+      this.handlers.select?.(record);
+    });
     panelProjectTileDragBind(tile, record.path);
     tile.addEventListener('dblclick', () => this.handlers.onActivate(record));
     tile.addEventListener('keydown', (event) => this.tileKey(event, record));

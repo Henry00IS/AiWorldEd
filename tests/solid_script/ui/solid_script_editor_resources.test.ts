@@ -1,12 +1,30 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { curveFileWrite } from '@/curve/model/curve_file.js';
 import { curveFromPolyline } from '@/curve/model/curve_model.js';
+import { PATH_ASSET_DEFAULT } from '@/path/model/path_asset.js';
+import { pathFileWrite } from '@/path/model/path_file.js';
 import { solidScriptDocumentCreate, type SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptDocumentResourcesWith,
   solidScriptResourceCurve,
 } from '@/solid_script/document/solid_script_resource.js';
+import { solidScriptResourceNameOfFile } from '@/solid_script/document/solid_script_resource_file.js';
+import { solidScriptFileDecode, solidScriptFileEncode } from '@/solid_script/file/solid_script_file.js';
 import { SolidScriptEditorResources } from '@/solid_script/ui/solid_script_editor_resources.js';
-import { TEXTURE_BROWSER_DRAG_TYPE } from '@/texture/ui/browser/texture_browser_drag.js';
+import { TextureLibrary } from '@/texture/library/texture_library.js';
+import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
+
+/** Smallest PNG: one transparent pixel. */
+const PNG = Uint8Array.from(
+  atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='),
+  (char) => char.charCodeAt(0),
+);
+
+/** A curve going up. */
+const RAMP = curveFromPolyline([
+  [0, 0],
+  [1, 1],
+]);
 
 /**
  * Builds the tab showing a script, keeping what it stores.
@@ -21,74 +39,101 @@ function tab(script: SolidScriptDocument): { resources: SolidScriptEditorResourc
     resources.write(next);
   });
   resources.write(script);
+  document.body.replaceChildren(resources.element);
   return { resources, stored };
 }
 
 /**
- * Clicks a button of the tab by its caption.
+ * Drops desktop files onto the tab.
  *
  * @param resources Tab.
- * @param caption Caption.
+ * @param files Files.
  */
-function click(resources: SolidScriptEditorResources, caption: string): void {
-  const button = [...resources.element.querySelectorAll('button')].find((each) => each.textContent === caption);
-  if (!button) throw new Error(`no ${caption} button`);
-  button.click();
+function drop(resources: SolidScriptEditorResources, files: File[]): void {
+  const event = new Event('drop', { bubbles: true, cancelable: true }) as DragEvent;
+  const transfer = { types: ['Files'], getData: () => '', files };
+  Object.defineProperty(event, 'dataTransfer', { value: transfer });
+  resources.element.dispatchEvent(event);
+}
+
+/**
+ * Finds the tile of a resource.
+ *
+ * @param resources Tab.
+ * @param name Resource name.
+ * @returns Tile.
+ */
+function tileOf(resources: SolidScriptEditorResources, name: string): HTMLElement {
+  return resources.element.querySelector<HTMLElement>(`[data-file-path="$Resource.${name}"]`)!;
 }
 
 describe('Resources tab', () => {
-  it('adds a curve, a path and a texture with free names', () => {
+  beforeEach(() => getTextureMapCache().setLibrary(new TextureLibrary()));
+  afterEach(() => getTextureMapCache().setLibrary(null));
+
+  it('copies dropped images, curves and paths into the script as tiles named after their files', async () => {
     const { resources, stored } = tab(solidScriptDocumentCreate([]));
-    click(resources, 'Add Curve');
-    click(resources, 'Add Curve');
-    click(resources, 'Add Path');
-    click(resources, 'Add Texture');
-    expect(stored.at(-1)?.resources?.map((resource) => `${resource.kind} ${resource.name}`)).toEqual([
-      'Curve Curve',
-      'Curve Curve2',
-      'Path Path',
-      'Texture Texture',
+    drop(resources, [
+      new File([PNG], 'stone wall.png', { type: 'image/png' }),
+      new File([curveFileWrite(RAMP, 'Ramp')], 'ramp.aicurve'),
+      new File([pathFileWrite(PATH_ASSET_DEFAULT, 'Track')], 'track.aipath'),
     ]);
-    expect(resources.element.querySelectorAll('[data-solid-script-resource]')).toHaveLength(4);
+    await vi.waitFor(() => expect(stored).toHaveLength(1));
+    const kept = stored[0]!.resources!;
+    expect(kept.map((resource) => `${resource.kind} ${resource.name}`)).toEqual([
+      'Texture Stone_wall',
+      'Curve Ramp',
+      'Path Track',
+    ]);
+    expect(kept[0]).toMatchObject({ textureId: expect.stringMatching(/^embedded:[0-9a-f]{64}\.png$/) });
+    expect(resources.element.querySelectorAll('[data-file-path]')).toHaveLength(3);
+    expect(tileOf(resources, 'Ramp').title).toBe('[$Resource.Ramp]');
   });
 
-  it('renames a resource only to a valid free name, and removes one', () => {
+  it('tells which dropped files do not fit, and adds the rest', async () => {
+    const { resources, stored } = tab(solidScriptDocumentCreate([]));
+    drop(resources, [new File(['x'], 'notes.txt'), new File([curveFileWrite(RAMP, 'Ramp')], 'ramp.aicurve')]);
+    await vi.waitFor(() => expect(stored).toHaveLength(1));
+    expect(resources.element.textContent).toContain('notes.txt is not a texture, curve or path file.');
+  });
+
+  it('renames the selected resource only to a valid free name, and removes it with Delete', () => {
     const script = solidScriptDocumentResourcesWith(solidScriptDocumentCreate([]), [
-      solidScriptResourceCurve(
-        'Ramp',
-        curveFromPolyline([
-          [0, 0],
-          [1, 1],
-        ]),
-      ),
-      { name: 'Brick', kind: 'Texture', texture: 't' },
+      solidScriptResourceCurve('Ramp', RAMP),
+      solidScriptResourceCurve('Arch', RAMP),
     ]);
     const { resources, stored } = tab(script);
+    tileOf(resources, 'Ramp').click();
     const name = (): HTMLInputElement => resources.element.querySelector('input[aria-label="Resource name"]')!;
-    name().value = 'Brick';
+    name().value = 'Arch';
     name().dispatchEvent(new Event('change'));
-    expect(stored).toHaveLength(0);
-    expect(name().validationMessage).toContain('already called Brick');
+    expect(name().validationMessage).toContain('already called Arch');
     name().value = '9 bad';
     name().dispatchEvent(new Event('change'));
     expect(stored).toHaveLength(0);
     name().value = 'Slope';
     name().dispatchEvent(new Event('change'));
-    expect(stored.at(-1)?.resources?.map((resource) => resource.name)).toEqual(['Slope', 'Brick']);
-    click(resources, 'Remove');
-    expect(stored.at(-1)?.resources?.map((resource) => resource.name)).toEqual(['Brick']);
-    click(resources, 'Remove');
-    expect('resources' in stored.at(-1)!).toBe(false);
+    expect(stored.at(-1)?.resources?.map((resource) => resource.name)).toEqual(['Slope', 'Arch']);
+    tileOf(resources, 'Slope').dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete' }));
+    expect(stored.at(-1)?.resources?.map((resource) => resource.name)).toEqual(['Arch']);
   });
 
-  it('adds a texture dropped from the texture browser', () => {
+  it('saves a copy of each texture inside the script file, which loads in another project', async () => {
     const { resources, stored } = tab(solidScriptDocumentCreate([]));
-    const data = new Map<string, string>([[TEXTURE_BROWSER_DRAG_TYPE, 'tex-stone']]);
-    const drop = new Event('drop', { bubbles: true, cancelable: true }) as DragEvent;
-    Object.defineProperty(drop, 'dataTransfer', {
-      value: { types: [...data.keys()], getData: (type: string) => data.get(type) ?? '', files: [] },
-    });
-    resources.element.dispatchEvent(drop);
-    expect(stored.at(-1)?.resources).toEqual([{ name: 'Texture', kind: 'Texture', texture: 'tex-stone' }]);
+    drop(resources, [new File([PNG], 'brick.png', { type: 'image/png' })]);
+    await vi.waitFor(() => expect(stored).toHaveLength(1));
+    const file = await solidScriptFileEncode(stored[0]!);
+    getTextureMapCache().setLibrary(new TextureLibrary());
+    const loaded = await solidScriptFileDecode(file);
+    const texture = loaded.resources![0]!;
+    expect(texture).toEqual(stored[0]!.resources![0]);
+    if (texture.kind !== 'Texture') throw new Error('not a texture');
+    expect(getTextureMapCache().getLibrary()!.getEntryById(texture.textureId)?.sourceFile.size).toBe(PNG.length);
+  });
+
+  it('names resources after their files', () => {
+    expect(solidScriptResourceNameOfFile('textures/old-brick 2.jpg')).toBe('Old_brick_2');
+    expect(solidScriptResourceNameOfFile('01.png')).toBe('Resource01');
+    expect(solidScriptResourceNameOfFile('.png')).toBe('Resource');
   });
 });
