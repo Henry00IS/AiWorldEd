@@ -1,3 +1,4 @@
+import { solidScriptInputResourceResolved } from '@/solid_script/language/solid_script_input_resource.js';
 import { solidScriptDocumentActiveLines } from './solid_script_document_active.js';
 import {
   SOLID_SCRIPT_COMMAND_INPUT,
@@ -59,7 +60,7 @@ export function solidScriptDocumentInputLayout(document: SolidScriptDocument): S
       if (text !== '') items.push({ kind: 'note', text, ...solidScriptInputPlace(open) });
     } else if (block.command === SOLID_SCRIPT_COMMAND_INPUT) {
       try {
-        const input = solidScriptInputRead(block.values);
+        const input = solidScriptInputResourceResolved(solidScriptInputRead(block.values), document.resources ?? []);
         if (input.name !== '' && !names.has(input.name)) {
           names.add(input.name);
           items.push({ kind: 'input', input, ...solidScriptInputPlace(open) });

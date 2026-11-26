@@ -132,6 +132,33 @@ function solidScriptConfiguratorResources(names: readonly SolidScriptName[], kin
   return names.filter((name) => name.category === 'Resources' && name.kinds?.includes(kind)).map((name) => name.name);
 }
 
+/** Input types whose Default can be a resource of the script. */
+const SOLID_SCRIPT_CONFIGURATOR_RESOURCE_TYPES: readonly string[] = ['Curve', 'Path', 'Texture'];
+
+/**
+ * Lists the resources an Input's Default can pick: those of the Input's type,
+ * such as [$Resource.Arch] for a Curve.
+ *
+ * @param parameter Field.
+ * @param values Current values of the line.
+ * @param names Names the line sees.
+ * @returns Words, or none when the field is no such Default.
+ */
+export function solidScriptConfiguratorResourceWords(
+  parameter: SolidScriptCommandParameter,
+  values: Readonly<Record<string, string>>,
+  names: readonly SolidScriptName[],
+): SolidScriptCommandWord[] {
+  const type = SOLID_SCRIPT_CONFIGURATOR_RESOURCE_TYPES.find(
+    (kind) => kind.toLowerCase() === values['type']?.trim().toLowerCase(),
+  );
+  if (parameter.key !== 'default' || type === undefined) return [];
+  return solidScriptConfiguratorResources(names, type).map((name) => ({
+    word: `[${name}]`,
+    detail: `${type} resource`,
+  }));
+}
+
 /** Pattern of names a variable can have. */
 const SOLID_SCRIPT_CONFIGURATOR_NAME = /^(\$(local|persistent)\.)?[A-Za-z_][A-Za-z0-9_]*$/i;
 
@@ -249,6 +276,8 @@ export function solidScriptConfiguratorFieldBuild(
     const base = solidScriptConfiguratorWords(parameter, scope.names);
     if (base.length > 0 && parameter.words === undefined && parameter.type !== 'boolean') return base;
     const values = scope.values?.() ?? {};
+    const resources = solidScriptConfiguratorResourceWords(parameter, values, scope.names);
+    if (resources.length > 0) return resources;
     const extra = solidScriptChoiceWordsForField(parameter, values, field.read(), scope.inputs ?? []);
     return extra.length > 0 ? extra : base;
   };

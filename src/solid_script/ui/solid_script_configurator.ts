@@ -3,6 +3,7 @@ import type {
   SolidScriptCommand,
   SolidScriptCommandParameter,
   SolidScriptCommandValues,
+  SolidScriptCommandWord,
 } from '@/solid_script/commands/solid_script_command.js';
 import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
 import {
@@ -19,6 +20,7 @@ import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import {
   solidScriptConfiguratorFieldBuild,
   type SolidScriptConfiguratorField,
+  solidScriptConfiguratorResourceWords,
 } from './solid_script_configurator_fields.js';
 import {
   solidScriptFieldEachFillWarning,
@@ -191,8 +193,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
       const icon = field.element.querySelector<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.fieldEachIcon}`);
       if (icon) icon.hidden = !active;
       field.fillsSet(this.fillsOf(parameter, values));
-      if (!parameter.writes)
-        field.choicesSet(solidScriptChoiceWordsForField(parameter, values, field.read(), this.inputs));
+      if (!parameter.writes) field.choicesSet(this.choicesOf(parameter, values, field.read()));
       if (applies) shown.push(field);
     }
     return shown;
@@ -284,6 +285,25 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
       ...(words.length > 0 ? { words } : {}),
       ...(functions.length ? { functions } : {}),
     };
+  }
+
+  /**
+   * Lists the words a field offers for the current values: the resources of an
+   * Input's type for its Default, else the declared choices.
+   *
+   * @param parameter Field.
+   * @param values Current values.
+   * @param text Field text.
+   * @returns Words.
+   */
+  private choicesOf(
+    parameter: SolidScriptCommandParameter,
+    values: Readonly<Record<string, string>>,
+    text: string,
+  ): readonly SolidScriptCommandWord[] {
+    const resources =
+      this.command.id === 'input' ? solidScriptConfiguratorResourceWords(parameter, values, this.names) : [];
+    return resources.length > 0 ? resources : solidScriptChoiceWordsForField(parameter, values, text, this.inputs);
   }
 
   /**

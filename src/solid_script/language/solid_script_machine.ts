@@ -245,6 +245,17 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
+   * Reads a resource of the script for a line, such as an Input whose Default
+   * picks one.
+   *
+   * @param name Name after $Resource.
+   * @returns The run's copy.
+   */
+  resourceValue(name: string): SolidScriptValue {
+    return this.resourceRead(name);
+  }
+
+  /**
    * Lists the brushes a modifier receives, as [$Input.Objects]: those the Input
    * Brushes line built, else the received brushes as they came.
    *
@@ -1268,6 +1279,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         state.machine.warnings.set(state.machine.line, text);
       },
       inputValue: (name) => state.machine.inputs[name] ?? state.machine.inputKeyed().get(solidScriptNameKey(name)),
+      resource: (name) => state.machine.resourceValue(name),
       use: () => state.machine.system.use ?? SOLID_SCRIPT_USE_GENERATOR,
       matrix: () => state.context.matrix.clone(),
       inputDefine: (name, value) => {
