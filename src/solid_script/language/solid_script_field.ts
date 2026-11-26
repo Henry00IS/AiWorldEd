@@ -126,6 +126,26 @@ export function solidScriptFieldEscapes(text: string, index: number): boolean {
 }
 
 /**
+ * Reads field text as plain text, keeping what each $ escape keeps, such as
+ * $[1$] becoming [1].
+ *
+ * @param text Field text.
+ * @returns Plain text.
+ */
+export function solidScriptFieldUnescape(text: string): string {
+  let out = '';
+  for (let index = 0; index < text.length; index++) {
+    if (solidScriptFieldEscapes(text, index)) {
+      out += text[index + 1] ?? '';
+      index++;
+    } else {
+      out += text[index]!;
+    }
+  }
+  return out;
+}
+
+/**
  * How field text reads a $: as an escape of the field, or left for a formula
  * string.
  */

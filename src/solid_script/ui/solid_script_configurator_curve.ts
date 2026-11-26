@@ -7,7 +7,7 @@ import type {
   SolidScriptCommandCurve,
   SolidScriptCommandParameter,
 } from '@/solid_script/commands/solid_script_command.js';
-import { solidScriptFieldEscapes } from '@/solid_script/language/solid_script_field.js';
+import { solidScriptFieldEscapes, solidScriptFieldUnescape } from '@/solid_script/language/solid_script_field.js';
 import { solidScriptEditorToolButton } from './solid_script_editor_icons.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 
@@ -20,25 +20,6 @@ import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
  */
 function solidScriptCurveEscape(raw: string): string {
   return raw.replace(/[$[]]/g, (ch) => `$${ch}`);
-}
-
-/**
- * Unescapes field-escaped curve text back to raw JSON.
- *
- * @param text Stored field text.
- * @returns Unescaped text.
- */
-function solidScriptCurveUnescape(text: string): string {
-  let out = '';
-  for (let index = 0; index < text.length; index++) {
-    if (solidScriptFieldEscapes(text, index)) {
-      out += text[index + 1] === ' ' ? ' ' : (text[index + 1] ?? '');
-      index++;
-    } else {
-      out += text[index]!;
-    }
-  }
-  return out;
 }
 
 /**
@@ -63,7 +44,7 @@ function solidScriptCurveHasBracket(text: string): boolean {
  * @returns Decoded curve, or null.
  */
 function solidScriptCurveStoredDecode(text: string, raw: boolean): Curve | null {
-  return solidScriptCurveFromText(raw ? text.trim() : solidScriptCurveUnescape(text.trim()));
+  return solidScriptCurveFromText(raw ? text.trim() : solidScriptFieldUnescape(text.trim()));
 }
 
 /**
