@@ -42,9 +42,6 @@ export interface SolidScriptResourcePath {
  */
 export type SolidScriptResource = SolidScriptResourceTexture | SolidScriptResourceCurve | SolidScriptResourcePath;
 
-/** Prefix scripts read resources with, folded. */
-export const SOLID_SCRIPT_RESOURCE_PREFIX = '$resource.';
-
 /**
  * Tells whether a resource name is one a script can write after $Resources.: a
  * letter or underscore, then letters, digits or underscores.

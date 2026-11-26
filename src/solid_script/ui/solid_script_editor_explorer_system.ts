@@ -6,7 +6,11 @@ import {
   SOLID_SCRIPT_SYSTEM_CATALOG,
   type SolidScriptSystemCatalogEntry,
 } from '@/solid_script/language/solid_script_system_names.js';
-import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
+import { SolidScriptPathElement, solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
+import { SolidScriptResourceValues } from '@/solid_script/language/solid_script_resource_value.js';
+import { solidScriptVariableView } from '@/solid_script/language/solid_script_machine_variables.js';
+import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
+import type { SolidScriptResource } from '@/solid_script/document/solid_script_resource.js';
 import type { SolidScriptExplorerEntry, SolidScriptExplorerSystemRun } from './solid_script_editor_explorer.js';
 import { solidScriptExplorerFills, solidScriptExplorerFillText } from './solid_script_editor_explorer_context.js';
 
@@ -86,6 +90,7 @@ export function solidScriptExplorerSystemEntries(
   const lists = new Map(run.system.map((list) => [list.name, list]));
   const filling = run.stoppedBefore === null ? [] : solidScriptExplorerFills(script, run.stoppedBefore);
   return SOLID_SCRIPT_SYSTEM_CATALOG.map((value) => {
+    if (value.name === '$Resources') return solidScriptExplorerResourcesEntry(value, script);
     if (value.scoped) return solidScriptExplorerScopedEntry(value, live);
     const list = lists.get(value.name);
     const current = system.get(value.name.slice(1));
@@ -139,8 +144,63 @@ function solidScriptExplorerScopedEntry(
   const held = [...live]
     .filter(([name]) => name.toLowerCase().startsWith(prefix))
     .map(([name, variable]) => ({ ...variable, name }));
+  return solidScriptExplorerMembersEntry(value, held, 'Value');
+}
+
+/**
+ * Builds the entry of $Resources from the script's own resources, which a run
+ * reads straight from the script rather than keeping as variables: each one
+ * with the value $Resources.Name gives, by letter.
+ *
+ * @param value Catalog entry.
+ * @param script Script, with the resources of its Resources tab.
+ * @returns Entry.
+ */
+function solidScriptExplorerResourcesEntry(
+  value: SolidScriptSystemCatalogEntry,
+  script: SolidScriptDocument,
+): SolidScriptExplorerEntry {
+  const resources = script.resources ?? [];
+  const values = new SolidScriptResourceValues(resources, (path, name) => new SolidScriptPathElement(-1, name, path));
+  const held = resources.map((resource) => solidScriptExplorerResourceItem(values, resource));
+  return solidScriptExplorerMembersEntry(value, held, 'Resource');
+}
+
+/**
+ * Describes one resource as the script reads it, or why it cannot be read.
+ *
+ * @param values Resource values of the script.
+ * @param resource Resource.
+ * @returns Item named $Resources.Name, typed by its kind.
+ */
+function solidScriptExplorerResourceItem(
+  values: SolidScriptResourceValues,
+  resource: SolidScriptResource,
+): SolidScriptVariable {
+  const name = `$Resources.${resource.name}`;
+  try {
+    return { ...solidScriptVariableView(name, values.value(resource.name)), type: resource.kind };
+  } catch (error) {
+    return { name, value: solidScriptErrorText(error), type: resource.kind, items: [] };
+  }
+}
+
+/**
+ * Builds the entry of a name that opens to the names it holds, counted, such as
+ * "2 Values", or its placeholder when it holds none.
+ *
+ * @param value Catalog entry.
+ * @param held Names it holds.
+ * @param noun What one held name is, such as Value.
+ * @returns Entry.
+ */
+function solidScriptExplorerMembersEntry(
+  value: SolidScriptSystemCatalogEntry,
+  held: readonly SolidScriptVariable[],
+  noun: string,
+): SolidScriptExplorerEntry {
   const count = held.length;
-  const shown = count === 0 ? null : `${count} ${count === 1 ? 'Value' : 'Values'}`;
+  const shown = count === 0 ? null : `${count} ${noun}${count === 1 ? '' : 's'}`;
   return {
     ...solidScriptExplorerSystemEntry(value, shown),
     items: solidScriptExplorerVariablesSorted(held),
