@@ -82,12 +82,13 @@ describe('variable explorer order', () => {
 });
 
 describe('System lists every system variable', () => {
-  it('equals every selected list, built-in value and fill, plus $Local and $Persistent', () => {
+  it('equals every selected list, built-in value and fill, plus $Local, $Persistent and $Resource', () => {
     const expected = [
       ...SOLID_SCRIPT_SYSTEM_LISTED.map(([name]) => name),
       ...Object.keys(SOLID_SCRIPT_SYSTEM_FILLS),
       '$Local',
       '$Persistent',
+      '$Resource',
     ];
     const system = namesIn(solidScriptExplorerEntries(solidScriptDocumentCreate([]), [], []), 'System');
     expect(system).toEqual(alphabetical(expected));
