@@ -60,7 +60,7 @@ describe('Direction fields', () => {
       ['align', 'direction'],
       ['path', 'normal'],
       ['place_at_points', 'directions'],
-      ['find_on', 'direction'],
+      ['raycast', 'direction'],
       ['project_uvs', 'axis'],
       ['widget_slider', 'along'],
       ['sweep_along_path', 'up'],
@@ -71,7 +71,8 @@ describe('Direction fields', () => {
       ['resize', 'size'],
       ['project_uvs', 'center'],
       ['path', 'center'],
-      ['find_on', 'normal'],
+      ['raycast', 'normal'],
+      ['find_closest', 'from'],
       ['prism', 'axis'],
     ] as const)
       expect(solidScriptParameterTakesDirection(field(id, key)), `${id}.${key}`).toBe(false);

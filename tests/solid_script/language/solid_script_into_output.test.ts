@@ -232,7 +232,7 @@ function listScript(command: SolidScriptCommand): SolidScriptLine[] | null {
     command.id === 'scatter_points' ||
     command.id.startsWith('points_from_') ||
     command.id.startsWith('path_from_') ||
-    command.id === 'find_on' ||
+    ['find_closest', 'raycast', 'find_at_uv'].includes(command.id) ||
     command.id === 'face_groups'
   )
     return [

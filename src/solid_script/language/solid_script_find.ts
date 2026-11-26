@@ -4,13 +4,10 @@ import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import { solidScriptFindAtUv } from './solid_script_find_uv.js';
 import { solidScriptVectorThreeRequire } from './solid_script_vector.js';
 
-/** How Find On can look for a face. */
-export const SOLID_SCRIPT_FIND_HOW = ['Closest', 'Along Ray', 'At UV'] as const;
+/** How a find block looks for a face: Find Closest, Raycast or Find At UV. */
+export type SolidScriptFindHow = 'Closest' | 'Raycast' | 'At UV';
 
-/** One of the How words. */
-export type SolidScriptFindHow = (typeof SOLID_SCRIPT_FIND_HOW)[number];
-
-/** The face Find On hit, or a miss. */
+/** The face a find block hit, or a miss. */
 export interface SolidScriptFindHit {
   hit: boolean;
   position?: THREE.Vector3;
@@ -20,7 +17,7 @@ export interface SolidScriptFindHit {
 }
 
 /**
- * What Find On found: one hit, or one per item when From or Direction is a
+ * What a find block found: one hit, or one per item when From or Direction is a
  * list.
  */
 export interface SolidScriptFindFound {
@@ -29,32 +26,33 @@ export interface SolidScriptFindFound {
   listed: boolean;
 }
 
-/** What Find On Closest measures to: face surfaces, face edges or corners. */
+/** What Find Closest measures to: face surfaces, face edges or corners. */
 export const SOLID_SCRIPT_FIND_TARGETS = ['Faces', 'Edges', 'Corners'] as const;
 
 /** One of the Target words. */
 export type SolidScriptFindTarget = (typeof SOLID_SCRIPT_FIND_TARGETS)[number];
 
 /**
- * Finds the closest point on the faces to From, or the first hit along a ray. A
- * list of points in From, or of directions in Direction, gives one find per
- * item; a single value is used for every item. A find further than Max Distance
- * is a miss.
+ * Finds the closest point on the faces to From, the first hit along a ray, or
+ * the point at a UV. A list of points in From (or UV), or of directions in
+ * Direction, gives one find per item; a single value is used for every item. A
+ * find further than Max Distance is a miss.
  *
  * @param run Running line.
  * @param faces Faces to search.
+ * @param how How the block looks.
  * @returns The hits, or misses.
  */
 export function solidScriptFindOn(
   run: SolidScriptBlockRun,
   faces: readonly SolidScriptFaceFacts[],
+  how: SolidScriptFindHow,
 ): SolidScriptFindFound {
-  const how = solidScriptFindHow(run);
-  const froms = solidScriptFindVectors(run, 'from', 'From');
-  const directions = how === 'Along Ray' ? solidScriptFindVectors(run, 'direction', 'Direction') : null;
+  const froms = how === 'At UV' ? solidScriptFindVectors(run, 'uv', 'UV') : solidScriptFindVectors(run, 'from', 'From');
+  const directions = how === 'Raycast' ? solidScriptFindVectors(run, 'direction', 'Direction') : null;
   const sizes = [froms, directions].flatMap((list) => (list && list.listed ? [list.vectors.length] : []));
   if (new Set(sizes).size > 1) throw new Error('From and Direction need the same number of items, or one of them one');
-  const target = directions ? 'Faces' : solidScriptFindWord(run, 'target', SOLID_SCRIPT_FIND_TARGETS, 'Target');
+  const target = how === 'Closest' ? solidScriptFindWord(run, 'target', SOLID_SCRIPT_FIND_TARGETS, 'Target') : 'Faces';
   const limit = solidScriptFindLimit(run);
   const at = <T>(list: readonly T[], index: number): T => list[list.length === 1 ? 0 : index]!;
   const hits = Array.from({ length: sizes[0] ?? 1 }, (_, index) => {
@@ -71,7 +69,7 @@ export function solidScriptFindOn(
  *
  * @param how How to look.
  * @param from Point to measure from, start of the ray, or UV point.
- * @param direction Ray direction, for Along Ray.
+ * @param direction Ray direction, for Raycast.
  * @param faces Faces to search.
  * @param target What Closest measures to.
  * @returns The hit, or a miss.
@@ -115,16 +113,6 @@ function solidScriptFindLimit(run: SolidScriptBlockRun): number {
   const value = run.value('max_distance');
   if (typeof value !== 'number' || value < 0) throw new Error('Max Distance needs a number of metres of 0 or more');
   return value;
-}
-
-/**
- * Reads How, or Closest when the field is empty.
- *
- * @param run Running line.
- * @returns How word.
- */
-function solidScriptFindHow(run: SolidScriptBlockRun): SolidScriptFindHow {
-  return solidScriptFindWord(run, 'how', SOLID_SCRIPT_FIND_HOW, 'How');
 }
 
 /**

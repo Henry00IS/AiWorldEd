@@ -31,13 +31,12 @@ function printed(...lines: SolidScriptLine[]): string[] {
   return result.error ? [result.error.message] : result.messages;
 }
 
-describe('Find On per item', () => {
+describe('Find Closest and Raycast per item', () => {
   it('casts one ray per point of a list in From and writes lists, one entry per point', () => {
     expect(
       printed(
         ...SLAB,
-        line('find_on', {
-          how: 'Along Ray',
+        line('raycast', {
           from: '[1, 5, 0], [9, 5, 0], [-1, 5, 1]',
           direction: '0, -1, 0',
           into: 'Spots',
@@ -55,8 +54,8 @@ describe('Find On per item', () => {
     expect(
       printed(
         ...SLAB,
-        line('find_on', { how: 'Along Ray', from: '0, 0, 0', direction: '[1, 0, 0], [0, 1, 0]', distance: 'Far' }),
-        line('find_on', { from: '[0, 3, 0], [5, 0, 0]', into: 'Near' }),
+        line('raycast', { from: '0, 0, 0', direction: '[1, 0, 0], [0, 1, 0]', distance: 'Far' }),
+        line('find_closest', { from: '[0, 3, 0], [5, 0, 0]', into: 'Near' }),
         line('echo', { value: '[Far]|[Near]' }),
       ),
     ).toEqual(['[2, 0.5]|[[0, 0.5, 0], [2, 0, 0]]']);
@@ -66,8 +65,7 @@ describe('Find On per item', () => {
     expect(
       printed(
         ...SLAB,
-        line('find_on', {
-          how: 'Along Ray',
+        line('raycast', {
           from: '[0, 5, 0], [1, 5, 0]',
           direction: '[0, -1, 0], [0, -1, 0], [0, -1, 0]',
         }),
@@ -78,8 +76,8 @@ describe('Find On per item', () => {
   it('tells the editor the results are lists when From is a list', () => {
     const lines = [
       ...SLAB,
-      line('find_on', { from: '[0, 3, 0], [5, 0, 0]', into: 'Near', hit: 'Found' }),
-      line('find_on', { from: '0, 3, 0', into: 'One' }),
+      line('find_closest', { from: '[0, 3, 0], [5, 0, 0]', into: 'Near', hit: 'Found' }),
+      line('find_closest', { from: '0, 3, 0', into: 'One' }),
     ];
     expect(kindsEnd(lines, 'near')).toEqual(['Vector List']);
     expect(kindsEnd(lines, 'found')).toEqual(['Yes/No List']);
@@ -87,14 +85,14 @@ describe('Find On per item', () => {
   });
 });
 
-describe('Find On per item, from a variable', () => {
+describe('Raycast per item, from a variable', () => {
   it('treats a variable of points as a list even with one point, and one written vector as one find', () => {
     expect(
       printed(
         ...SLAB,
         line('variable', { name: 'Spots', value: '[=List(Vector(0, 5, 0))]' }),
-        line('find_on', { how: 'Along Ray', from: '[Spots]', direction: '0, -1, 0', distance: 'Far' }),
-        line('find_on', { how: 'Along Ray', from: '[0, 5, 0]', direction: '0, -1, 0', distance: 'One' }),
+        line('raycast', { from: '[Spots]', direction: '0, -1, 0', distance: 'Far' }),
+        line('raycast', { from: '[0, 5, 0]', direction: '0, -1, 0', distance: 'One' }),
         line('echo', { value: '[Far]|[One]' }),
       ),
     ).toEqual(['[4.5]|4.5']);

@@ -3,7 +3,10 @@ import type { SolidScriptFaceFacts } from './solid_script_geometry.js';
 import { solidScriptMemberRound } from './solid_script_members.js';
 import { solidScriptValueNumber, solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
 
-/** How Find On reads Sample: once on the face found, or at its corners blended. */
+/**
+ * How a find block reads Sample: once on the face found, or at its corners
+ * blended.
+ */
 export const SOLID_SCRIPT_FIND_BLENDS = ['Face', 'Corners'] as const;
 
 /**

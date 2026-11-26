@@ -33,15 +33,12 @@ function vectors(text: string): number[][] {
   return JSON.parse(text) as number[][];
 }
 
-describe('Find On At UV', () => {
+describe('Find At UV', () => {
   it('finds the point whose texture coordinates are From, blended from the face corners', () => {
     const uvs = vectors(ran([], '[All(0).UVs]'));
     const corners = vectors(ran([], '[All(0).Vertices.Positions]'));
     const at = (u: number, v: number): string =>
-      ran(
-        [{ command: 'find_on', values: { how: 'At UV', from: `${u}, ${v}, 0`, of: '[All]', into: 'Spot' } }],
-        '[Spot]',
-      );
+      ran([{ command: 'find_at_uv', values: { uv: `${u}, ${v}`, of: '[All]', into: 'Spot' } }], '[Spot]');
     const [u0 = 0, v0 = 0] = uvs[0] ?? [];
     const [u2 = 0, v2 = 0] = uvs[2] ?? [];
     expect(at((u0 + u2) / 2, (v0 + v2) / 2)).toBe(ran([], '[All(0).Center]'));
@@ -53,8 +50,6 @@ describe('Find On At UV', () => {
   });
 
   it('misses outside every face', () => {
-    expect(
-      ran([{ command: 'find_on', values: { how: 'At UV', from: '50, 50, 0', of: '[All]', hit: 'Hit' } }], '[Hit]'),
-    ).toBe('No');
+    expect(ran([{ command: 'find_at_uv', values: { uv: '50, 50', of: '[All]', hit: 'Hit' } }], '[Hit]')).toBe('No');
   });
 });

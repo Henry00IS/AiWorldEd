@@ -952,7 +952,7 @@ export function solidScriptDocumentFunctionGives(
 
 /**
  * Kinds a field declared as one kind gives: a list of that kind when a field it
- * follows per item holds a list, such as Find On From given [Points], and
+ * follows per item holds a list, such as Find Closest From given [Points], and
  * either when such a field may hold one.
  *
  * @param kind Declared kind, such as Vector.

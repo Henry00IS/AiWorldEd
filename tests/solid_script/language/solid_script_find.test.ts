@@ -29,7 +29,7 @@ function printed(...lines: SolidScriptLine[]): string[] {
   return result.messages;
 }
 
-describe('SolidScript Find On', () => {
+describe('Solid Script Find Closest and Raycast', () => {
   it('finds the closest point on a brush or a mesh, and the first hit along a ray', () => {
     const fields = {
       from: '0, 3, 0',
@@ -43,7 +43,7 @@ describe('SolidScript Find On', () => {
         CUBE,
         SELECT_BRUSHES,
         SELECT_ALL,
-        { command: 'find_on', values: fields },
+        { command: 'find_closest', values: fields },
         { command: 'echo', values: { value: '[Found] [Spot] [Dist] [Way]' } },
       ),
     ).toEqual(['Yes [0, 1, 0] 2 [0, 1, 0]']);
@@ -54,7 +54,7 @@ describe('SolidScript Find On', () => {
         END,
         SELECT_BRUSHES,
         SELECT_ALL,
-        { command: 'find_on', values: fields },
+        { command: 'find_closest', values: fields },
         { command: 'echo', values: { value: '[Found] [Spot] [Dist]' } },
       ),
     ).toEqual(['Yes [0, 1, 0] 2']);
@@ -64,8 +64,8 @@ describe('SolidScript Find On', () => {
         SELECT_BRUSHES,
         SELECT_ALL,
         {
-          command: 'find_on',
-          values: { how: 'Along Ray', from: '0, 0, 0', direction: '0, 1, 0', into: 'Spot', hit: 'Found' },
+          command: 'raycast',
+          values: { from: '0, 0, 0', direction: '0, 1, 0', into: 'Spot', hit: 'Found' },
         },
         { command: 'echo', values: { value: '[Found] [Spot]' } },
       ),
@@ -78,14 +78,14 @@ describe('SolidScript Find On', () => {
         CUBE,
         SELECT_BRUSHES,
         SELECT_ALL,
-        { command: 'find_on', values: { how: 'Along Ray', from: '0, 3, 0', direction: '0, 1, 0', hit: 'Found' } },
+        { command: 'raycast', values: { from: '0, 3, 0', direction: '0, 1, 0', hit: 'Found' } },
         { command: 'echo', values: { value: '[Found]' } },
       ),
     ).toEqual(['No']);
     expect(
       run(CUBE, SELECT_BRUSHES, SELECT_ALL, {
-        command: 'find_on',
-        values: { how: 'Along Ray', from: '0, 0, 0', direction: '0, 0, 0' },
+        command: 'raycast',
+        values: { from: '0, 0, 0', direction: '0, 0, 0' },
       }).error?.text,
     ).toMatch(/Line \d+: Direction needs a direction that is not 0, 0, 0/);
   });
