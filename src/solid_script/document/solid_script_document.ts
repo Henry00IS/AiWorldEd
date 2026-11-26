@@ -3,6 +3,7 @@ import {
   solidScriptResourcesNormalize,
   type SolidScriptResource,
 } from './solid_script_resource.js';
+import { solidScriptDocumentJsonMigrate } from './solid_script_document_json_migrate.js';
 import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 
@@ -193,7 +194,9 @@ export function solidScriptDocumentNormalize(input: unknown): SolidScriptDocumen
     solidScriptDocumentAuthorWith(used, author),
     record['editMode'] === true,
   );
-  return solidScriptDocumentResourcesWith(edited, solidScriptResourcesNormalize(record['resources']));
+  return solidScriptDocumentJsonMigrate(
+    solidScriptDocumentResourcesWith(edited, solidScriptResourcesNormalize(record['resources'])),
+  );
 }
 
 /**
