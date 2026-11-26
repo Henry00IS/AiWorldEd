@@ -324,7 +324,10 @@ export interface SolidScriptBlockRun {
   use(): SolidScriptUseFacts;
   /** The move of the Transform block around this line. */
   matrix(): THREE.Matrix4;
-  /** Reads a resource of the script by its name after $Resource.; the run's copy. */
+  /**
+   * Reads a resource of the script by its name after $Resource.; the run's
+   * copy.
+   */
   resource(name: string): SolidScriptValue;
   /** Defines a script input: a variable lines may only read. */
   inputDefine(name: string, value: SolidScriptValue): void;
