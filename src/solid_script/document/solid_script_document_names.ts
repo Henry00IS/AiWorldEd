@@ -469,7 +469,7 @@ export function solidScriptDocumentNamesAt(document: SolidScriptDocument, positi
   const open = solidScriptNamesOpen(document, position);
   const list = new SolidScriptNameList(true);
   for (const entry of solidScriptDocumentNames(document))
-    if (!SOLID_SCRIPT_NAMES_SCOPED.includes(entry.category)) list.names.push(entry);
+    if (!SOLID_SCRIPT_NAMES_SCOPED.includes(entry.category) && entry.category !== 'Resources') list.names.push(entry);
   const functionLine = open
     .filter((line) => {
       const block = document.blocks[line];
@@ -482,7 +482,8 @@ export function solidScriptDocumentNamesAt(document: SolidScriptDocument, positi
     if (block)
       for (const counter of solidScriptNameCounters(block)) list.add(counter.name, 'Counters', line, counter.detail);
   }
-  return solidScriptNamesKinds(list.names, solidScriptDocumentFlowAt(document, position), document);
+  const named = solidScriptNamesKinds(list.names, solidScriptDocumentFlowAt(document, position), document);
+  return [...named, ...solidScriptNamesResources(document)];
 }
 
 /**

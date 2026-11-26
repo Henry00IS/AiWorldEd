@@ -1,0 +1,78 @@
+import { describe, expect, it } from 'vitest';
+import { solidScriptConfiguratorFieldBuild } from '@/solid_script/ui/solid_script_configurator_fields.js';
+import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
+import { solidScriptDocumentNamesAt } from '@/solid_script/document/solid_script_document_names.js';
+import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
+import { curveFromPolyline } from '@/curve/model/curve_model.js';
+import { solidScriptResourceCurve } from '@/solid_script/document/solid_script_resource.js';
+import type { SolidScriptName } from '@/solid_script/document/solid_script_document_names.js';
+import type { SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
+
+/** Names of a script with one texture resource and two curve resources. */
+const NAMES: SolidScriptName[] = [
+  { name: '$Resource.Brick', category: 'Resources', line: 0, detail: 'texture resource', kinds: ['Texture'] },
+  { name: '$Resource.Arch', category: 'Resources', line: 0, detail: 'curve resource', kinds: ['Curve'] },
+  { name: '$Resource.Ramp', category: 'Resources', line: 0, detail: 'curve resource', kinds: ['Curve'] },
+];
+
+/**
+ * Builds one field seeing the resources above.
+ *
+ * @param parameter Field.
+ * @param value Stored text.
+ * @returns Field.
+ */
+function build(parameter: SolidScriptCommandParameter, value: string) {
+  const field = solidScriptConfiguratorFieldBuild(parameter, value, () => {}, { names: NAMES, extra: [] });
+  document.body.replaceChildren(field.element);
+  return field;
+}
+
+/**
+ * Finds the first field of a command that has a curve.
+ *
+ * @returns Field.
+ */
+function curveParameter(): SolidScriptCommandParameter {
+  return solidScriptCommandFind('column')!.parameters.find((parameter) => parameter.curve !== undefined)!;
+}
+
+describe('SolidScript fields picking resources', () => {
+  it('lists texture resources in texture pickers and keeps picking them', () => {
+    const field = build(solidScriptCommandFind('texture')!.parameters[0]!, '[$Resource.Brick]');
+    const select = field.element.querySelector<HTMLSelectElement>('select')!;
+    expect(select.hidden).toBe(false);
+    expect([...select.options].map((option) => option.textContent)).toContain('Resource.Brick');
+    expect(select.value).toBe('[$Resource.Brick]');
+    expect(field.read()).toBe('[$Resource.Brick]');
+  });
+
+  it('lists only curve resources in the curve resource picker and stores the picked one', () => {
+    const field = build(curveParameter(), '');
+    const select = field.element.querySelector<HTMLSelectElement>('select[aria-label$="resource"]')!;
+    expect([...select.options].map((option) => option.value)).toEqual(['', '[$Resource.Arch]', '[$Resource.Ramp]']);
+    select.value = '[$Resource.Ramp]';
+    select.dispatchEvent(new Event('change'));
+    expect(field.read()).toBe('[$Resource.Ramp]');
+    select.value = '';
+    select.dispatchEvent(new Event('change'));
+    expect(field.read()).toBe('');
+  });
+
+  it('opens a stored curve resource in Pick mode with the resource selected', () => {
+    const field = build(curveParameter(), '[$Resource.Arch]');
+    const select = field.element.querySelector<HTMLSelectElement>('select[aria-label$="resource"]')!;
+    expect(select.hidden).toBe(false);
+    expect(select.value).toBe('[$Resource.Arch]');
+  });
+
+  it('gives the names of the script resources with their kinds', () => {
+    const curve = curveFromPolyline([
+      [0, 0],
+      [1, 1],
+    ]);
+    const document = { ...solidScriptDocumentCreate([]), resources: [solidScriptResourceCurve('Arch', curve)] };
+    const names = solidScriptDocumentNamesAt(document, 0).filter((name) => name.category === 'Resources');
+    expect(names).toEqual([expect.objectContaining({ name: '$Resource.Arch', kinds: ['Curve'] })]);
+  });
+});
