@@ -7,16 +7,10 @@ import type { ProjectFileRecord, ProjectSnapshot } from '@/project/scan/project_
 import { projectSnapshotEmpty } from '@/project/scan/project_snapshot.js';
 import type { ProjectFileSystemWatchMode } from '@/project/fs/project_file_system.js';
 import { PANEL_PROJECT_CLASS, panelProjectStylesheetEnsure } from './panel_project_styles.js';
-import { PANEL_PROJECT_PATH_DRAG_TYPE, panelProjectTileDragBind } from './panel_project_drag.js';
-import { MenuContext, type MenuContextItem } from '@/ui/menu/menu_context.js';
-import { ThumbnailGrid, thumbnailGridThumbCreate, thumbnailGridThumbSet } from '@/ui/thumbnail_grid/thumbnail_grid.js';
-import {
-  VIRTUAL_LIST_SCROLLBAR_BIND_SCROLLER_CLASS,
-  virtualListScrollbarBind,
-  virtualListScrollbarBindStylesEnsure,
-  virtualListScrollbarGutterSync,
-  type VirtualListScrollbarBinding,
-} from '@/ui/virtual_list/virtual_list_scrollbar_bind.js';
+import { PANEL_PROJECT_PATH_DRAG_TYPE } from './panel_project_drag.js';
+import { PanelProjectGrid, panelProjectDiv } from './panel_project_grid.js';
+import type { MenuContextItem } from '@/ui/menu/menu_context.js';
+import { thumbnailGridThumbCreate } from '@/ui/thumbnail_grid/thumbnail_grid.js';
 import { FolderTree } from '@/ui/folder_tree/folder_tree.js';
 import { IconFolderTree } from '@/ui/folder_tree/icon_folder_tree.js';
 import {
@@ -26,7 +20,6 @@ import {
   panelProjectFolderExists,
   panelProjectFolderHoldsFiles,
   panelProjectFolderRows,
-  panelProjectSizeText,
   panelProjectVirtualRootOf,
   type PanelProjectFolderRow,
 } from './panel_project_view.js';
@@ -36,35 +29,6 @@ export const PANEL_PROJECT_DEFAULT_WIDTH_PX = 560;
 
 /** Default outer height of the project panel in pixels. */
 export const PANEL_PROJECT_DEFAULT_HEIGHT_PX = 380;
-
-/**
- * Narrowest file grid column, gap between tiles, and tile padding plus border
- * (both sides).
- */
-const PANEL_PROJECT_TILE_MIN_PX = 84;
-const PANEL_PROJECT_TILE_GAP_PX = 6;
-const PANEL_PROJECT_TILE_CHROME_PX = 10;
-
-/** File grid padding while it does not scroll. */
-const PANEL_PROJECT_GRID_PADDING_PX = 8;
-
-/** Scrollbar arrow step of the file grid. */
-const PANEL_PROJECT_GRID_STEP_PX = 40;
-
-/** Kinds whose tiles show an image preview instead of a label. */
-const PANEL_PROJECT_PREVIEW_KINDS: ReadonlySet<string> = new Set(['texture', 'curve', 'scene']);
-
-/** Labels shown on file tiles that have no image preview. */
-const PANEL_PROJECT_KIND_LABELS: Readonly<Record<string, string>> = {
-  scene: 'LEVEL',
-  vmf: 'VMF',
-  obj: 'OBJ',
-  glb: 'GLB',
-  fbx: 'FBX',
-  curve: 'CURVE',
-  script: 'SCRIPT',
-  path: 'PATH',
-};
 
 /** Everything the project panel shows. */
 export interface PanelProjectState {
@@ -121,16 +85,10 @@ export class PanelProject extends PanelFloating {
   /** Folder row under the pointer or keyboard focus, or null. */
   private hoverFolder: string | null = null;
   private readonly tree: FolderTree<PanelProjectFolderRow>;
-  private readonly grid: HTMLElement;
-  private readonly gridHost: HTMLElement;
-  private readonly scrollbars: { scroller: HTMLElement; binding: VirtualListScrollbarBinding; padding: number }[] = [];
-  private scrollObserver: ResizeObserver | null = null;
-  private thumbnails: ThumbnailGrid | null = null;
+  private readonly files: PanelProjectGrid;
   private readonly statusLabel: HTMLElement;
   private state: PanelProjectState;
   private folder: string;
-  private selectedPath: string | null;
-  private menu: MenuContext | null = null;
 
   /**
    * Creates the project panel attached to the host element.
@@ -153,8 +111,7 @@ export class PanelProject extends PanelFloating {
     // Both texts share one cell, so switching between them keeps the height.
     this.notice.append(this.noticeMain, this.noticeLocal);
     this.tree = this.treeCreate();
-    this.grid = panelProjectDiv('grid');
-    this.gridHost = panelProjectDiv('grid-host');
+    this.files = new PanelProjectGrid(handlers, this.root);
     this.statusLabel = panelProjectDiv('status');
     this.state = {
       name: null,
@@ -165,9 +122,7 @@ export class PanelProject extends PanelFloating {
       writable: false,
     };
     this.folder = '';
-    this.selectedPath = null;
     this.populateRoot();
-    this.scrollbarsBind();
     this.render(this.state);
   }
 
@@ -200,13 +155,7 @@ export class PanelProject extends PanelFloating {
 
   /** Fills in thumbnails that finished loading since the last render. */
   thumbnailsRefresh(): void {
-    this.grid.querySelectorAll<HTMLElement>('[data-file-path]').forEach((tile) => {
-      const record = this.state.snapshot.files.get(tile.dataset['filePath'] ?? '');
-      const thumb = tile.firstElementChild as HTMLElement | null;
-      if (!record || !thumb || !PANEL_PROJECT_PREVIEW_KINDS.has(record.kind)) return;
-      this.thumbShow(thumb, record);
-    });
-    this.thumbnails?.draw();
+    this.files.thumbnailsRefresh((path) => this.state.snapshot.files.get(path));
   }
 
   /**
@@ -269,12 +218,8 @@ export class PanelProject extends PanelFloating {
 
   /** Closes the tile menu and removes the panel. */
   override dispose(): void {
-    this.menu?.dispose();
-    this.menu = null;
-    this.scrollObserver?.disconnect();
-    this.thumbnails?.dispose();
+    this.files.dispose();
     this.tree.dispose();
-    this.scrollbars.forEach(({ binding }) => binding.dispose());
     super.dispose();
   }
 
@@ -291,8 +236,7 @@ export class PanelProject extends PanelFloating {
     });
     const title = this.createStandardTitleBar({ titleText: 'Project', monospaceTitle: true, flexShrinkZero: true });
     const body = panelProjectDiv('body');
-    this.gridHost.append(this.grid);
-    body.append(this.tree.host, this.gridHost);
+    body.append(this.tree.host, this.files.host);
     const scroller = this.tree.scroller;
     for (const type of ['mouseover', 'focusin'] as const) scroller.addEventListener(type, (e) => this.folderHover(e));
     for (const type of ['mouseleave', 'focusout'] as const)
@@ -316,31 +260,6 @@ export class PanelProject extends PanelFloating {
     });
     tree.host.classList.add(`${PANEL_PROJECT_CLASS}-tree-host`);
     return tree;
-  }
-
-  /**
-   * Puts the outliner's custom scrollbar on the file grid (the same one the
-   * texture browser and the folder tree use), and keeps the grid's columns and
-   * thumbnails on whole pixels.
-   */
-  private scrollbarsBind(): void {
-    virtualListScrollbarBindStylesEnsure();
-    this.grid.classList.add(VIRTUAL_LIST_SCROLLBAR_BIND_SCROLLER_CLASS);
-    const binding = virtualListScrollbarBind(this.gridHost, this.grid, PANEL_PROJECT_GRID_STEP_PX);
-    this.scrollbars.push({ scroller: this.grid, binding, padding: PANEL_PROJECT_GRID_PADDING_PX });
-    this.scrollObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.scrollLayout());
-    this.scrollObserver?.observe(this.grid);
-    this.thumbnails = new ThumbnailGrid(this.grid, {
-      minColumnPx: PANEL_PROJECT_TILE_MIN_PX,
-      gapPx: PANEL_PROJECT_TILE_GAP_PX,
-      tileChromePx: PANEL_PROJECT_TILE_CHROME_PX,
-    });
-  }
-
-  /** Reserves the scrollbar gutters while content overflows, and syncs the bars. */
-  private scrollLayout(): void {
-    for (const { scroller, binding, padding } of this.scrollbars)
-      virtualListScrollbarGutterSync(scroller, binding, padding);
   }
 
   /**
@@ -441,12 +360,8 @@ export class PanelProject extends PanelFloating {
     const list = panelProjectFiles(this.state.snapshot, this.folder, query);
     if (list.total === 0 && folders.length === 0)
       return this.gridEmpty(panelProjectNoFilesText(this.state, this.folder, query));
-    const scroll = this.grid.scrollTop;
     const folderTiles = folders.map((row) => this.folderTileElement(row));
-    this.grid.replaceChildren(...folderTiles, ...list.files.map((record) => this.tileElement(record)));
-    this.grid.scrollTop = scroll;
-    this.scrollLayout();
-    this.thumbnails?.draw();
+    this.files.show([...folderTiles, ...list.files.map((record) => this.files.fileTile(record))]);
     this.statusLabel.textContent = this.gridStatusText(folders.length, list.total, list.files.length);
   }
 
@@ -490,13 +405,13 @@ export class PanelProject extends PanelFloating {
     tile.dataset['folderTile'] = row.path;
     tile.setAttribute('role', 'option');
     tile.setAttribute('aria-label', `Folder ${row.name}`);
-    tile.setAttribute('aria-selected', row.path === this.selectedPath ? 'true' : 'false');
+    tile.setAttribute('aria-selected', String(this.files.selected(row.path)));
     tile.tabIndex = 0;
     tile.title = panelProjectFolderTitle(row);
     const name = panelProjectDiv('name');
     name.textContent = row.name;
     tile.append(panelProjectFolderThumb(), name);
-    tile.addEventListener('click', () => this.tileSelect(row.path));
+    tile.addEventListener('click', () => this.files.select(row.path));
     tile.addEventListener('dblclick', () => this.folderOpen(row.path));
     tile.addEventListener('keydown', (event) => event.key === 'Enter' && this.folderOpen(row.path));
     this.folderDropBind(tile, row.path);
@@ -520,98 +435,8 @@ export class PanelProject extends PanelFloating {
    * @param text Message.
    */
   private gridEmpty(text: string): void {
-    const empty = panelProjectDiv('empty');
-    empty.textContent = text;
-    this.grid.replaceChildren(empty);
-    this.scrollLayout();
+    this.files.empty(text);
     this.statusLabel.textContent = this.state.name === null ? 'No project open' : '0 files';
-  }
-
-  /**
-   * Creates one file tile.
-   *
-   * @param record File record.
-   * @returns Tile element.
-   */
-  private tileElement(record: ProjectFileRecord): HTMLElement {
-    const tile = panelProjectDiv('tile');
-    tile.dataset['filePath'] = record.path;
-    tile.setAttribute('role', 'option');
-    tile.setAttribute('aria-label', record.path);
-    tile.setAttribute('aria-selected', record.path === this.selectedPath ? 'true' : 'false');
-    tile.tabIndex = 0;
-    tile.title = `${record.path}\n${panelProjectSizeText(record.size)} · ${new Date(record.lastModified).toLocaleString()}`;
-    const name = panelProjectDiv('name');
-    name.textContent = record.name;
-    tile.append(this.thumbElement(record), name);
-    tile.addEventListener('click', () => this.tileSelect(record.path));
-    panelProjectTileDragBind(tile, record.path);
-    tile.addEventListener('dblclick', () => this.handlers.onActivate(record));
-    tile.addEventListener('keydown', (event) => event.key === 'Enter' && this.handlers.onActivate(record));
-    tile.addEventListener('contextmenu', (event) => this.tileMenu(event, record));
-    return tile;
-  }
-
-  /**
-   * Opens the context menu of a tile, when it has one.
-   *
-   * @param event Context menu event.
-   * @param record File record.
-   */
-  private tileMenu(event: MouseEvent, record: ProjectFileRecord): void {
-    const items = this.handlers.menu?.(record) ?? [];
-    if (items.length === 0) return;
-    event.preventDefault();
-    this.tileSelect(record.path);
-    this.menu?.dispose();
-    this.menu = new MenuContext(this.root, items);
-    this.menu.show(event.clientX, event.clientY);
-  }
-
-  /**
-   * Creates the thumbnail or kind badge of a tile.
-   *
-   * @param record File record.
-   * @returns Thumbnail element.
-   */
-  private thumbElement(record: ProjectFileRecord): HTMLElement {
-    // The texture browser's thumbnail: textures fill it, drawn curves fit inside.
-    const thumb = thumbnailGridThumbCreate(
-      `${PANEL_PROJECT_CLASS}-thumb`,
-      null,
-      record.kind === 'texture' ? 'cover' : 'contain',
-    );
-    thumb.dataset['kind'] = record.kind;
-    this.thumbShow(thumb, record);
-    return thumb;
-  }
-
-  /**
-   * Shows a file's preview in its thumbnail, or its kind label while it has
-   * none.
-   *
-   * @param thumb Thumbnail element.
-   * @param record File record.
-   */
-  private thumbShow(thumb: HTMLElement, record: ProjectFileRecord): void {
-    const url = PANEL_PROJECT_PREVIEW_KINDS.has(record.kind) ? this.handlers.thumbnail(record) : null;
-    thumbnailGridThumbSet(thumb, url || null);
-    if (url) {
-      if (thumb.firstChild?.nodeType === Node.TEXT_NODE) thumb.firstChild.remove();
-    } else thumb.textContent = PANEL_PROJECT_KIND_LABELS[record.kind] ?? '…';
-  }
-
-  /**
-   * Highlights one tile.
-   *
-   * @param path File or folder path.
-   */
-  private tileSelect(path: string): void {
-    this.selectedPath = path;
-    this.grid.querySelectorAll<HTMLElement>('[data-file-path], [data-folder-tile]').forEach((tile) => {
-      const tilePath = tile.dataset['filePath'] ?? tile.dataset['folderTile'];
-      tile.setAttribute('aria-selected', tilePath === path ? 'true' : 'false');
-    });
   }
 }
 
@@ -639,18 +464,6 @@ function panelProjectFolderThumb(): HTMLElement {
   thumb.dataset['kind'] = 'folder';
   thumb.innerHTML = IconFolderTree.closed();
   return thumb;
-}
-
-/**
- * Creates a div with a project panel class.
- *
- * @param part Class suffix.
- * @returns Element.
- */
-function panelProjectDiv(part: string): HTMLElement {
-  const element = document.createElement('div');
-  element.className = `${PANEL_PROJECT_CLASS}-${part}`;
-  return element;
 }
 
 /**
