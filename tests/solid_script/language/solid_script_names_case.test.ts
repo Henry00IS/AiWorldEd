@@ -37,6 +37,17 @@ describe('names ignore case', () => {
     expect(result.variables.map((variable) => variable.name)).not.toContain('count');
   });
 
+  it('show stored persistent values as the script writes them, else with a capital', () => {
+    const result = solidScriptProgramRun(
+      solidScriptDocumentCreate([echo('[$Persistent.Arm]'), { command: 'cube', values: {} }]),
+      { persistent: { arm: 3, steplength: 2 } },
+    );
+    expect(result.messages).toEqual(['3']);
+    expect(result.variables.map((variable) => variable.name)).toEqual(
+      expect.arrayContaining(['$Persistent.Arm', '$Persistent.Steplength']),
+    );
+  });
+
   it('give an Input the value stored under another spelling of its name', () => {
     const lines = solidScriptDocumentCreate([
       { command: 'input', values: { name: 'TopSize', type: 'Number', default: '1' } },

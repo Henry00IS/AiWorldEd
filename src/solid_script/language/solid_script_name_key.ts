@@ -50,7 +50,7 @@ export function solidScriptNameIsSystem(name: string): boolean {
 /**
  * Returns the key a name is stored and looked up under.
  *
- * @param name Name as written, such as StepHeight or $local.Count.
+ * @param name Name as written, such as StepHeight or $Local.Count.
  * @returns Key, such as stepheight.
  */
 export function solidScriptNameKey(name: string): string {
@@ -65,7 +65,8 @@ export function solidScriptNameKey(name: string): string {
 
 /**
  * Spells a name key for a message or the debugger as it was written, with
- * $Local. and $Persistent. as taught, such as $Local.Width for $Local.Width.
+ * $Local. and $Persistent. as taught, such as $Local.Width for $local.width. A
+ * name no script wrote, such as one only stored, starts with a capital.
  *
  * @param key Key.
  * @param written Finds how a key was written, or undefined.
@@ -75,7 +76,9 @@ export function solidScriptNameSpelling(key: string, written: (key: string) => s
   const prefix = SOLID_SCRIPT_NAME_PREFIXES.find(([folded]) => key.startsWith(folded));
   if (!prefix) return written(key) ?? key;
   const bare = key.slice(prefix[0].length);
-  return prefix[1] + (written(bare) ?? written(key)?.slice(prefix[0].length) ?? bare);
+  return (
+    prefix[1] + (written(bare) ?? written(key)?.slice(prefix[0].length) ?? bare.charAt(0).toUpperCase() + bare.slice(1))
+  );
 }
 
 /**

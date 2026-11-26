@@ -657,7 +657,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     if (this.used) throw new Error('a script machine runs once; make a new one for every run');
     this.used = true;
     for (const [name, value] of solidScriptPersistentRead(this.inputs, this.persistentStored))
-      this.persistent.variableDefine(this.nameKey(name), value);
+      this.persistent.variableDefine(solidScriptNameKey(name), value);
   }
 
   /**
