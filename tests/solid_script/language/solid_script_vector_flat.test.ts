@@ -92,8 +92,9 @@ describe('SolidScript flat vectors: [x, y] is [x, y, 0]', () => {
     expect(printed(set('V', '[1, 2], [3, 4]'), echo('[V]'))).toEqual(['[[1, 2], [3, 4]]']);
   });
 
-  it('still stops on brackets of one number or of four, with the rule', () => {
-    expect(failure(set('V', '[1,2,3,4]'))).toMatch(/2 or 3 numbers/);
+  it('reads brackets of one number or of four as a list, and stops on a vector with a number left out', () => {
+    expect(printed(set('V', '[1,2,3,4]'), echo('[V.Count]'))).toEqual(['4']);
+    expect(printed(set('V', '[7]'), echo('[V.Count]'))).toEqual(['1']);
     expect(failure(set('V', '[1,]'))).toMatch(/Did you mean to write \[1, 0\]\?/);
   });
 

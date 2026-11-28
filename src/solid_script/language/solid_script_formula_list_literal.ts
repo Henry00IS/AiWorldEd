@@ -66,6 +66,30 @@ export function solidScriptFormulaListInline(group: SolidScriptFieldGroup): bool
 }
 
 /**
+ * Tells whether a bracketed part standing in field text itself, outside any
+ * formula, is a list: one a formula would read as a list, with no item left
+ * out, so [1, 2, 3, 4], ["a"] and [] are lists while [1,] stays a vector with a
+ * missing number.
+ *
+ * @param group Bracketed part.
+ * @returns True for a list.
+ */
+export function solidScriptFormulaListOuter(group: SolidScriptFieldGroup): boolean {
+  if (!solidScriptFormulaListInline(group)) return false;
+  const tokens = solidScriptFormulaListTokens(group.pieces) ?? [];
+  let depth = 0;
+  let gap = true;
+  for (const token of tokens) {
+    const text = token.kind === 'symbol' ? token.text : '';
+    if (text === '(' || text === '[') depth++;
+    else if (text === ')' || text === ']') depth--;
+    if (depth === 0 && text === ',' && gap) return false;
+    gap = depth === 0 && text === ',';
+  }
+  return tokens.length === 0 || !gap;
+}
+
+/**
  * Reads the text of a bracket the way a formula reads it, each inner bracketed
  * part standing as one name.
  *
@@ -113,8 +137,8 @@ function solidScriptFormulaListSingle(tokens: readonly SolidScriptToken[]): bool
 
 /**
  * Finds where each list in brackets of field text that a formula reads itself
- * starts, inside every [= ] formula, or anywhere when the whole text is a
- * formula.
+ * starts: one standing in the field text itself, and any inside every [= ]
+ * formula or such a list, or anywhere when the whole text is a formula.
  *
  * @param pieces Pieces of the field text.
  * @param formula True when the pieces stand inside a formula.
@@ -122,17 +146,18 @@ function solidScriptFormulaListSingle(tokens: readonly SolidScriptToken[]): bool
  */
 export function solidScriptFormulaListStarts(pieces: readonly SolidScriptFieldPiece[], formula: boolean): Set<number> {
   const starts = new Set<number>();
-  const walk = (list: readonly SolidScriptFieldPiece[], inside: boolean): void => {
+  const walk = (list: readonly SolidScriptFieldPiece[], inside: boolean, outer: boolean): void => {
     for (const piece of list) {
       if (piece.kind === 'plain') continue;
       const first = piece.pieces[0];
       const opens = first?.kind === 'plain' && first.text.trimStart().startsWith('=');
-      const inline = inside && !opens && solidScriptFormulaListInline(piece);
+      const inline =
+        !opens && (inside ? solidScriptFormulaListInline(piece) : outer && solidScriptFormulaListOuter(piece));
       if (inline) starts.add(piece.from);
-      walk(piece.pieces, opens || inline);
+      walk(piece.pieces, opens || inline, false);
     }
   };
-  walk(pieces, formula);
+  walk(pieces, formula, true);
   return starts;
 }
 

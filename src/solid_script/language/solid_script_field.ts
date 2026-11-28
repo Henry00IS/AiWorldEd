@@ -6,7 +6,11 @@ import { solidScriptNameDotProblem, solidScriptSystemIsVector } from './solid_sc
 import type { SolidScriptValue } from './solid_script_value.js';
 import { SolidScriptPathElement, solidScriptValueText } from './solid_script_value.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
-import { solidScriptFieldVectorRead, solidScriptFormulaListStarts } from './solid_script_formula_list_literal.js';
+import {
+  solidScriptFieldVectorRead,
+  solidScriptFormulaListOuter,
+  solidScriptFormulaListStarts,
+} from './solid_script_formula_list_literal.js';
 import { SOLID_SCRIPT_ESCAPED, solidScriptStringEscapes } from './solid_script_lexer.js';
 import * as THREE from 'three';
 import { solidScriptPathFlat, solidScriptPathLoopOpen } from './solid_script_path_flat.js';
@@ -330,6 +334,20 @@ export function solidScriptFieldPieces(text: string, formula = false): SolidScri
 }
 
 /**
+ * Compiles a bracketed part that stands in the field text itself: a list
+ * written in brackets, such as [], [1, 2, 3, 4], ["a", "b"] or [[1, 2], [3,
+ * 4]], is read the way a formula reads it; anything else, such as [Name], [=1 +
+ * 2], the vector [1, 2] or the unfinished vector [1,], is read as a bracket.
+ *
+ * @param group Bracketed part.
+ * @returns Compiled part.
+ */
+function solidScriptFieldOuterCompile(group: SolidScriptFieldGroup): SolidScriptFieldCompiled {
+  if (!solidScriptFormulaListOuter(group)) return solidScriptFieldGroupCompile(group.pieces);
+  return solidScriptFieldFormulaCompile([{ kind: 'plain', text: '=' }, group], solidScriptFieldGroupCompile);
+}
+
+/**
  * Compiles a bracketed part: a formula after =, otherwise a variable name.
  * Parts inside a name are read first.
  *
@@ -475,15 +493,12 @@ function solidScriptFieldItemCompile(pieces: readonly SolidScriptFieldPiece[]): 
 function solidScriptFieldTemplateCompile(text: string): SolidScriptFieldCompiled {
   const pieces = solidScriptFieldPieces(text);
   const meaningful = pieces.filter((piece) => piece.kind === 'group' || piece.text.trim() !== '');
-  if (meaningful.length === 1 && meaningful[0]!.kind === 'group')
-    return solidScriptFieldGroupCompile(meaningful[0]!.pieces);
+  if (meaningful.length === 1 && meaningful[0]!.kind === 'group') return solidScriptFieldOuterCompile(meaningful[0]!);
   if (pieces.every((piece) => piece.kind === 'plain')) {
     const plain = pieces.map((piece) => (piece.kind === 'plain' ? piece.text : '')).join('');
     return () => plain;
   }
-  const parts = pieces.map((piece) =>
-    piece.kind === 'plain' ? piece.text : solidScriptFieldGroupCompile(piece.pieces),
-  );
+  const parts = pieces.map((piece) => (piece.kind === 'plain' ? piece.text : solidScriptFieldOuterCompile(piece)));
   return (context) => {
     let out = '';
     for (const part of parts) out += typeof part === 'string' ? part : solidScriptValueText(part(context));

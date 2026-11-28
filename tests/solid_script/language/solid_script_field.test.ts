@@ -112,11 +112,11 @@ describe('SolidScript field text', () => {
     expect(() => solidScriptFieldResolve('text', 'A [note]', CONTEXT)).toThrow(/note/);
   });
 
-  it('explains unbalanced brackets, empty brackets and a lone $ that is just a dollar', () => {
+  it('explains unbalanced brackets and a lone $ that is just a dollar, and reads [] as an empty list', () => {
     expect(solidScriptFieldCheck('[width')).toMatch(/\[ has no \]/);
     expect(solidScriptFieldCheck('width]')).toMatch(/\] has no \[/);
     expect(solidScriptFieldCheck('cost $')).toBe('');
-    expect(() => solidScriptFieldResolve('number', '[]', CONTEXT)).toThrow(/empty/);
+    expect(solidScriptFieldCheck('[]')).toBe('');
     expect(() => solidScriptFieldResolve('number', '[=]', CONTEXT)).toThrow(/no formula/);
     expect(solidScriptFieldCheck('[=[i] * 2], 0, 0')).toBe('');
   });

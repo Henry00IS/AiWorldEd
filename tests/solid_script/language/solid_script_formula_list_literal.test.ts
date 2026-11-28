@@ -138,12 +138,14 @@ describe('SolidScript list brackets: what is a list and what stays a name', () =
     expect(solidScriptFormulaListWrite(['1', '"b"', '[X]'])).toBe('[1, "b", [X]]');
   });
 
-  it('checks lists in formulas before the run, and keeps fields outside formulas as they were', () => {
+  it('checks lists in formulas and in field text before the run', () => {
     expect(solidScriptFieldCheck('[=Len([0, 1])]')).toBe('');
     expect(solidScriptFieldCheck('[=Len([0, [1.5], "a.b"])]')).toBe('');
     expect(solidScriptFieldCheck('Len([0, 1]) == 2', true)).toBe('');
     expect(solidScriptFieldCheck('[0, 1]')).toBe('');
-    expect(solidScriptFieldCheck('[0, 1, 2, 3]')).toMatch(/is not a vector/);
+    expect(solidScriptFieldCheck('[0, 1, 2, 3]')).toBe('');
+    expect(solidScriptFieldCheck('[0, 1, 2,]')).toMatch(/is not a vector/);
+    expect(solidScriptFieldCheck('[0,]')).toMatch(/is not a vector/);
     expect(solidScriptFormulaProblem('Reversed(["a", "b"])')).toBe('');
     expect(solidScriptFormulaProblem('[0, [1, 1, 1], "Easy"]')).toBe('');
   });
