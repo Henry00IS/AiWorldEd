@@ -46,8 +46,8 @@ const SOLID_SCRIPT_EDITOR_OUTPUT_TABS: readonly [SolidScriptEditorOutputTab, str
  * Echo lines or its first error; the Variables tab is the variable explorer,
  * with every name the script uses and its value at the debugger's step, or
  * after the last solid; the Settings tab holds the version, Can Be Used As, Has
- * Edit Mode and the author, and the Resources tab the textures, curves and
- * paths kept with the script.
+ * Edit Mode and the author, and the Resources tab the textures, curves, paths
+ * and texts kept with the script.
  */
 export class SolidScriptEditorOutput {
   /** Output area element. */

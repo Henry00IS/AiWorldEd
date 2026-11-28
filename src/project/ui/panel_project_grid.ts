@@ -39,6 +39,7 @@ const PANEL_PROJECT_KIND_LABELS: Readonly<Record<string, string>> = {
   curve: 'CURVE',
   script: 'SCRIPT',
   path: 'PATH',
+  text: 'TEXT',
 };
 
 /** What the file grid does with the user's actions on its tiles. */

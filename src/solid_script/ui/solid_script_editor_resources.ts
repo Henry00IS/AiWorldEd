@@ -13,6 +13,7 @@ import {
   solidScriptResourceFind,
   solidScriptResourceNameFree,
   solidScriptResourceNameValid,
+  solidScriptResourceText,
   type SolidScriptResource,
 } from '@/solid_script/document/solid_script_resource.js';
 import { solidScriptResourceTexturePreview } from '@/solid_script/document/solid_script_resource_texture.js';
@@ -31,16 +32,28 @@ const SOLID_SCRIPT_RESOURCE_TILE_KINDS: Readonly<Record<SolidScriptResource['kin
   Texture: 'texture',
   Curve: 'curve',
   Path: 'path',
+  Text: 'text',
 };
 
 /** Prefix of a resource tile's path: the name the script reads it by. */
 const SOLID_SCRIPT_RESOURCE_TILE_PREFIX = '$Resources.';
 
+/** Layout of the Resources tab. */
+const SOLID_SCRIPT_RESOURCES_STYLE: Partial<CSSStyleDeclaration> = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+  padding: '8px 12px',
+  height: '100%',
+  minHeight: '0',
+  boxSizing: 'border-box',
+};
+
 /**
- * The Resources tab of the script editor: the textures, curves and paths kept
- * inside the script, shown like the project browser. Files dropped from the
- * project, the texture browser, a generator, the chat or the desktop are copied
- * in; the selected one is renamed and edited below the grid.
+ * The Resources tab of the script editor: the textures, curves, paths and texts
+ * kept inside the script, shown like the project browser. Files dropped from
+ * the project, the texture browser, a generator, the chat or the desktop are
+ * copied in; the selected one is renamed and edited below the grid.
  */
 export class SolidScriptEditorResources {
   /** Tab content. */
@@ -55,8 +68,7 @@ export class SolidScriptEditorResources {
   /** @param commit Stores a changed script. */
   constructor(private readonly commit: (document: SolidScriptDocument) => void) {
     this.element.dataset['solidScriptResources'] = 'true';
-    Object.assign(this.element.style, { display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px 12px' });
-    Object.assign(this.element.style, { height: '100%', minHeight: '0', boxSizing: 'border-box' });
+    Object.assign(this.element.style, SOLID_SCRIPT_RESOURCES_STYLE);
     this.files = new PanelProjectGrid(
       {
         onActivate: (record) => this.choose(record, true),
@@ -70,10 +82,12 @@ export class SolidScriptEditorResources {
     Object.assign(this.files.host.style, { flex: '0 1 auto', minHeight: '120px' });
     const hint = modifierStackUiText(
       'div',
-      'Drop textures, curves and paths here. The script reads each as [$Resources.Name].',
+      'Drop textures, curves, paths and text files here. The script reads each as [$Resources.Name].',
     );
-    const add = modifierStackUiTextButton('New Curve', 'Add a new curve to the script', () => this.curveNew());
-    Object.assign(add.style, { alignSelf: 'flex-start', flex: '0 0 auto', width: 'auto' });
+    const add = solidScriptEditorResourceButtons(
+      () => this.curveNew(),
+      () => this.textNew(),
+    );
     this.element.append(hint, add, this.files.host, this.message, this.details);
     this.dropBind();
   }
@@ -86,7 +100,8 @@ export class SolidScriptEditorResources {
   write(script: SolidScriptDocument): void {
     this.current = script;
     const resources = solidScriptDocumentResources(script);
-    if (resources.length === 0) this.files.empty('Drop textures, curves and paths here to copy them into the script.');
+    if (resources.length === 0)
+      this.files.empty('Drop textures, curves, paths and text files here to copy them into the script.');
     else this.files.show(resources.map((resource) => this.tile(resource)));
     this.detailShow();
   }
@@ -203,6 +218,15 @@ export class SolidScriptEditorResources {
     this.shown?.open();
   }
 
+  /** Adds an empty text with a free name, selects it and focuses its box. */
+  private textNew(): void {
+    const resource = solidScriptResourceText(solidScriptResourceNameFree(this.resources(), 'Text'), '');
+    this.chosen = resource.name;
+    this.change((resources) => [...resources, resource]);
+    this.files.select(`${SOLID_SCRIPT_RESOURCE_TILE_PREFIX}${resource.name}`);
+    this.shown?.open();
+  }
+
   /**
    * Gives the resource name of a tile.
    *
@@ -276,6 +300,23 @@ export class SolidScriptEditorResources {
     this.replace(resource.name, { ...resource, name });
     return '';
   }
+}
+
+/**
+ * Builds the New Curve and New Text buttons, side by side.
+ *
+ * @param curveNew Adds a curve.
+ * @param textNew Adds a text.
+ * @returns Button row.
+ */
+function solidScriptEditorResourceButtons(curveNew: () => void, textNew: () => void): HTMLElement {
+  const row = document.createElement('div');
+  Object.assign(row.style, { display: 'flex', gap: '8px', alignSelf: 'flex-start', flex: '0 0 auto' });
+  const curve = modifierStackUiTextButton('New Curve', 'Add a new curve to the script', curveNew);
+  const text = modifierStackUiTextButton('New Text', 'Add a new text to the script', textNew);
+  for (const button of [curve, text]) Object.assign(button.style, { flex: '0 0 auto', width: 'auto' });
+  row.append(curve, text);
+  return row;
 }
 
 /**

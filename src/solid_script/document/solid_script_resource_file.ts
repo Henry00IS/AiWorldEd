@@ -4,6 +4,7 @@ import { isImageFileName } from '@/texture/library/image_file_filter.js';
 import {
   solidScriptResourceCurve,
   solidScriptResourceNameFree,
+  solidScriptResourceText,
   type SolidScriptResource,
 } from './solid_script_resource.js';
 import { solidScriptResourceTextureEmbed } from './solid_script_resource_texture.js';
@@ -12,8 +13,8 @@ import { solidScriptResourceTextureEmbed } from './solid_script_resource_texture
 export type SolidScriptResourceFileRead = SolidScriptResource | { error: string };
 
 /**
- * Makes a resource from a dropped image, curve or path file, named after the
- * file; an image is copied into the script.
+ * Makes a resource from a dropped image, curve, path or text file, named after
+ * the file; an image is copied into the script.
  *
  * @param file File.
  * @param taken Resources the script already has.
@@ -36,7 +37,8 @@ export async function solidScriptResourceFromFile(
     const read = curveFileRead(await file.text());
     return 'error' in read ? read : solidScriptResourceCurve(name, read.curve);
   }
-  return { error: `${file.name} is not a texture, curve or path file.` };
+  if (solidScriptResourceTextFileName(file.name)) return solidScriptResourceText(name, await file.text());
+  return { error: `${file.name} is not a texture, curve, path or text file.` };
 }
 
 /**
@@ -54,4 +56,15 @@ export function solidScriptResourceNameOfFile(fileName: string): string {
     .replace(/^_+|_+$/g, '');
   if (!/^[A-Za-z]/.test(base)) return `Resource${base}`;
   return base[0]!.toUpperCase() + base.slice(1);
+}
+
+/**
+ * Tells whether a file name is a text file the Resources tab takes, such as
+ * notes.txt.
+ *
+ * @param fileName File name, maybe with folders.
+ * @returns True for a .txt file.
+ */
+export function solidScriptResourceTextFileName(fileName: string): boolean {
+  return /\.txt$/i.test(fileName.replace(/^.*[\\/]/, ''));
 }

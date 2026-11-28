@@ -131,7 +131,7 @@ function solidScriptConfiguratorVectorSize(parameter: SolidScriptCommandParamete
  * $Resources.Wall.
  *
  * @param names Names the line sees.
- * @param kind Texture, Curve or Path.
+ * @param kind Texture, Curve, Path or Text.
  * @returns Names.
  */
 function solidScriptConfiguratorResources(names: readonly SolidScriptName[], kind: string): string[] {
@@ -139,11 +139,11 @@ function solidScriptConfiguratorResources(names: readonly SolidScriptName[], kin
 }
 
 /** Input types whose Default can be a resource of the script. */
-const SOLID_SCRIPT_CONFIGURATOR_RESOURCE_TYPES: readonly string[] = ['Curve', 'Path', 'Texture'];
+const SOLID_SCRIPT_CONFIGURATOR_RESOURCE_TYPES: readonly string[] = ['Curve', 'Path', 'Texture', 'Text'];
 
 /**
  * Lists the resources an Input's Default can pick: those of the Input's type,
- * such as [$Resources.Arch] for a Curve.
+ * such as [$Resources.Arch] for a Curve or [$Resources.Note] for a Text.
  *
  * @param parameter Field.
  * @param values Current values of the line.

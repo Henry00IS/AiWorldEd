@@ -46,6 +46,7 @@ export function solidScriptInputResourceResolved(
  */
 function solidScriptInputResourceText(resource: SolidScriptResource): string {
   if (resource.kind === 'Texture') return resource.textureId;
+  if (resource.kind === 'Text') return resource.text;
   if (resource.kind === 'Path') return pathAssetEncode(resource.path);
   const curve = solidScriptResourceCurveRead(resource);
   return curve ? curveEncode(curve) : '1';

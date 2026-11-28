@@ -7,6 +7,7 @@ import { solidScriptDocumentCreate, type SolidScriptDocument } from '@/solid_scr
 import {
   solidScriptDocumentResourcesWith,
   solidScriptResourceCurve,
+  solidScriptResourceText,
 } from '@/solid_script/document/solid_script_resource.js';
 import { solidScriptResourceNameOfFile } from '@/solid_script/document/solid_script_resource_file.js';
 import { solidScriptFileDecode, solidScriptFileEncode } from '@/solid_script/file/solid_script_file.js';
@@ -92,9 +93,9 @@ describe('Resources tab', () => {
 
   it('tells which dropped files do not fit, and adds the rest', async () => {
     const { resources, stored } = tab(solidScriptDocumentCreate([]));
-    drop(resources, [new File(['x'], 'notes.txt'), new File([curveFileWrite(RAMP, 'Ramp')], 'ramp.aicurve')]);
+    drop(resources, [new File(['x'], 'notes.md'), new File([curveFileWrite(RAMP, 'Ramp')], 'ramp.aicurve')]);
     await vi.waitFor(() => expect(stored).toHaveLength(1));
-    expect(resources.element.textContent).toContain('notes.txt is not a texture, curve or path file.');
+    expect(resources.element.textContent).toContain('notes.md is not a texture, curve, path or text file.');
   });
 
   it('renames the selected resource only to a valid free name, and removes it with Delete', () => {
@@ -151,5 +152,52 @@ describe('Resources tab New Curve', () => {
       'Curve2',
     );
     expect(tileOf(resources, 'Curve2').getAttribute('aria-selected')).toBe('true');
+  });
+});
+
+describe('Resources tab Text', () => {
+  it('adds a text with a free name, and keeps what is typed in its box, including spaces', () => {
+    const script = solidScriptDocumentResourcesWith(solidScriptDocumentCreate([]), [
+      solidScriptResourceText('Text', 'already'),
+    ]);
+    const { resources, stored } = tab(script);
+    const button = [...resources.element.querySelectorAll('button')].find((each) => each.textContent === 'New Text')!;
+    button.click();
+    expect(stored.at(-1)?.resources?.map((resource) => resource.name)).toEqual(['Text', 'Text2']);
+    expect(resources.element.querySelector<HTMLInputElement>('input[aria-label="Resource name"]')?.value).toBe('Text2');
+    expect(tileOf(resources, 'Text2').getAttribute('aria-selected')).toBe('true');
+    const box = resources.element.querySelector<HTMLTextAreaElement>('textarea[aria-label="Resource text"]')!;
+    expect(box.value).toBe('');
+    box.value = '  [$Local.X]\n$[keep]  ';
+    box.dispatchEvent(new Event('change'));
+    const kept = stored.at(-1)?.resources?.find((resource) => resource.name === 'Text2');
+    expect(kept).toEqual(solidScriptResourceText('Text2', '  [$Local.X]\n$[keep]  '));
+  });
+
+  it('copies a dropped .txt file as a text resource, keeping its words exactly', async () => {
+    const { resources, stored } = tab(solidScriptDocumentCreate([]));
+    const words = '  hello [$Local.X]\nunicode café\n';
+    drop(resources, [new File([words], 'greeting.txt', { type: 'text/plain' })]);
+    await vi.waitFor(() => expect(stored).toHaveLength(1));
+    expect(stored[0]!.resources).toEqual([solidScriptResourceText('Greeting', words)]);
+    tileOf(resources, 'Greeting').click();
+    expect(resources.element.querySelector<HTMLTextAreaElement>('textarea[aria-label="Resource text"]')?.value).toBe(
+      words,
+    );
+  });
+
+  it('renames and removes a text resource, and writes TEXT on its tile', () => {
+    const { resources, stored } = tab(
+      solidScriptDocumentResourcesWith(solidScriptDocumentCreate([]), [solidScriptResourceText('Note', '  hi  ')]),
+    );
+    const tile = tileOf(resources, 'Note');
+    expect(tile.textContent).toContain('TEXT');
+    tile.click();
+    const name = resources.element.querySelector<HTMLInputElement>('input[aria-label="Resource name"]')!;
+    name.value = 'Label';
+    name.dispatchEvent(new Event('change'));
+    expect(stored.at(-1)?.resources).toEqual([solidScriptResourceText('Label', '  hi  ')]);
+    tileOf(resources, 'Label').dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete' }));
+    expect(stored.at(-1)?.resources ?? []).toEqual([]);
   });
 });

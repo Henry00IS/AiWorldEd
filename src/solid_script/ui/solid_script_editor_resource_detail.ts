@@ -9,11 +9,23 @@ import { PathField } from '@/path/ui/path_field.js';
 import {
   solidScriptResourceCurve,
   solidScriptResourceCurveRead,
+  solidScriptResourceText,
   type SolidScriptResource,
 } from '@/solid_script/document/solid_script_resource.js';
 
 /** Widest the details of a resource get, so fields stay compact. */
 const SOLID_SCRIPT_RESOURCE_DETAIL_WIDTH = '420px';
+
+/** Style of the multi-line box of a text resource. */
+const SOLID_SCRIPT_RESOURCE_TEXT_STYLE: Partial<CSSStyleDeclaration> = {
+  width: '100%',
+  minHeight: '160px',
+  boxSizing: 'border-box',
+  resize: 'vertical',
+  font: 'inherit',
+  lineHeight: '1.4',
+  whiteSpace: 'pre-wrap',
+};
 
 /** What the details of a resource do with the user's changes. */
 export interface SolidScriptEditorResourceDetailHooks {
@@ -27,7 +39,7 @@ export interface SolidScriptEditorResourceDetailHooks {
 export interface SolidScriptEditorResourceDetail {
   /** Details element. */
   element: HTMLElement;
-  /** Opens the curve editor of a curve; does nothing for others. */
+  /** Opens the curve editor of a curve, or focuses the box of a text. */
   open: () => void;
   /** Puts the cursor in the name box. */
   rename: () => void;
@@ -35,7 +47,7 @@ export interface SolidScriptEditorResourceDetail {
 
 /**
  * Builds the details of the selected resource: its name, how the script reads
- * it, and the curve or path editor.
+ * it, and the curve, path or text editor.
  *
  * @param resource Resource.
  * @param hooks What the details do with changes.
@@ -53,10 +65,39 @@ export function solidScriptEditorResourceDetail(
   Object.assign(head.style, { display: 'flex', gap: '8px', alignItems: 'center' });
   head.append(name, modifierStackUiText('span', `Read it as [$Resources.${resource.name}]`));
   element.append(head);
-  if (resource.kind === 'Path') element.append(solidScriptEditorResourcePath(resource, hooks.change));
-  const curve = resource.kind === 'Curve' ? solidScriptEditorResourceCurve(resource, hooks.change) : null;
-  if (curve) element.append(curve.getElement());
-  return { element, open: () => curve?.open(), rename: () => name.select() };
+  const editor = solidScriptEditorResourceEditor(resource, hooks.change);
+  if (editor.element) element.append(editor.element);
+  return { element, open: editor.open, rename: () => name.select() };
+}
+
+/** The editor of a resource, and how to open it. */
+interface SolidScriptEditorResourceEditor {
+  /** Editor element, when the kind has one. */
+  element?: HTMLElement;
+  /** Opens the curve editor, or focuses the text box. */
+  open: () => void;
+}
+
+/**
+ * Builds the curve, path or text editor of a resource.
+ *
+ * @param resource Resource.
+ * @param change Stores the changed resource.
+ * @returns Editor.
+ */
+function solidScriptEditorResourceEditor(
+  resource: SolidScriptResource,
+  change: (resource: SolidScriptResource) => void,
+): SolidScriptEditorResourceEditor {
+  if (resource.kind === 'Path')
+    return { element: solidScriptEditorResourcePath(resource, change), open: () => undefined };
+  if (resource.kind === 'Text') {
+    const text = solidScriptEditorResourceText(resource, change);
+    return { element: text, open: () => text.focus() };
+  }
+  if (resource.kind !== 'Curve') return { open: () => undefined };
+  const curve = solidScriptEditorResourceCurve(resource, change);
+  return { element: curve.getElement(), open: () => curve.open() };
 }
 
 /**
@@ -79,6 +120,27 @@ function solidScriptEditorResourceName(name: string, rename: (name: string) => s
     if (problem !== '') input.reportValidity();
   });
   return input;
+}
+
+/**
+ * Builds the multi-line box of a text resource; its words stay exactly as
+ * typed, including spaces and new lines, with no variables applied.
+ *
+ * @param resource Text resource.
+ * @param change Stores the changed resource.
+ * @returns Box.
+ */
+function solidScriptEditorResourceText(
+  resource: Extract<SolidScriptResource, { kind: 'Text' }>,
+  change: (resource: SolidScriptResource) => void,
+): HTMLTextAreaElement {
+  const area = document.createElement('textarea');
+  area.value = resource.text;
+  area.spellcheck = false;
+  area.setAttribute('aria-label', 'Resource text');
+  Object.assign(area.style, SOLID_SCRIPT_RESOURCE_TEXT_STYLE);
+  area.addEventListener('change', () => change(solidScriptResourceText(resource.name, area.value)));
+  return area;
 }
 
 /**

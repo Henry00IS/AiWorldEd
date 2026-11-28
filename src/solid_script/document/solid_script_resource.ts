@@ -4,7 +4,7 @@ import { pathAssetFromData, type PathAsset } from '@/path/model/path_asset.js';
 import type { SolidScriptDocument } from './solid_script_document.js';
 
 /** Kinds of resource a script holds. */
-export const SOLID_SCRIPT_RESOURCE_KINDS = ['Texture', 'Curve', 'Path'] as const;
+export const SOLID_SCRIPT_RESOURCE_KINDS = ['Texture', 'Curve', 'Path', 'Text'] as const;
 
 /** Kind of one resource. */
 export type SolidScriptResourceKind = (typeof SOLID_SCRIPT_RESOURCE_KINDS)[number];
@@ -36,11 +36,20 @@ export interface SolidScriptResourcePath {
   path: PathAsset;
 }
 
+/** Words the script uses, kept exactly as typed. */
+export interface SolidScriptResourceText {
+  name: string;
+  kind: 'Text';
+  /** The words, including spaces and new lines, with no variables applied. */
+  text: string;
+}
+
 /**
- * A named texture, curve or path kept with a script, which the script reads as
- * $Resources.Name and the user edits in the Resources tab.
+ * A named texture, curve, path or text kept with a script, which the script
+ * reads as $Resources.Name and the user edits in the Resources tab.
  */
-export type SolidScriptResource = SolidScriptResourceTexture | SolidScriptResourceCurve | SolidScriptResourcePath;
+export type SolidScriptResource =
+  SolidScriptResourceTexture | SolidScriptResourceCurve | SolidScriptResourcePath | SolidScriptResourceText;
 
 /**
  * Tells whether a resource name is one a script can write after $Resources.: a
@@ -105,6 +114,17 @@ export function solidScriptResourceCurveRead(resource: SolidScriptResourceCurve)
 }
 
 /**
+ * Makes a text resource, keeping the words exactly as given.
+ *
+ * @param name Name.
+ * @param text Words, including spaces and new lines.
+ * @returns Resource.
+ */
+export function solidScriptResourceText(name: string, text: string): SolidScriptResourceText {
+  return { name, kind: 'Text', text };
+}
+
+/**
  * Reads the resources stored with a script, dropping broken entries and
  * repeated names.
  *
@@ -120,6 +140,16 @@ export function solidScriptResourcesNormalize(input: unknown): SolidScriptResour
   return found;
 }
 
+/** Fields of one stored resource. */
+interface SolidScriptResourceRecord {
+  name?: unknown;
+  kind?: unknown;
+  textureId?: unknown;
+  curve?: unknown;
+  path?: unknown;
+  text?: unknown;
+}
+
 /**
  * Reads one stored resource.
  *
@@ -128,9 +158,19 @@ export function solidScriptResourcesNormalize(input: unknown): SolidScriptResour
  */
 function solidScriptResourceNormalize(input: unknown): SolidScriptResource | null {
   if (!input || typeof input !== 'object') return null;
-  const record = input as { name?: unknown; kind?: unknown; textureId?: unknown; curve?: unknown; path?: unknown };
+  const record = input as SolidScriptResourceRecord;
   if (typeof record.name !== 'string' || !solidScriptResourceNameValid(record.name)) return null;
-  const name = record.name;
+  return solidScriptResourceFromFields(record.name, record);
+}
+
+/**
+ * Builds one resource from its stored fields.
+ *
+ * @param name Valid name.
+ * @param record Stored fields.
+ * @returns Resource, or null when broken.
+ */
+function solidScriptResourceFromFields(name: string, record: SolidScriptResourceRecord): SolidScriptResource | null {
   if (record.kind === 'Texture' && typeof record.textureId === 'string')
     return { name, kind: 'Texture', textureId: record.textureId };
   if (record.kind === 'Curve') {
@@ -141,6 +181,7 @@ function solidScriptResourceNormalize(input: unknown): SolidScriptResource | nul
     const path = pathAssetFromData(record.path);
     return path ? { name, kind: 'Path', path } : null;
   }
+  if (record.kind === 'Text' && typeof record.text === 'string') return solidScriptResourceText(name, record.text);
   return null;
 }
 

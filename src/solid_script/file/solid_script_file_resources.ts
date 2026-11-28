@@ -18,6 +18,7 @@ const SOLID_SCRIPT_FILE_RESOURCE_TYPES: Readonly<Record<SolidScriptResource['kin
   Texture: ['texture.json', 'application/x-aiworlded-texture'],
   Curve: ['curve.json', 'application/x-aiworlded-curve'],
   Path: ['path.json', 'application/x-aiworlded-path'],
+  Text: ['txt', 'text/plain'],
 };
 
 /** A resource listed in script.json: where its file is and what it holds. */
@@ -28,7 +29,7 @@ export interface SolidScriptFileResource {
   type: string;
   /** Name the script reads it by. */
   name: string;
-  /** Texture, Curve or Path. */
+  /** Texture, Curve, Path or Text. */
   kind: SolidScriptResource['kind'];
   /** Zip entry path of a texture's image, under resources/. */
   image?: string;
@@ -47,15 +48,27 @@ export async function solidScriptFileResourcesWrite(
   resources: readonly SolidScriptResource[],
 ): Promise<SolidScriptFileResource[]> {
   const listed: SolidScriptFileResource[] = [];
-  for (const resource of resources) {
-    const [ending, type] = SOLID_SCRIPT_FILE_RESOURCE_TYPES[resource.kind];
-    const path = `${SOLID_SCRIPT_FILE_RESOURCES}${resource.name}.${ending}`;
-    await writer.addText(path, JSON.stringify(resource, null, 2));
-    const image =
-      resource.kind === 'Texture' ? await solidScriptFileImageWrite(writer, resource.name, resource.textureId) : null;
-    listed.push({ path, type, name: resource.name, kind: resource.kind, ...(image ? { image } : {}) });
-  }
+  for (const resource of resources) listed.push(await solidScriptFileResourceWrite(writer, resource));
   return listed;
+}
+
+/**
+ * Writes one resource as its own file under resources/.
+ *
+ * @param writer Zip being written.
+ * @param resource Resource.
+ * @returns List entry for script.json.
+ */
+async function solidScriptFileResourceWrite(
+  writer: ZipWriter,
+  resource: SolidScriptResource,
+): Promise<SolidScriptFileResource> {
+  const [ending, type] = SOLID_SCRIPT_FILE_RESOURCE_TYPES[resource.kind];
+  const path = `${SOLID_SCRIPT_FILE_RESOURCES}${resource.name}.${ending}`;
+  await writer.addText(path, resource.kind === 'Text' ? resource.text : JSON.stringify(resource, null, 2));
+  const image =
+    resource.kind === 'Texture' ? await solidScriptFileImageWrite(writer, resource.name, resource.textureId) : null;
+  return { path, type, name: resource.name, kind: resource.kind, ...(image ? { image } : {}) };
 }
 
 /**
@@ -94,6 +107,41 @@ async function solidScriptFileImageRead(zip: ZipReader, entry: unknown, resource
 }
 
 /**
+ * Tells whether a listed resource is a text file, saved as raw words rather
+ * than JSON.
+ *
+ * @param entry Listed resource.
+ * @param path Zip entry path.
+ * @returns True for a Text resource.
+ */
+function solidScriptFileResourceIsText(entry: unknown, path: string): boolean {
+  return (entry as { kind?: unknown }).kind === 'Text' || path.toLowerCase().endsWith('.txt');
+}
+
+/**
+ * Reads one listed resource from its file under resources/.
+ *
+ * @param zip Script file.
+ * @param entry Listed resource.
+ * @param path Zip entry path.
+ * @param file Zip entry.
+ * @returns Resource as stored, or undefined when it is not a resource.
+ */
+async function solidScriptFileResourceRead(
+  zip: ZipReader,
+  entry: unknown,
+  path: string,
+  file: NonNullable<ReturnType<ZipReader['entry']>>,
+): Promise<unknown> {
+  const body = await (await zip.read(file)).text();
+  if (!solidScriptFileResourceIsText(entry, path)) return solidScriptFileImageRead(zip, entry, JSON.parse(body));
+  const listed = (entry as { name?: unknown }).name;
+  const fromPath = path.slice(SOLID_SCRIPT_FILE_RESOURCES.length).replace(/\.txt$/i, '');
+  const name = typeof listed === 'string' && listed !== '' ? listed : fromPath;
+  return { name, kind: 'Text', text: body };
+}
+
+/**
  * Reads the resources a script file lists from their files under resources/; a
  * listed file that is missing or broken is left out.
  *
@@ -109,7 +157,8 @@ export async function solidScriptFileResourcesRead(zip: ZipReader, listed: unkno
     const file = zip.entry(path);
     if (!file) continue;
     try {
-      read.push(await solidScriptFileImageRead(zip, entry, JSON.parse(await (await zip.read(file)).text())));
+      const loaded = await solidScriptFileResourceRead(zip, entry, path, file);
+      if (loaded !== undefined) read.push(loaded);
     } catch {
       continue;
     }

@@ -28,8 +28,8 @@ export class SolidScriptResourceValues {
   ) {}
 
   /**
-   * Reads a resource by name: a Texture as its id, a Curve as a Curve and a
-   * Path as a Path.
+   * Reads a resource by name: a Texture as its id, a Curve as a Curve, a Path
+   * as a Path and a Text as its words.
    *
    * @param name Name after $Resources., in any case.
    * @returns Value.
@@ -55,6 +55,7 @@ export class SolidScriptResourceValues {
    */
   private make(resource: SolidScriptResource): SolidScriptValue {
     if (resource.kind === 'Texture') return resource.textureId;
+    if (resource.kind === 'Text') return resource.text;
     if (resource.kind === 'Path') return this.pathMake(pathAssetScriptPath(resource.path), resource.name);
     const curve = solidScriptResourceCurveRead(resource);
     if (!curve) throw new Error(`the curve of [$Resources.${resource.name}] could not be read`);

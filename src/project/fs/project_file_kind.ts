@@ -1,7 +1,8 @@
 import { projectPathExtension } from './project_path.js';
 
 /** Kinds of files the project panel lists. */
-export type ProjectFileKind = 'texture' | 'scene' | 'vmf' | 'obj' | 'glb' | 'fbx' | 'curve' | 'script' | 'path';
+export type ProjectFileKind =
+  'texture' | 'scene' | 'vmf' | 'obj' | 'glb' | 'fbx' | 'curve' | 'script' | 'path' | 'text';
 
 /** Extensions per kind; other files are not listed. */
 const PROJECT_FILE_KIND_EXTENSIONS: ReadonlyMap<string, ProjectFileKind> = new Map([

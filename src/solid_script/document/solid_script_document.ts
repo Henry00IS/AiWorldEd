@@ -66,7 +66,10 @@ export interface SolidScriptDocument {
    * edit mode.
    */
   editMode?: true;
-  /** Textures, curves and paths kept with the script, read as $Resources.Name. */
+  /**
+   * Textures, curves, paths and texts kept with the script, read as
+   * $Resources.Name.
+   */
   resources?: SolidScriptResource[];
 }
 

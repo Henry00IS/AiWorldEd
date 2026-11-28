@@ -5,6 +5,7 @@ import { solidScriptDocumentCreate, type SolidScriptDocument } from '@/solid_scr
 import {
   solidScriptDocumentResourcesWith,
   solidScriptResourceCurve,
+  solidScriptResourceText,
   type SolidScriptResource,
 } from '@/solid_script/document/solid_script_resource.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
@@ -92,6 +93,15 @@ describe('$Resources in the variable viewer', () => {
         ).messages[0],
     );
     expect(entry.items.map((item) => item.value)).toEqual(echoed);
+  });
+
+  it('lists a text resource as kind Text, with the words $Resources.Name reads in a run', () => {
+    const note = solidScriptResourceText('Note', '  [$Local.X]  ');
+    const entry = resourcesEntry([note]);
+    expect(entry).toMatchObject({ value: '1 Resource', members: true });
+    expect(entry.items.map((item) => [item.name, item.type, item.value])).toEqual([
+      ['$Resources.Note', 'Text', '  [$Local.X]  '],
+    ]);
   });
 
   it('follows the resources as they are added, renamed and removed', () => {

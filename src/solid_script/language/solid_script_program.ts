@@ -62,7 +62,7 @@ export interface SolidScriptProgramOptions {
 /** The lines of a script to run. */
 export interface SolidScriptProgram {
   blocks: readonly SolidScriptTreeLine[];
-  /** Textures, curves and paths the script reads as $Resources.Name. */
+  /** Textures, curves, paths and texts the script reads as $Resources.Name. */
   resources?: readonly SolidScriptResource[];
 }
 

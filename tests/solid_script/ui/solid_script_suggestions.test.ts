@@ -6,6 +6,7 @@ import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_
 import {
   solidScriptDocumentResourcesWith,
   solidScriptResourceCurve,
+  solidScriptResourceText,
 } from '@/solid_script/document/solid_script_resource.js';
 import {
   SOLID_SCRIPT_FUNCTION_DOCS,
@@ -438,6 +439,7 @@ describe('SolidScript suggestions follow the kinds of $Resources names', () => {
       },
     },
     { name: 'Brick', kind: 'Texture', textureId: 'library:brick' },
+    solidScriptResourceText('Note', '  hello [$Local.X]  '),
   ]);
 
   /**
@@ -453,7 +455,7 @@ describe('SolidScript suggestions follow the kinds of $Resources names', () => {
     );
   }
 
-  it('offers the members of a curve, path or texture resource after a dot, and deeper chains', () => {
+  it('offers the members of a curve, path, texture or text resource after a dot, and deeper chains', () => {
     expect(members('[$Resources.Curve.')).toEqual(
       expect.arrayContaining(['$Resources.Curve.Points', '$Resources.Curve.Length', '$Resources.Curve.Segments']),
     );
@@ -462,6 +464,9 @@ describe('SolidScript suggestions follow the kinds of $Resources names', () => {
     );
     expect(members('[$Resources.Brick.')).toEqual(
       expect.arrayContaining(['$Resources.Brick.Length', '$Resources.Brick.Words']),
+    );
+    expect(members('[$Resources.Note.')).toEqual(
+      expect.arrayContaining(['$Resources.Note.Length', '$Resources.Note.Words']),
     );
     expect(members('[$Resources.Curve.Points.')).toEqual(
       expect.arrayContaining(['$Resources.Curve.Points.Count', '$Resources.Curve.Points.First']),

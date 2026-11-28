@@ -12,6 +12,7 @@ import { solidScriptDocumentInputLayout } from '@/solid_script/document/solid_sc
 import {
   solidScriptDocumentResourcesWith,
   solidScriptResourceCurve,
+  solidScriptResourceText,
   type SolidScriptResource,
 } from '@/solid_script/document/solid_script_resource.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
@@ -41,6 +42,7 @@ const RESOURCES: SolidScriptResource[] = [
     },
   },
   { name: 'Brick', kind: 'Texture', textureId: 'embedded:brick' },
+  solidScriptResourceText('Note', '  hello [$Local.X]  '),
 ];
 
 /**
@@ -66,6 +68,9 @@ describe('Input Defaults that pick a resource', () => {
     expect(solidScriptProgramRun(script('Texture', '[$Resources.Brick]', echo('[Shape]'))).messages).toEqual([
       'embedded:brick',
     ]);
+    expect(solidScriptProgramRun(script('Text', '[$Resources.Note]', echo('[Shape]'))).messages).toEqual([
+      '  hello [$Local.X]  ',
+    ]);
   });
 
   it('show the resource in the inspector', () => {
@@ -76,7 +81,9 @@ describe('Input Defaults that pick a resource', () => {
     expect(curveDecode(fallback('Curve', '[$Resources.Arch]'))?.points).toHaveLength(3);
     expect(pathAssetDecode(fallback('Path', '[$Resources.Rail]'))?.points[1]).toEqual([4, 0, 0]);
     expect(fallback('Texture', '[$Resources.Brick]')).toBe('embedded:brick');
+    expect(fallback('Text', '[$Resources.Note]')).toBe('  hello [$Local.X]  ');
     expect(fallback('Curve', '[$Resources.Rail]')).toBe('[$Resources.Rail]');
+    expect(fallback('Text', '[$Resources.Brick]')).toBe('[$Resources.Brick]');
   });
 
   it('offer the resources of the Input type in the Default field', () => {
@@ -87,6 +94,7 @@ describe('Input Defaults that pick a resource', () => {
     expect(words('Curve')).toEqual(['[$Resources.Arch]']);
     expect(words('path')).toEqual(['[$Resources.Rail]']);
     expect(words('Texture')).toEqual(['[$Resources.Brick]']);
+    expect(words('Text')).toEqual(['[$Resources.Note]']);
     expect(words('Number')).toEqual([]);
   });
 });

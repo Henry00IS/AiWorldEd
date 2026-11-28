@@ -184,7 +184,7 @@ export const SOLID_SCRIPT_SYSTEM_CATALOG: readonly SolidScriptSystemCatalogEntry
   {
     name: '$Resources',
     type: 'Script Resources',
-    detail: 'the textures, curves and paths of the Resources tab, written $Resources.Name',
+    detail: 'the textures, curves, paths and texts of the Resources tab, written $Resources.Name',
     absent: 'No Resources Yet',
     scoped: true,
   },
