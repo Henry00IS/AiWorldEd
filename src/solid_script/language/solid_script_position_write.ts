@@ -1,72 +1,17 @@
 import * as THREE from 'three';
+import type { SolidScriptMemberWrite } from './solid_script_name_rules.js';
 import { SOLID_SCRIPT_GEOMETRY_EPSILON, type SolidScriptGeometryLeaf } from './solid_script_geometry.js';
-import { solidScriptNameIsPositionWrite, solidScriptNameParts } from './solid_script_name_rules.js';
 import { solidScriptSolidEdited } from './solid_script_solid_validate.js';
 import { solidScriptValueNumber, type SolidScriptValue } from './solid_script_value.js';
 import { solidScriptVectorThreeRequire } from './solid_script_vector.js';
 
 /** Axis of a Vertex.Position.X write, or none for a whole position. */
-export type SolidScriptPositionAxis = 'x' | 'y' | 'z';
+export type SolidScriptPositionAxis = NonNullable<SolidScriptMemberWrite['axis']>;
 
 /** One corner move, from the position before the line to the new one. */
 export interface SolidScriptPositionMove {
   from: THREE.Vector3;
   to: THREE.Vector3;
-}
-
-/**
- * Splits a position write into its owner, the item number of Positions(2) and
- * the axis of a trailing .X, .Y or .Z.
- *
- * @param name Name as written, such as $Selected.Vertices.Positions(0).Y.
- * @returns Owner name, item number text or null, and axis or undefined.
- */
-function solidScriptPositionParts(name: string): {
-  owner: string;
-  item: string | null;
-  axis: SolidScriptPositionAxis | undefined;
-} {
-  const parts = solidScriptNameParts(name.trim());
-  const last = parts[parts.length - 1]?.toLowerCase() ?? '';
-  const axis = last === 'x' || last === 'y' || last === 'z' ? last : undefined;
-  if (axis) parts.pop();
-  const member = /^positions?\s*(?:\((.*)\))?$/is.exec(parts[parts.length - 1] ?? '');
-  if (member) parts.pop();
-  return { owner: parts.join('.'), item: member?.[1] ?? null, axis };
-}
-
-/**
- * Gives the name before .Position or .Positions, such as $Selected.Vertices or
- * Vertex, dropping a trailing .X, .Y or .Z.
- *
- * @param name Name as written.
- * @returns Owner name.
- */
-export function solidScriptPositionOwner(name: string): string {
-  return solidScriptPositionParts(name).owner;
-}
-
-/**
- * Gives the item number of a write to one corner of a list, such as 0 for
- * $Selected.Vertices.Positions(0), or null for every corner.
- *
- * @param name Name as written.
- * @returns Item number as written, or null.
- */
-export function solidScriptPositionItem(name: string): string | null {
-  return solidScriptPositionParts(name).item;
-}
-
-/**
- * Gives the axis a position write sets, or none when it sets the whole
- * position.
- *
- * @param name Name as written.
- * @returns Axis, or undefined.
- */
-export function solidScriptPositionAxis(name: string): SolidScriptPositionAxis | undefined {
-  if (!solidScriptNameIsPositionWrite(name)) return undefined;
-  return solidScriptPositionParts(name).axis;
 }
 
 /**

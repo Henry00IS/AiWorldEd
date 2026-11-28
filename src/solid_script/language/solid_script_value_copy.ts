@@ -9,13 +9,25 @@ import {
 /** Makes the second objects and paths a copy needs. */
 export interface SolidScriptValueCopyHost {
   /**
-   * Makes an independent second solid or mesh.
+   * Makes an independent second solid or mesh, without its Data.
    *
    * @param element Solid or mesh to copy.
-   * @param copy Copies a value kept under its .Data.
    * @returns The new object.
    */
-  objectCopy(element: SolidScriptElement, copy: (value: SolidScriptValue) => SolidScriptValue): SolidScriptElement;
+  objectCopy(element: SolidScriptElement): SolidScriptElement;
+  /**
+   * Gives a copied solid or mesh its own copy of every value kept under the
+   * .Data of the original and of its faces, edges, corners and face corners.
+   *
+   * @param from Original.
+   * @param to Copy.
+   * @param copy Copies one value.
+   */
+  objectDataCopy(
+    from: SolidScriptElement,
+    to: SolidScriptElement,
+    copy: (value: SolidScriptValue) => SolidScriptValue,
+  ): void;
   /**
    * Makes an independent second Path.
    *
@@ -24,7 +36,7 @@ export interface SolidScriptValueCopyHost {
    */
   pathCopy(element: SolidScriptPathElement): SolidScriptPathElement;
   /**
-   * Lists the values kept under the .Data of a solid or mesh.
+   * Lists every value kept under the .Data of a solid or mesh and of its parts.
    *
    * @param element Solid or mesh.
    * @returns Values.
@@ -60,6 +72,7 @@ export function solidScriptValueCopy(
  *
  * @param value Value to check.
  * @param shown Name it was read from, for messages.
+ * @param host Reads the .Data of objects.
  * @param seen Lists and Dictionaries already checked.
  */
 function solidScriptValueCopyCheck(
@@ -155,7 +168,29 @@ function solidScriptValueCopyFresh(
   }
   if (value instanceof SolidScriptDictionary) return solidScriptDictionaryCopyMake(value, inner);
   if (value instanceof SolidScriptPathElement) return host.pathCopy(value);
-  return value.kind === 'brush' ? host.objectCopy(value, inner) : value;
+  return value.kind === 'brush' ? solidScriptObjectCopyMake(value, host, made, inner) : value;
+}
+
+/**
+ * Makes the copy of a solid or mesh. It is noted before its Data is copied, so
+ * Data that holds the object itself points at the copy.
+ *
+ * @param value Solid or mesh.
+ * @param host Makes the new objects.
+ * @param made Copies made so far, by original.
+ * @param inner Copies one value.
+ * @returns The copy.
+ */
+function solidScriptObjectCopyMake(
+  value: SolidScriptElement,
+  host: SolidScriptValueCopyHost,
+  made: Map<object, SolidScriptValue>,
+  inner: (value: SolidScriptValue) => SolidScriptValue,
+): SolidScriptElement {
+  const copy = host.objectCopy(value);
+  made.set(value, copy);
+  host.objectDataCopy(value, copy, inner);
+  return copy;
 }
 
 /**

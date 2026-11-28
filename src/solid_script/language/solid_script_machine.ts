@@ -1344,7 +1344,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         if (state.machine.readOnly.has(key)) throw new Error(`an input named "${name}" is already defined`);
         if (state.scope.variableHas(key))
           throw new Error(`"${name}" is already a variable; inputs come before the lines that use them`);
-        state.scope.variableDefine(key, solidScriptValueReadOnlyMark(value, 'input', name.trim()));
+        state.scope.variableDefine(key, solidScriptValueReadOnlyMark(value, 'script input', name.trim()));
         state.machine.readOnly.set(key, 'input');
       },
       listRead: (name) => state.machine.listRead(state.scope, name),

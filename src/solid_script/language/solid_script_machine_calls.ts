@@ -19,7 +19,6 @@ import { solidScriptKindOf } from './solid_script_kinds.js';
 import { type SolidScriptGroupMode } from './solid_script_mode.js';
 import { solidScriptShapeTransform } from './solid_script_reshape.js';
 import { solidScriptShapeClone } from './solid_script_shape_clone.js';
-import { SolidScriptBuiltFrames } from './solid_script_built_frames.js';
 import {
   solidScriptShapeGrouped,
   solidScriptShapeIsLeaf,
@@ -104,8 +103,6 @@ export abstract class SolidScriptMachineCalls<
   protected readonly parts = new Map<string, SolidScriptPart<Command>>();
   /** CSG groups built by each Part, by name key, so Output can stamp Mode. */
   protected readonly partsHeld = new Map<string, SolidScriptShapeGroup>();
-  /** The space each object was built in, read by Output. */
-  protected readonly builtFrames = new SolidScriptBuiltFrames();
   protected readonly toolCopy = new SolidScriptToolCopy();
   /** Part group each stored brush belongs to. */
   protected readonly partsByBrush = new Map<number, SolidScriptShapeGroup>();

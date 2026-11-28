@@ -47,8 +47,25 @@ const solidScriptListItemKnown = new Map<string, SolidScriptListItemReference | 
  */
 function solidScriptListItemReferenceRead(text: string): SolidScriptListItemReference | null {
   const match = SOLID_SCRIPT_LIST_ITEM.exec(text);
-  if (!match) return null;
+  if (!match || !solidScriptListItemBalanced(match[2]!)) return null;
   return { name: match[1]!, index: match[2]!.trim() };
+}
+
+/**
+ * Tells whether the text between the first round bracket and the last one is a
+ * whole index, not the end of one item number and the start of the next as in
+ * Faces(0).FaceCorners(1).
+ *
+ * @param index Text between the outer round brackets.
+ * @returns True when every bracket in it closes inside it.
+ */
+function solidScriptListItemBalanced(index: string): boolean {
+  let depth = 0;
+  for (const character of index) {
+    if (character === '(') depth++;
+    else if (character === ')' && --depth < 0) return false;
+  }
+  return true;
 }
 
 /** Spells a list name for a message. */

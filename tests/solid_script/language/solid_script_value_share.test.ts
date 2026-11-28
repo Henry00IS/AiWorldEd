@@ -173,7 +173,7 @@ describe('Solid Script values: Set gives a second name', () => {
   it('keeps the list of an input or a built-in value read-only through another name', () => {
     const input = line('input', { name: 'Size', type: 'Vector', default: '1, 2, 3' });
     expect(echoed(input, set('S', '[Size]'), set('S.X', '9'))).toContain(
-      '[S] is the input Size, which can only be read; Copy it first',
+      '[S] is the script input Size, which can only be read; Copy it first',
     );
     expect(echoed(input, set('S', '[Size]', true), set('S.X', '9'), echo('[Size] [S]'))).toEqual([
       '[1, 2, 3] [9, 2, 3]',

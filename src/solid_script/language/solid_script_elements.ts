@@ -12,6 +12,7 @@ import {
   type SolidScriptVertexFacts,
 } from './solid_script_geometry.js';
 import { solidScriptGeometryLeafMatrix } from './solid_script_geometry_matrix.js';
+import { solidScriptStructureClone } from './solid_script_structure_clone.js';
 import { SOLID_SCRIPT_MODE_DEFAULT, type SolidScriptMode } from './solid_script_mode.js';
 import {
   SolidScriptDictionary,
@@ -695,6 +696,77 @@ export class SolidScriptElements {
    */
   dataEntries(element: SolidScriptElement): SolidScriptDictionaryEntry[] {
     return [...this.dataValues(element).values()].map((datum) => ({ ...datum }));
+  }
+
+  /**
+   * Lists the held faces, edges, corners and face corners of a solid or mesh,
+   * the parts that keep Data of their own.
+   *
+   * @param leaf Solid or mesh.
+   * @returns Entries, in the order they were made.
+   */
+  private partEntries(leaf: SolidScriptGeometryLeaf): SolidScriptElementEntry[] {
+    return this.entriesOf(this.host.leafLatest(leaf)).filter(
+      (entry) => entry.element.kind !== 'brush' && entry.element.kind !== 'data',
+    );
+  }
+
+  /**
+   * Lists every value kept under the .Data of a solid or mesh and of its held
+   * faces, edges, corners and face corners.
+   *
+   * @param element Solid or mesh.
+   * @returns Values.
+   */
+  dataValuesAll(element: SolidScriptElement): SolidScriptValue[] {
+    const parts = this.partEntries(this.leaf(element)).flatMap((entry) => [...entry.data.values()]);
+    return [...this.dataEntries(element), ...parts].map((datum) => datum.value);
+  }
+
+  /**
+   * Gives a copy of a solid or mesh the held faces, edges, corners and face
+   * corners of the original, each with its own copy of the Data it keeps, so
+   * the copy reads the same values and shares none of them.
+   *
+   * @param from Solid or mesh copied.
+   * @param to The copy.
+   * @param copy Copies one Data value.
+   */
+  partsCopy(
+    from: SolidScriptGeometryLeaf,
+    to: SolidScriptGeometryLeaf,
+    copy: (value: SolidScriptValue) => SolidScriptValue,
+  ): void {
+    const made = new Map<SolidScriptElement, SolidScriptElement>();
+    for (const entry of this.partEntries(from)) {
+      const data = new Map(
+        [...entry.data].map(([key, datum]) => [key, { name: datum.name, value: copy(datum.value) }]),
+      );
+      const owner = entry.owner ? made.get(entry.owner) : undefined;
+      const kept = this.add(entry.element.kind, to, {
+        ...SolidScriptElements.entryShapeCopy(entry),
+        ...(owner ? { owner } : {}),
+        data,
+      });
+      made.set(entry.element, kept.element);
+      if (kept.plane && kept.faceIndex !== undefined) this.faceIndexSet(to, kept.faceIndex, kept);
+    }
+  }
+
+  /**
+   * Copies where a held face, edge, corner or face corner lies.
+   *
+   * @param entry Entry.
+   * @returns Plane, planes, position, direction and face number, copied.
+   */
+  private static entryShapeCopy(entry: SolidScriptElementEntry): Partial<SolidScriptElementEntry> {
+    const shape: Partial<SolidScriptElementEntry> = {};
+    if (entry.plane) shape.plane = solidScriptStructureClone(entry.plane);
+    if (entry.planes) shape.planes = solidScriptStructureClone(entry.planes);
+    if (entry.position) shape.position = entry.position.clone();
+    if (entry.direction) shape.direction = entry.direction.clone();
+    if (entry.faceIndex !== undefined) shape.faceIndex = entry.faceIndex;
+    return shape;
   }
 
   /**
