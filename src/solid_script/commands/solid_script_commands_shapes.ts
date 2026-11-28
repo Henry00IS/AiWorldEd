@@ -186,7 +186,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     named: false,
     description: 'Add a corner to a Polyhedron or Polygon',
     manual:
-      'Adds one corner point at X, Y and Z in metres to the Polyhedron or Polygon around this line, moved by any Transform, Rotate or other move between them. A Polygon uses X and Y of its drawing and ignores Z. Each value may be a variable or a formula, so a Repeat around a Point can place many corners. Example: inside Repeat [I] From 0 To 5, Point [=Cos([I] * 60)], [=Sin([I] * 60)], 0 adds the six corners of a hexagon.',
+      'Adds one corner point at X, Y and Z in metres to the Polyhedron or Polygon around this line, moved by any Transform, Rotate or other move between them. A Polygon uses X and Y of its drawing and ignores Z. Each value may be a variable or a formula, so a Repeat around a Point can place many corners. Example: inside Repeat [I] From 0 To 6, Point [=Cos([I] * 60)], [=Sin([I] * 60)], 0 adds the six corners of a hexagon.',
     stops: ['Being placed outside a Polyhedron or Polygon.', 'A position that is not x, y or x, y, z.'],
     parameters: [
       solidScriptParameter(

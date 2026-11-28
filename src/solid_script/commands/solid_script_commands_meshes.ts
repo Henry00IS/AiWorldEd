@@ -433,7 +433,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Add a corner point to a Mesh',
     manual:
-      'Adds one corner point at X, Y and Z in metres to the Mesh around this line, moved by any Transform, Rotate or other move between them. Vertex lines are numbered from 0 in the order they run, and Face lines join them by number. UV, when given, is the texture coordinate of the point. Leave it empty for coordinates made automatically. Example: inside Repeat [I] From 0 To 7, Vertex [=Cos([I] * 45) * 2], 0, [=Sin([I] * 45) * 2] adds the eight points of a ring on the ground.',
+      'Adds one corner point at X, Y and Z in metres to the Mesh around this line, moved by any Transform, Rotate or other move between them. Vertex lines are numbered from 0 in the order they run, and Face lines join them by number. UV, when given, is the texture coordinate of the point. Leave it empty for coordinates made automatically. Example: inside Repeat [I] From 0 To 8, Vertex [=Cos([I] * 45) * 2], 0, [=Sin([I] * 45) * 2] adds the eight points of a ring on the ground.',
     stops: ['Being placed outside a Mesh.', 'A position that is not x, y, z.'],
     parameters: [
       solidScriptParameter(
