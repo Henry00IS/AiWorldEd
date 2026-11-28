@@ -28,10 +28,9 @@ import {
 } from './solid_script_editor_debug_speed.js';
 
 /**
- * The Settings tab of the script editor: the script version, Can Be Used As
- * Generator, Can Be Used As Modifier, Has Edit Mode, and who wrote the script,
- * which are saved with the script; then how the editor shows code and how fast
- * Debug steps, which are kept on this computer.
+ * The Settings tab of the script editor: Script Settings (the version, Can Be
+ * Used As, Has Edit Mode and who wrote the script, saved with the script), then
+ * Code View and Debug, which are kept on this computer.
  */
 export class SolidScriptEditorSettings {
   /** Tab content. */
@@ -71,9 +70,15 @@ export class SolidScriptEditorSettings {
       this.change((script) => solidScriptDocumentUsesWith(script, uses)),
     );
     this.element.append(
-      solidScriptEditorSettingsList(this.version.element, this.uses.element, this.editMode.element),
-      solidScriptEditorSettingsAuthor(this.author, () =>
-        this.change((script) => solidScriptDocumentAuthorWith(script, this.author.value)),
+      solidScriptEditorSettingsGroup(
+        'Script Settings',
+        'Settings saved with the script: its language, what it can be used as, whether it has Edit Mode, and who wrote it.',
+        this.version.element,
+        this.uses.element,
+        this.editMode.element,
+        solidScriptEditorSettingsAuthor(this.author, () =>
+          this.change((script) => solidScriptDocumentAuthorWith(script, this.author.value)),
+        ),
       ),
       solidScriptEditorSettingsView(viewChanged, storage),
       solidScriptEditorSettingsDebug(speedChanged, storage),
@@ -104,18 +109,22 @@ export class SolidScriptEditorSettings {
 }
 
 /**
- * Builds the vertical list of script settings: the version, then the Can Be
- * Used As and Has Edit Mode checkboxes.
+ * Builds a titled Settings group, the same fieldset Code View and Debug use.
  *
- * @param items Version row, uses list and Has Edit Mode checkbox.
- * @returns List.
+ * @param title Legend, such as Script Settings.
+ * @param hint Hover text of the title.
+ * @param items Rows inside the group.
+ * @returns Group.
  */
-function solidScriptEditorSettingsList(...items: HTMLElement[]): HTMLElement {
-  const list = document.createElement('div');
-  list.dataset['solidScriptSettingsList'] = 'true';
-  Object.assign(list.style, { display: 'grid', gap: '6px', justifyItems: 'start' });
-  list.append(...items);
-  return list;
+function solidScriptEditorSettingsGroup(title: string, hint: string, ...items: HTMLElement[]): HTMLElement {
+  const group = document.createElement('fieldset');
+  group.className = SOLID_SCRIPT_EDITOR_CLASSES.settingsGroup;
+  group.dataset['solidScriptSettingsGroup'] = title;
+  const legend = document.createElement('legend');
+  legend.textContent = title;
+  legend.title = hint;
+  group.append(legend, ...items);
+  return group;
 }
 
 /**
@@ -184,13 +193,8 @@ function solidScriptEditorSettingsView(
   viewChanged: (view: SolidScriptEditorView) => void,
   storage: SettingsStorage,
 ): HTMLElement {
-  const group = document.createElement('fieldset');
-  group.className = SOLID_SCRIPT_EDITOR_CLASSES.settingsGroup;
-  const legend = document.createElement('legend');
-  legend.textContent = 'Code View';
-  legend.title = 'How this editor shows code; kept on this computer';
-  group.append(legend);
   const view = solidScriptEditorViewRead(storage);
+  const rows: HTMLElement[] = [];
   for (const [key, label, hint] of SOLID_SCRIPT_EDITOR_VIEW_LABELS) {
     const { box, element } = solidScriptSettingsCheckbox(label, hint);
     box.checked = view[key];
@@ -199,9 +203,9 @@ function solidScriptEditorSettingsView(
       solidScriptEditorViewWrite(view, storage);
       viewChanged({ ...view });
     });
-    group.append(element);
+    rows.push(element);
   }
-  return group;
+  return solidScriptEditorSettingsGroup('Code View', 'How this editor shows code; kept on this computer', ...rows);
 }
 
 /**
@@ -213,11 +217,6 @@ function solidScriptEditorSettingsView(
  * @returns Group element.
  */
 function solidScriptEditorSettingsDebug(speedChanged: (ms: number) => void, storage: SettingsStorage): HTMLElement {
-  const group = document.createElement('fieldset');
-  group.className = SOLID_SCRIPT_EDITOR_CLASSES.settingsGroup;
-  const legend = document.createElement('legend');
-  legend.textContent = 'Debug';
-  legend.title = 'How Debug steps through the script; kept on this computer';
   const speed = document.createElement('select');
   speed.setAttribute('aria-label', 'Debug Speed');
   for (const [name, , words] of SOLID_SCRIPT_EDITOR_DEBUG_SPEEDS) {
@@ -238,6 +237,5 @@ function solidScriptEditorSettingsDebug(speedChanged: (ms: number) => void, stor
     'Debug Speed',
     speed,
   );
-  group.append(legend, row);
-  return group;
+  return solidScriptEditorSettingsGroup('Debug', 'How Debug steps through the script; kept on this computer', row);
 }

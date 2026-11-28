@@ -22,26 +22,35 @@ afterEach(() => {
 });
 
 describe('Solid Script editor Settings list', () => {
-  it('shows Version, Can Be Used As and Has Edit Mode as one vertical list', () => {
+  it('puts Version, Can Be Used As, Has Edit Mode and Author in a Script Settings group', () => {
     editorFixture([{ command: 'cube' }]);
     find<HTMLButtonElement>('[role="tab"][data-tab="settings"]').click();
-    const list = find<HTMLElement>('[data-solid-script-settings-list]');
-    expect(list.style.display).toBe('grid');
+    const group = find<HTMLElement>('[data-solid-script-settings-group="Script Settings"]');
+    const view = find<HTMLElement>('[data-solid-script-settings-group="Code View"]');
+    const debug = find<HTMLElement>('[data-solid-script-settings-group="Debug"]');
+    expect(group.tagName).toBe('FIELDSET');
+    expect(group.className).toBe(SOLID_SCRIPT_EDITOR_CLASSES.settingsGroup);
+    expect(view.className).toBe(group.className);
+    expect(debug.className).toBe(group.className);
+    expect(group.querySelector('legend')?.textContent).toBe('Script Settings');
     const version = find<HTMLSelectElement>('[data-solid-script-settings] select[aria-label="Version"]');
-    const boxes = [...list.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
-    expect(list.querySelector('select')).toBe(version);
-    expect([...list.querySelectorAll('select, input[type="checkbox"]')]).toEqual([version, ...boxes]);
+    const author = find<HTMLInputElement>('[data-solid-script-settings] input[aria-label="Author"]');
+    const boxes = [...group.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
+    expect([...group.querySelectorAll('select, input')]).toEqual([version, ...boxes, author]);
     expect(boxes.map((box) => box.getAttribute('aria-label'))).toEqual([
       'Can Be Used As Generator',
       'Can Be Used As Modifier',
       'Has Edit Mode',
     ]);
-    expect(boxes.map((box) => box.closest('label')?.textContent?.trim())).toEqual([
-      'Can Be Used As Generator',
-      'Can Be Used As Modifier',
-      'Has Edit Mode',
-    ]);
-    expect([...list.querySelectorAll('span')].map((span) => span.textContent)).not.toContain('Can Be Used As');
+    expect(author.closest('[data-solid-script-settings-group]')?.getAttribute('data-solid-script-settings-group')).toBe(
+      'Script Settings',
+    );
+    expect(
+      find('[aria-label="Debug Speed"]')
+        .closest('[data-solid-script-settings-group]')
+        ?.getAttribute('data-solid-script-settings-group'),
+    ).toBe('Debug');
+    expect([...group.querySelectorAll('span')].map((span) => span.textContent)).not.toContain('Can Be Used As');
   });
 
   it('draws every Settings option with the same row class, in the editor font, not muted monospace', () => {
