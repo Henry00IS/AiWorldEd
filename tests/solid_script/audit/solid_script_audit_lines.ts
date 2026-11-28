@@ -132,6 +132,9 @@ const SOLID_SCRIPT_AUDIT_FACES = new Set([
   'set_tilt',
   'set_path_closed',
   'subdivide_path',
+  'join_paths',
+  'insert_path',
+  'copy_path',
 ]);
 
 /** Commands that work on a mesh, which the prelude's mesh feeds. */

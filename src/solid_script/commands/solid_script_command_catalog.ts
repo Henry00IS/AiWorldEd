@@ -14,6 +14,7 @@ import { SOLID_SCRIPT_COMMANDS_DUPLICATE_FACES } from './solid_script_commands_d
 import { SOLID_SCRIPT_COMMANDS_FACE_GROUPS } from './solid_script_commands_face_groups.js';
 import { SOLID_SCRIPT_COMMANDS_PATH_HANDLES } from './solid_script_commands_path_handles.js';
 import { SOLID_SCRIPT_COMMANDS_PATH_FROM } from './solid_script_commands_path_from.js';
+import { SOLID_SCRIPT_COMMANDS_PATH_JOIN } from './solid_script_commands_path_join.js';
 import { SOLID_SCRIPT_COMMANDS_MESH_FACES } from './solid_script_commands_mesh_faces.js';
 import { SOLID_SCRIPT_COMMANDS_MESHES } from './solid_script_commands_meshes.js';
 import { SOLID_SCRIPT_COMMANDS_FILL } from './solid_script_commands_fill.js';
@@ -92,6 +93,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_FACE_GROUPS,
   ...SOLID_SCRIPT_COMMANDS_PATH_HANDLES,
   ...SOLID_SCRIPT_COMMANDS_PATH_FROM,
+  ...SOLID_SCRIPT_COMMANDS_PATH_JOIN,
   ...SOLID_SCRIPT_COMMANDS_PATH_SHAPES,
   ...SOLID_SCRIPT_COMMANDS_PATHS,
   ...SOLID_SCRIPT_COMMANDS_FACES.slice(0, 1),

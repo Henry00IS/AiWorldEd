@@ -3,13 +3,15 @@ import { solidScriptParameterEach } from './solid_script_command_each.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
-  solidScriptParameterInto,
   solidScriptParameterOptional,
   solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
-import { solidScriptFaceWriteValue } from './solid_script_face_of.js';
-import * as THREE from 'three';
-import { solidScriptPathStraight, type SolidScriptPath } from '@/solid_script/language/solid_script_path_model.js';
+import {
+  solidScriptPathIntoField,
+  solidScriptPathSource,
+  solidScriptPathWrite,
+} from './solid_script_commands_path_io.js';
+import type { SolidScriptPath } from '@/solid_script/language/solid_script_path_model.js';
 import { solidScriptPathSubdivide } from '@/solid_script/language/solid_script_path_subdivide.js';
 import { SOLID_SCRIPT_MESH_POINTS_MAX } from '@/solid_script/language/solid_script_limits.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
@@ -34,50 +36,11 @@ import {
 } from '@/solid_script/language/solid_script_path_handle_types.js';
 import { solidScriptNoiseWord } from '@/solid_script/language/solid_script_functions_noise.js';
 import { solidScriptConditionHolds } from '@/solid_script/language/solid_script_condition.js';
-import {
-  SolidScriptPathElement,
-  SolidScriptPoint,
-  solidScriptValueNumber,
-} from '@/solid_script/language/solid_script_value.js';
-import {
-  solidScriptVectorRead,
-  solidScriptVectorRequire,
-  solidScriptVectorThree,
-} from '@/solid_script/language/solid_script_vector.js';
+import { SolidScriptPoint, solidScriptValueNumber } from '@/solid_script/language/solid_script_value.js';
+import { solidScriptVectorRequire, solidScriptVectorThree } from '@/solid_script/language/solid_script_vector.js';
 
 /** Most steps a Bezier stretch is sampled in. */
 const SOLID_SCRIPT_PATH_RESOLUTION_MAX = 256;
-
-/**
- * Reads the Path field: a Path, or a list of points for an open straight one.
- *
- * @param run Running line.
- * @param label Command, for messages.
- * @returns Path.
- */
-function solidScriptPathHandlesSource(run: SolidScriptBlockRun, label: string): SolidScriptPath<number[]> {
-  const raw = run.values('path');
-  if (raw.length === 1 && raw[0] instanceof SolidScriptPathElement) return raw[0].path;
-  const given = run.value('path');
-  const points = Array.isArray(given) ? given.map((point) => solidScriptVectorRead(point)) : [];
-  if (points.length < 2 || points.some((point) => point === undefined))
-    throw new Error(`${label} needs a Path or a list of points in Path, such as [Rail]`);
-  return solidScriptPathStraight(points as number[][], false);
-}
-
-/**
- * Writes a changed path to Into as a new Path.
- *
- * @param run Running line.
- * @param path Path.
- */
-function solidScriptPathHandlesWrite(run: SolidScriptBlockRun, path: SolidScriptPath<number[]>): void {
-  const vectors = path.points.map(([x = 0, y = 0, z = 0]) => new THREE.Vector3(x, y, z));
-  const [made] = run.pathsMake([{ points: vectors, closed: path.closed }]);
-  if (!made) return;
-  made.path = path;
-  solidScriptFaceWriteValue(run, 'into', made);
-}
 
 /**
  * Reads Resolution: the steps each Bezier stretch is sampled in.
@@ -127,7 +90,7 @@ function solidScriptPathHandlesRead(
  * @param run Running line.
  */
 function solidScriptSetHandlesRun(run: SolidScriptBlockRun): void {
-  const source = solidScriptPathHandlesSource(run, 'Set Handles');
+  const source = solidScriptPathSource(run, 'Set Handles');
   const kept = solidScriptPathHandles(source);
   const points = source.points.map((point) => [...point]);
   const handles = {
@@ -137,7 +100,7 @@ function solidScriptSetHandlesRun(run: SolidScriptBlockRun): void {
   const types = solidScriptPathHandleTypesOf(source);
   const moved = (key: string, kept: SolidScriptHandleType[]) =>
     run.source(key).trim() === '' ? kept : kept.map(solidScriptHandleTypeMoved);
-  solidScriptPathHandlesWrite(run, {
+  solidScriptPathWrite(run, {
     ...solidScriptPathWithHandles(source, handles, solidScriptPathResolution(run, 'Set Handles')),
     handleTypes: { left: moved('left', [...types.left]), right: moved('right', [...types.right]) },
   });
@@ -149,7 +112,7 @@ function solidScriptSetHandlesRun(run: SolidScriptBlockRun): void {
  * @param run Running line.
  */
 function solidScriptSetHandleTypeRun(run: SolidScriptBlockRun): void {
-  const source = solidScriptPathHandlesSource(run, 'Set Handle Type');
+  const source = solidScriptPathSource(run, 'Set Handle Type');
   const type: SolidScriptHandleType = solidScriptNoiseWord(
     run.text('type'),
     SOLID_SCRIPT_HANDLE_TYPES,
@@ -168,7 +131,7 @@ function solidScriptSetHandleTypeRun(run: SolidScriptBlockRun): void {
     }),
   );
   const handles = solidScriptPathHandleTypes(source, solidScriptPathHandles(source), type, side, picked);
-  solidScriptPathHandlesWrite(run, {
+  solidScriptPathWrite(run, {
     ...solidScriptPathWithHandles(source, handles, solidScriptPathResolution(run, 'Set Handle Type')),
     handleTypes: solidScriptPathHandleTypesSet(source, type, side, picked),
   });
@@ -180,7 +143,7 @@ function solidScriptSetHandleTypeRun(run: SolidScriptBlockRun): void {
  * @param run Running line.
  */
 function solidScriptSetTiltRun(run: SolidScriptBlockRun): void {
-  const source = solidScriptPathHandlesSource(run, 'Set Tilt');
+  const source = solidScriptPathSource(run, 'Set Tilt');
   const tilts = source.points.map((point, index) => {
     const tilt = solidScriptValueNumber(
       run.valueWith('tilt', { $Point: new SolidScriptPoint([...point]), $Index: index, $Count: source.points.length }),
@@ -188,7 +151,7 @@ function solidScriptSetTiltRun(run: SolidScriptBlockRun): void {
     if (tilt === undefined) throw new Error('Set Tilt needs a number of degrees per point, such as 45');
     return tilt;
   });
-  solidScriptPathHandlesWrite(run, { ...source, tilts });
+  solidScriptPathWrite(run, { ...source, tilts });
 }
 
 /** How Set Path Normal Mode makes the path's up side face. */
@@ -220,10 +183,10 @@ function solidScriptSetPathNormalsRead(run: SolidScriptBlockRun, points: readonl
  * @param run Running line.
  */
 function solidScriptSetPathNormalModeRun(run: SolidScriptBlockRun): void {
-  const { normal: _before, ...source } = solidScriptPathHandlesSource(run, 'Set Path Normal Mode');
+  const { normal: _before, ...source } = solidScriptPathSource(run, 'Set Path Normal Mode');
   const mode = solidScriptNoiseWord(run.text('mode').trim() || 'Minimum Twist', SOLID_SCRIPT_PATH_NORMAL_MODES, 'Mode');
-  if (mode === 'Minimum Twist') return solidScriptPathHandlesWrite(run, source);
-  solidScriptPathHandlesWrite(run, { ...source, normal: { mode } });
+  if (mode === 'Minimum Twist') return solidScriptPathWrite(run, source);
+  solidScriptPathWrite(run, { ...source, normal: { mode } });
 }
 
 /**
@@ -232,8 +195,8 @@ function solidScriptSetPathNormalModeRun(run: SolidScriptBlockRun): void {
  * @param run Running line.
  */
 function solidScriptSetPathNormalRun(run: SolidScriptBlockRun): void {
-  const { normal: _before, ...source } = solidScriptPathHandlesSource(run, 'Set Path Normal');
-  solidScriptPathHandlesWrite(run, {
+  const { normal: _before, ...source } = solidScriptPathSource(run, 'Set Path Normal');
+  solidScriptPathWrite(run, {
     ...source,
     normal: { mode: 'Free', normals: solidScriptSetPathNormalsRead(run, source.points) },
   });
@@ -324,12 +287,7 @@ function solidScriptPathHandleFields() {
       String(SOLID_SCRIPT_PATH_RESOLUTION),
       `Steps each curved stretch is drawn in, 1 to ${SOLID_SCRIPT_PATH_RESOLUTION_MAX}, such as 12.`,
     ),
-    {
-      ...solidScriptParameterInto('the changed path, a Path', 'Path', 'what is made', 'label'),
-      hint: 'Variable to write the changed path to, such as Rail to replace it.',
-      optional: false,
-      default: 'Path',
-    },
+    solidScriptPathIntoField(),
   ];
 }
 
@@ -553,11 +511,8 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
       const type = SOLID_SCRIPT_PATH_TYPES.find((word) => word === text);
       if (type === undefined)
         throw new Error(`Set Path Type needs Poly, Bezier, Catmull Rom or NURBS in Type, not ${text}`);
-      const source = solidScriptPathHandlesSource(run, 'Set Path Type');
-      solidScriptPathHandlesWrite(
-        run,
-        solidScriptPathTyped(source, type, solidScriptPathResolution(run, 'Set Path Type')),
-      );
+      const source = solidScriptPathSource(run, 'Set Path Type');
+      solidScriptPathWrite(run, solidScriptPathTyped(source, type, solidScriptPathResolution(run, 'Set Path Type')));
       return [];
     },
   }),
@@ -584,10 +539,10 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
       read.value('into'),
     ],
     execute: (run) => {
-      solidScriptPathHandlesWrite(
+      solidScriptPathWrite(
         run,
         solidScriptPathResolutionSet(
-          solidScriptPathHandlesSource(run, 'Set Path Resolution'),
+          solidScriptPathSource(run, 'Set Path Resolution'),
           solidScriptPathResolution(run, 'Set Path Resolution'),
         ),
       );
@@ -625,10 +580,7 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
     execute: (run) => {
       const closed = run.value('closed');
       if (typeof closed !== 'boolean') throw new Error('Set Path Closed needs Yes or No in Closed');
-      solidScriptPathHandlesWrite(
-        run,
-        solidScriptPathClosedSet(solidScriptPathHandlesSource(run, 'Set Path Closed'), closed),
-      );
+      solidScriptPathWrite(run, solidScriptPathClosedSet(solidScriptPathSource(run, 'Set Path Closed'), closed));
       return [];
     },
   }),
@@ -662,8 +614,8 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
       read.value('into'),
     ],
     execute: (run) => {
-      const source = solidScriptPathHandlesSource(run, 'Subdivide Path');
-      solidScriptPathHandlesWrite(run, solidScriptPathSubdivide(source, solidScriptSubdivideCuts(run, source)));
+      const source = solidScriptPathSource(run, 'Subdivide Path');
+      solidScriptPathWrite(run, solidScriptPathSubdivide(source, solidScriptSubdivideCuts(run, source)));
       return [];
     },
   }),
