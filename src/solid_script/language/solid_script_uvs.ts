@@ -11,9 +11,15 @@ import {
 } from './solid_script_geometry.js';
 import { solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
 import type { SolidScriptShapeMesh } from './solid_script_mesh.js';
-import type { SolidScriptFaceUv, SolidScriptShapeSolid } from './solid_script_shape.js';
+import {
+  solidScriptShapeMapLeaves,
+  type SolidScriptFaceUv,
+  type SolidScriptShape,
+  type SolidScriptShapeSolid,
+} from './solid_script_shape.js';
 import type { SolidScriptUseFaceTexture } from './solid_script_system.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
+import { modifierStackPrimitivePlanarUv } from '@/modifier/stack/kinds/generator/primitive/modifier_stack_primitive_planar.js';
 
 /** Closest a stored UV record may be to a face plane to count as that face. */
 const SOLID_SCRIPT_FACE_UV_ALIGN = 0.99;
@@ -115,16 +121,65 @@ export function solidScriptMatrixTurn(matrix: THREE.Matrix4): THREE.Matrix3 | nu
 }
 
 /**
- * The default mapping of a face of a solid, aimed at the face from the solid's
- * center, as the generator gives a face no line mapped.
+ * The default mapping of a face of a solid: the planar mapping of the built-in
+ * generators, one repeat per metre, measured from an anchor so neighbouring
+ * solids continue one texture.
  *
  * @param normal Unit face normal in script space.
- * @param center Bounds center of the solid in script space.
+ * @param anchor Point the texture is measured from, in script space.
  * @returns UV matrix in script space.
  */
-export function solidScriptFaceUvDefault(normal: THREE.Vector3, center: THREE.Vector3): SurfaceUvMatrix {
-  const aimed = orientDefaultFaceSurface(createDefaultFaceSurface(DEFAULT_CHECKER_TEXTURE_ID), normal).uv;
-  return aimed.multiplyMatrix4(new THREE.Matrix4().makeTranslation(-center.x, -center.y, -center.z));
+export function solidScriptFaceUvDefault(normal: THREE.Vector3, anchor: THREE.Vector3): SurfaceUvMatrix {
+  return modifierStackPrimitivePlanarUv(normal, anchor);
+}
+
+/**
+ * Gives a newly built solid the point its unmapped faces measure their texture
+ * from: the box's lowest corner, when the run has a usable one.
+ *
+ * @param solid Solid just built, before the enclosing transform.
+ * @param corner Value of Box.Min.
+ * @returns The same solid.
+ */
+export function solidScriptSolidUvAnchored(
+  solid: SolidScriptShapeSolid,
+  corner: SolidScriptValue,
+): SolidScriptShapeSolid {
+  const numbers = solidScriptValueNumbers(corner);
+  if (numbers?.length === 3 && numbers.every(Number.isFinite)) solid.uvAnchor = new THREE.Vector3(...numbers);
+  return solid;
+}
+
+/**
+ * Gives every solid of a shape tree that has no texture anchor yet the box's
+ * lowest corner as one, leaving the others as they are.
+ *
+ * @param shape Shape tree, before the enclosing transform.
+ * @param corner Value of Box.Min.
+ * @returns Tree whose solids all have an anchor when the corner is usable.
+ */
+export function solidScriptShapeUvAnchored(shape: SolidScriptShape, corner: SolidScriptValue): SolidScriptShape {
+  return solidScriptShapeMapLeaves(shape, (leaf) =>
+    leaf.kind === 'solid' && !leaf.uvAnchor ? solidScriptSolidUvAnchored({ ...leaf }, corner) : leaf,
+  );
+}
+
+/**
+ * Where a solid's texture anchor goes through a transform: along with the solid
+ * when its textures move with it, and nowhere when they are World Aligned.
+ *
+ * @param leaf Solid before the transform.
+ * @param anchor Its anchor.
+ * @param matrix Transform applied to its points.
+ * @returns Anchor after the transform.
+ */
+export function solidScriptUvAnchorCarry(
+  leaf: SolidScriptShapeSolid,
+  anchor: THREE.Vector3,
+  matrix: THREE.Matrix4,
+): THREE.Vector3 {
+  if (solidScriptUvPolicyOf(leaf).textures === 'world') return anchor.clone();
+  return anchor.clone().applyMatrix4(solidScriptUvCarryMatrix(leaf, matrix));
 }
 
 /**
@@ -226,6 +281,7 @@ export function solidScriptFaceUvsWorldLock(leaf: SolidScriptShapeSolid): SolidS
   if (pose && !pose.equals(new THREE.Matrix4())) {
     const written = solidScriptFaceUvsWorldLockApply(leaf, pose);
     if (written.faceUvs) leaf.faceUvs = written.faceUvs;
+    if (leaf.uvAnchor) leaf.uvAnchor = leaf.uvAnchor.clone().applyMatrix4(pose.clone().invert());
     delete leaf.boxUvSize;
   }
   delete leaf.uvCarry;
@@ -303,7 +359,7 @@ function solidScriptFaceUvOwn(
   const stored = solidScriptFaceUvLookup(leaf, point, normal);
   if (stored) return stored;
   if (leaf.boxUvSize !== undefined && leaf.boxUvSize > 0) return textureUvProjectAxis(normal, leaf.boxUvSize, center);
-  return solidScriptFaceUvDefault(normal, center);
+  return solidScriptFaceUvDefault(normal, leaf.uvAnchor ?? center);
 }
 
 /**
@@ -319,6 +375,7 @@ export function solidScriptFaceUvMatrix(face: SolidScriptFaceFacts): SurfaceUvMa
     const stored = solidScriptFaceUvLookup(leaf, face.center, face.normal);
     if (stored) return stored;
     if (leaf.boxUvSize !== undefined && leaf.boxUvSize > 0) return textureUvProjectAxis(face.normal, leaf.boxUvSize);
+    if (leaf.uvAnchor) return solidScriptFaceUvDefault(face.normal, leaf.uvAnchor);
   }
   return orientDefaultFaceSurface(createDefaultFaceSurface(DEFAULT_CHECKER_TEXTURE_ID), face.normal).uv;
 }

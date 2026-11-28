@@ -136,6 +136,20 @@ function exampleRunner(
   };
 }
 
+/** Texture projections some ports end with, which their baselines never ran. */
+const TEXTURE_STEPS = new Set(['project_cylinder_uvs', 'project_path_uvs']);
+
+/**
+ * A tutorial's lines without the texture projections its baseline never ran, so
+ * the timing compares the same work.
+ *
+ * @param lines Tutorial lines.
+ * @returns Lines to time.
+ */
+function sameWork(lines: readonly SolidScriptLine[]): SolidScriptLine[] {
+  return lines.filter((line) => !TEXTURE_STEPS.has(line.command));
+}
+
 /**
  * Warmed medians of a baseline script and a new script, timed in one process in
  * alternating batches so load hits both the same way.
@@ -237,7 +251,11 @@ describe('SolidScript example tutorials', () => {
       const example = examples.get(id);
       expect(example, id).toBeDefined();
       if (!example) throw new Error(`missing example ${id}`);
-      const { before: baseline, after } = compareMs(before, example.lines, solidScriptExampleRunOptions(example));
+      const { before: baseline, after } = compareMs(
+        before,
+        sameWork(example.lines),
+        solidScriptExampleRunOptions(example),
+      );
       // Noticeable means about a millisecond or more; also allow 20% so load
       // hits both scripts the same way. Sub-millisecond gaps on tiny scripts pass.
       const limit = Math.max(baseline * 1.2, baseline + 1);

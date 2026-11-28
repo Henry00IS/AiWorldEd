@@ -19,6 +19,22 @@ const SOLID_SCRIPT_EXAMPLE_SIDES = solidScriptExampleInput('Sides', 'Count', '16
 });
 
 /**
+ * Lines that wrap the texture around the upright axis of everything built so
+ * far, the way the built-in round generators wrap theirs.
+ *
+ * @returns Lines.
+ */
+function solidScriptExampleWrap(): SolidScriptLine[] {
+  return [
+    ...solidScriptExampleNote(
+      'Project Cylinder UVs wraps the texture around the upright axis in whole repeats, so the seam closes, and up the surface.',
+    ),
+    solidScriptExampleLine('select_objects'),
+    solidScriptExampleLine('project_cylinder_uvs', { of: '[$Selected.Objects]' }),
+  ];
+}
+
+/**
  * Lines that add one ring of corners around the middle.
  *
  * @param scale Ring size compared to the widest ring, as field text.
@@ -61,6 +77,7 @@ export const SOLID_SCRIPT_EXAMPLE_CYLINDER: readonly SolidScriptLine[] = [
     ...solidScriptExampleRing('1', '[=-[$Box.Extents.Y]]'),
     ...solidScriptExampleRing('1', '[$Box.Extents.Y]'),
   ]),
+  ...solidScriptExampleWrap(),
 ];
 
 /** Port of the Cone generator. */
@@ -75,6 +92,7 @@ export const SOLID_SCRIPT_EXAMPLE_CONE: readonly SolidScriptLine[] = [
     ...solidScriptExampleRing('1', '[=-[$Box.Extents.Y]]'),
     ...solidScriptExampleRingOrTip('[TopRadius]', '[$Box.Extents.Y]'),
   ]),
+  ...solidScriptExampleWrap(),
 ];
 
 /** Port of the Sphere generator. */
@@ -97,6 +115,7 @@ export const SOLID_SCRIPT_EXAMPLE_SPHERE: readonly SolidScriptLine[] = [
       ...solidScriptExampleRingOrTip('[=Cos([Latitude])]', '[=[Equator] + [Rise] * Sin([Latitude])]'),
     ]),
   ),
+  ...solidScriptExampleWrap(),
 ];
 
 /** Port of the Capsule generator. */
@@ -114,6 +133,7 @@ export const SOLID_SCRIPT_EXAMPLE_CAPSULE: readonly SolidScriptLine[] = [
       ]),
     ]),
   ),
+  ...solidScriptExampleWrap(),
 ];
 
 /** Port of the Column generator, for round sections. */
@@ -182,4 +202,5 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMN: readonly SolidScriptLine[] = [
       ]),
     ),
   ]),
+  ...solidScriptExampleWrap(),
 ];

@@ -5,7 +5,6 @@ import {
   solidScriptExampleLine,
   solidScriptExampleNote,
   solidScriptExamplePoint,
-  solidScriptExamplePolyhedron,
   solidScriptExampleRepeat,
   solidScriptExampleSet,
 } from './solid_script_example_lines.js';
@@ -19,16 +18,32 @@ import {
  * @param from Start angle as field text.
  * @param to End angle as field text.
  * @param corners Four corner formulas that use [a] for the angle.
+ * @param label Name of the piece, so its texture can follow the turn later.
  * @returns Lines.
  */
-function solidScriptExampleSweepPiece(from: string, to: string, corners: readonly string[]): SolidScriptLine[] {
-  return solidScriptExamplePolyhedron(
-    solidScriptExampleBlock(
+function solidScriptExampleSweepPiece(
+  from: string,
+  to: string,
+  corners: readonly string[],
+  label: string,
+): SolidScriptLine[] {
+  return solidScriptExampleBlock('polyhedron', { label }, [
+    ...solidScriptExampleBlock(
       'for_each',
       { variable: 'A', list: `${from}, ${to}` },
       corners.map(solidScriptExamplePoint),
     ),
-  );
+  ]);
+}
+
+/**
+ * Line that runs the texture of every piece with one name along the turn.
+ *
+ * @param label Name of the pieces.
+ * @returns Line.
+ */
+function solidScriptExampleFollowTurn(label: string): SolidScriptLine {
+  return solidScriptExampleLine('project_path_uvs', { path: '[Path]', of: label });
 }
 
 /**
@@ -78,12 +93,17 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
   ...solidScriptExampleRepeat('S', '0', '[Steps]', [
     solidScriptExampleSet('Top', '[=[Base] + [Rise] * ([S] + 1)]'),
     ...solidScriptExampleRepeat('P', '0', '[Smooth]', [
-      ...solidScriptExampleSweepPiece('[=[Per] * ([S] + [P] / [Smooth])]', '[=[Per] * ([S] + ([P] + 1) / [Smooth])]', [
-        '[=RingPoint([A], [InnerWidth], [Top] - [Tread])]',
-        '[=RingPoint([A], [OuterWidth], [Top] - [Tread])]',
-        '[=RingPoint([A], [OuterWidth], [Top])]',
-        '[=RingPoint([A], [InnerWidth], [Top])]',
-      ]),
+      ...solidScriptExampleSweepPiece(
+        '[=[Per] * ([S] + [P] / [Smooth])]',
+        '[=[Per] * ([S] + ([P] + 1) / [Smooth])]',
+        [
+          '[=RingPoint([A], [InnerWidth], [Top] - [Tread])]',
+          '[=RingPoint([A], [OuterWidth], [Top] - [Tread])]',
+          '[=RingPoint([A], [OuterWidth], [Top])]',
+          '[=RingPoint([A], [InnerWidth], [Top])]',
+        ],
+        'Tread',
+      ),
     ]),
     solidScriptExampleSet('Middle', '[=[Per] * ([S] + 0.5)]'),
     ...solidScriptExampleBlock('transform', { move: '[=RingPoint([Middle], [RailWidth], [Top])]' }, [
@@ -103,26 +123,52 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
   ...solidScriptExampleRepeat('K', '0', '[Pieces]', [
     solidScriptExampleSet('From', '[=[Turn] * [K] / [Pieces]]'),
     solidScriptExampleSet('To', '[=[Turn] * ([K] + 1) / [Pieces]]'),
-    ...solidScriptExampleSweepPiece('[From]', '[To]', [
-      '[=RingPoint([A], [InnerWidth], Slope([A]) - [Tread])]',
-      '[=RingPoint([A], [OuterWidth], Slope([A]) - [Tread])]',
-      '[=RingPoint([A], [OuterWidth], Slope([A]) - [Soffit])]',
-      '[=RingPoint([A], [InnerWidth], Slope([A]) - [Soffit])]',
-    ]),
-    ...solidScriptExampleSweepPiece('[From]', '[To]', [
-      '[=RingPoint([A], [OuterWidth], Slope([A]) - [Soffit])]',
-      '[=RingPoint([A], [OuterWidth] + [Stringer], Slope([A]) - [Soffit])]',
-      '[=RingPoint([A], [OuterWidth] + [Stringer], Slope([A]) + [Rise] + [Lip])]',
-      '[=RingPoint([A], [OuterWidth], Slope([A]) + [Rise] + [Lip])]',
-    ]),
+    ...solidScriptExampleSweepPiece(
+      '[From]',
+      '[To]',
+      [
+        '[=RingPoint([A], [InnerWidth], Slope([A]) - [Tread])]',
+        '[=RingPoint([A], [OuterWidth], Slope([A]) - [Tread])]',
+        '[=RingPoint([A], [OuterWidth], Slope([A]) - [Soffit])]',
+        '[=RingPoint([A], [InnerWidth], Slope([A]) - [Soffit])]',
+      ],
+      'Slope',
+    ),
+    ...solidScriptExampleSweepPiece(
+      '[From]',
+      '[To]',
+      [
+        '[=RingPoint([A], [OuterWidth], Slope([A]) - [Soffit])]',
+        '[=RingPoint([A], [OuterWidth] + [Stringer], Slope([A]) - [Soffit])]',
+        '[=RingPoint([A], [OuterWidth] + [Stringer], Slope([A]) + [Rise] + [Lip])]',
+        '[=RingPoint([A], [OuterWidth], Slope([A]) + [Rise] + [Lip])]',
+      ],
+      'Stringer',
+    ),
     ...solidScriptExampleNote(
       'The handrail runs through the post tops: a post stands half a step past the front edge.',
     ),
-    ...solidScriptExampleSweepPiece('[From]', '[To]', [
-      '[=RingPoint([A], [RailWidth] - [Rail], Slope([A]) + [Rise] * 0.5 + [RailHeight] - [RailThick])]',
-      '[=RingPoint([A], [RailWidth] + [Rail], Slope([A]) + [Rise] * 0.5 + [RailHeight] - [RailThick])]',
-      '[=RingPoint([A], [RailWidth] + [Rail], Slope([A]) + [Rise] * 0.5 + [RailHeight] + [RailThick])]',
-      '[=RingPoint([A], [RailWidth] - [Rail], Slope([A]) + [Rise] * 0.5 + [RailHeight] + [RailThick])]',
-    ]),
+    ...solidScriptExampleSweepPiece(
+      '[From]',
+      '[To]',
+      [
+        '[=RingPoint([A], [RailWidth] - [Rail], Slope([A]) + [Rise] * 0.5 + [RailHeight] - [RailThick])]',
+        '[=RingPoint([A], [RailWidth] + [Rail], Slope([A]) + [Rise] * 0.5 + [RailHeight] - [RailThick])]',
+        '[=RingPoint([A], [RailWidth] + [Rail], Slope([A]) + [Rise] * 0.5 + [RailHeight] + [RailThick])]',
+        '[=RingPoint([A], [RailWidth] - [Rail], Slope([A]) + [Rise] * 0.5 + [RailHeight] + [RailThick])]',
+      ],
+      'Handrail',
+    ),
   ]),
+  ...solidScriptExampleNote(
+    'Project Path UVs runs the texture of each curved part along the turn, piece after piece. Path lists one point where each piece starts and ends.',
+  ),
+  solidScriptExampleLine('clear_variable', { name: 'Path' }),
+  ...solidScriptExampleRepeat('K', '0', '[=[Pieces] + 1]', [
+    solidScriptExampleLine('add_item', {
+      value: '[=RingPoint([Turn] * [K] / [Pieces], [OuterWidth], 0)]',
+      list: 'Path',
+    }),
+  ]),
+  ...['Tread', 'Slope', 'Stringer', 'Handrail'].map(solidScriptExampleFollowTurn),
 ];

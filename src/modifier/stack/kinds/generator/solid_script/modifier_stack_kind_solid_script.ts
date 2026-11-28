@@ -312,7 +312,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
       context.report.error = `Solid budget reached: the script needs ${count} solids.`;
       return { units: [], passed: layout.passed };
     }
-    const counter = { next: 0 };
+    const counter = { next: 0, anchor: box.min.clone() };
     return {
       units: layout.nodes.map((node) => this.nodeUnit(node, parameters, context, counter)),
       passed: layout.passed,
@@ -328,20 +328,22 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
    * @param context Evaluation context.
    * @param counter Next piece index, shared across the script.
    * @param counter.next Index of the next piece.
+   * @param counter.anchor Box minimum every face the script left unmapped
+   *   measures its texture from.
    * @returns Unit.
    */
   private nodeUnit(
     node: SolidTreeNode,
     parameters: Record<string, unknown>,
     context: ModifierStackContext,
-    counter: { next: number },
+    counter: { next: number; anchor: THREE.Vector3 },
   ): ModifierStackUnit {
     if (node.kind === 'brush') {
       const piece = node.brush.clone();
       piece.transformVertices(new THREE.Matrix4().makeTranslation(node.center.x, node.center.y, node.center.z));
       const look = {
         parameters,
-        surfaces: modifierStackSolidScriptSurfaces(node),
+        surfaces: modifierStackSolidScriptSurfaces(node, counter.anchor),
         caps: null,
         textures:
           node.texture || node.faceTextures

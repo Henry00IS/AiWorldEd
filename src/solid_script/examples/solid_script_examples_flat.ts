@@ -82,15 +82,21 @@ export const SOLID_SCRIPT_EXAMPLE_PRISM: readonly SolidScriptLine[] = [
 ];
 
 /**
- * Lines of the Slab function: a box from one corner to the other.
+ * Lines of the Slab function: a box from one corner to the other, built where
+ * it stands so its texture lines up with the slabs beside it.
  *
  * @returns Lines.
  */
 function solidScriptExampleSlabFunction(): SolidScriptLine[] {
   return solidScriptExampleBlock('function', { name: 'Slab', parameters: 'From, To' }, [
-    ...solidScriptExampleBlock('transform', { move: '[$Local.From]' }, [
-      solidScriptExampleLine('cube', { size: '[=[$Local.To] - [$Local.From]]', anchor: 'Left, Bottom, Back' }),
-    ]),
+    ...solidScriptExamplePolyhedron(
+      solidScriptExampleRepeat('Corner', '0', '8', [
+        solidScriptExampleSet('$Local.Pick', '[=[Corner] % 2], [=Floor([Corner] / 2) % 2], [=Floor([Corner] / 4)]'),
+        solidScriptExamplePoint(
+          '[=[$Local.From.X] + ([$Local.To.X] - [$Local.From.X]) * [$Local.Pick.X]], [=[$Local.From.Y] + ([$Local.To.Y] - [$Local.From.Y]) * [$Local.Pick.Y]], [=[$Local.From.Z] + ([$Local.To.Z] - [$Local.From.Z]) * [$Local.Pick.Z]]',
+        ),
+      ]),
+    ),
   ]);
 }
 
@@ -111,7 +117,7 @@ export const SOLID_SCRIPT_EXAMPLE_HOLLOW_BOX: readonly SolidScriptLine[] = [
   solidScriptExampleInput('WallThickness', 'Number', '0.25', { label: 'Wall Thickness', min: '0.01', max: '100' }),
   solidScriptExampleInput('OpenTop', 'Switch', 'No', { label: 'Open Top' }),
   ...solidScriptExampleNote(
-    'Function names a group of lines so Call can run them later. Slab takes From and To; inside the function, [$Local.From] and [$Local.To] are the values from that Call. The script skips the Function lines where they stand.',
+    'Function names a group of lines so Call can run them later. Slab takes From and To; inside the function, [$Local.From] and [$Local.To] are the values from that Call. Its Polyhedron puts a corner at every mix of From and To, so the slab is built where it stands and its texture lines up with its neighbours. The script skips the Function lines where they stand.',
   ),
   ...solidScriptExampleSlabFunction(),
   SOLID_SCRIPT_EXAMPLE_HALF,
@@ -194,18 +200,14 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
     ),
   ]),
   ...solidScriptExampleIf('[Rx] >= 0.0001 and [Ry] >= 0.0001', [
-    ...solidScriptExampleIf('[Style] == "Wall With Opening"', [
-      ...solidScriptExampleNote('The piers beside the opening.'),
-      ...solidScriptExampleRepeat('Side', '0', '2', [
-        solidScriptExampleSet('Inner', '[=[Side] == 0 ? -[Rx] : [Rx]]'),
-        solidScriptExampleSet('Outer', '[=[Side] == 0 ? -[Half] : [Half]]'),
-        solidScriptExampleLine('clear_variable', { name: 'Corners' }),
-        solidScriptExampleArchCorner('[=Vector([Outer], [Floor])]'),
-        solidScriptExampleArchCorner('[=Vector([Inner], [Floor])]'),
-        solidScriptExampleArchCorner('[=Vector([Inner], [Top])]'),
-        solidScriptExampleArchCorner('[=Vector([Outer], [Top])]'),
-        solidScriptExampleLine('call', { name: 'Prism' }),
-      ]),
+    solidScriptExampleLine('clear_variable', { name: 'Path' }),
+    ...solidScriptExampleRepeat('I', '0', '[=[Segments] + 1]', [
+      solidScriptExampleSet('M', '[=Corner([I], 0)]'),
+      ...solidScriptExampleIf(
+        '[AlongX]',
+        [solidScriptExampleLine('add_item', { value: '[=Vector([M.X], [M.Y], 0)]', list: 'Path' })],
+        [solidScriptExampleLine('add_item', { value: '[=Vector(0, [M.Y], [M.X])]', list: 'Path' })],
+      ),
     ]),
     ...solidScriptExampleRepeat('I', '0', '[Segments]', [
       solidScriptExampleSet('A', '[=Corner([I], 0)]'),
@@ -236,6 +238,28 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
         ),
       ),
       solidScriptExampleLine('call', { name: 'Prism' }),
+    ]),
+    ...solidScriptExampleNote(
+      'Project Path UVs runs the texture along the curve of the stones and through their depth; Path lists a point on each joint between stones.',
+    ),
+    solidScriptExampleLine('select_objects'),
+    solidScriptExampleLine('project_path_uvs', {
+      path: '[Path]',
+      where: '[=Abs([AlongX] ? [$Face.Normal.Z] : [$Face.Normal.X]) < 0.99]',
+      of: '[$Selected.Objects]',
+    }),
+    ...solidScriptExampleIf('[Style] == "Wall With Opening"', [
+      ...solidScriptExampleNote('The piers beside the opening.'),
+      ...solidScriptExampleRepeat('Side', '0', '2', [
+        solidScriptExampleSet('Inner', '[=[Side] == 0 ? -[Rx] : [Rx]]'),
+        solidScriptExampleSet('Outer', '[=[Side] == 0 ? -[Half] : [Half]]'),
+        solidScriptExampleLine('clear_variable', { name: 'Corners' }),
+        solidScriptExampleArchCorner('[=Vector([Outer], [Floor])]'),
+        solidScriptExampleArchCorner('[=Vector([Inner], [Floor])]'),
+        solidScriptExampleArchCorner('[=Vector([Inner], [Top])]'),
+        solidScriptExampleArchCorner('[=Vector([Outer], [Top])]'),
+        solidScriptExampleLine('call', { name: 'Prism' }),
+      ]),
     ]),
   ]),
 ];

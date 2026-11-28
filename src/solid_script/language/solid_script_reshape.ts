@@ -7,7 +7,7 @@ import {
   type SolidScriptPoint2,
 } from './solid_script_polygon.js';
 import { solidScriptFacePinsTransform, solidScriptMeshTransform } from './solid_script_mesh.js';
-import { solidScriptFaceUvsCarry, solidScriptUvCarryAccumulate } from './solid_script_uvs.js';
+import { solidScriptFaceUvsCarry, solidScriptUvAnchorCarry, solidScriptUvCarryAccumulate } from './solid_script_uvs.js';
 import { solidScriptBodyFacesMoved, solidScriptBodyHull, solidScriptBodyPrism } from './solid_script_body.js';
 import {
   solidScriptShapeJoin,
@@ -67,6 +67,7 @@ function solidScriptSolidTransformUvs(
     delete moved.boxUvSize;
   }
   const uvCarry = solidScriptUvCarryAccumulate(leaf, matrix);
+  if (leaf.uvAnchor) moved.uvAnchor = solidScriptUvAnchorCarry(leaf, leaf.uvAnchor, matrix);
   if (uvCarry) moved.uvCarry = uvCarry;
   else delete moved.uvCarry;
   return moved;

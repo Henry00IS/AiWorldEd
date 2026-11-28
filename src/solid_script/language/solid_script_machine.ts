@@ -32,7 +32,7 @@ import {
 import { type SolidScriptPoint2 } from './solid_script_polygon.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptShapeTransform } from './solid_script_reshape.js';
-import { solidScriptUseFaceUvs } from './solid_script_uvs.js';
+import { solidScriptShapeUvAnchored, solidScriptSolidUvAnchored, solidScriptUseFaceUvs } from './solid_script_uvs.js';
 import { solidScriptMeshChecked, solidScriptMeshTransform } from './solid_script_mesh.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptIntoAssigned } from './solid_script_into_assigned.js';
@@ -1006,11 +1006,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       const joined = solidScriptShapeJoin(shapes, labelOf());
       return joined ? [joined] : [];
     };
+    const boxMin = () => state.machine.system.get('Box.Min');
     const built = (body: () => SolidScriptBody, faceUvs?: SolidScriptFaceUv[]): SolidScriptShape[] => {
       state.machine.gatherCheck(node);
       state.machine.flatCheck(node, state.context, false);
       if (!state.machine.stepTake(state.scope)) return [];
-      const made = solidScriptSolidMade(labelOf(), body(), modeOf());
+      const made = solidScriptSolidUvAnchored(solidScriptSolidMade(labelOf(), body(), modeOf()), boxMin());
       return state.machine.processed.taken(
         state.machine.modeRolePlaced([
           solidScriptShapeTransform(faceUvs ? { ...made, faceUvs } : made, state.context.matrix),
@@ -1096,7 +1097,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
                     [...into.points, ...extra],
                     labelOf(),
                     state.context.planar,
-                  ).map((shape) => solidScriptShapeTransform(shape, state.context.matrix)),
+                  ).map((shape) =>
+                    solidScriptShapeTransform(solidScriptShapeUvAnchored(shape, boxMin()), state.context.matrix),
+                  ),
                 ).map((shape) => solidScriptModeApply(shape, modeOf())),
               ),
             ),
@@ -1108,7 +1111,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         return state.machine.processed.taken(
           state.machine.modeRolePlaced([
             solidScriptModeApply(
-              solidScriptShapeNamed(solidScriptShapeTransform(extruded, state.context.matrix), ownName()),
+              solidScriptShapeNamed(
+                solidScriptShapeTransform(solidScriptShapeUvAnchored(extruded, boxMin()), state.context.matrix),
+                ownName(),
+              ),
               modeOf(),
             ),
           ]),
@@ -1246,7 +1252,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       placed: (shapes) =>
         state.machine.modeRolePlaced(
           shapes
-            .map((shape) => solidScriptShapeTransform(shape, state.context.matrix))
+            .map((shape) =>
+              solidScriptShapeTransform(solidScriptShapeUvAnchored(shape, boxMin()), state.context.matrix),
+            )
             .map((shape) => solidScriptModeApply(shape, modeOf())),
         ),
       leave: (returned) => {

@@ -38,6 +38,7 @@ const FACE_TOOLS = new Set([
   'select_shortest_paths',
   'project_box_uvs',
   'project_planar_uvs',
+  'project_path_uvs',
   'project_cylinder_uvs',
   'project_sphere_uvs',
   'unwrap',

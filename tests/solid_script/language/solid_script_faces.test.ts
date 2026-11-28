@@ -243,7 +243,7 @@ describe('SolidScript faces', () => {
       })
       .sort();
     expect(createHash('sha256').update(fingerprints.join('\n')).digest('hex')).toBe(
-      '2500d2ee384024112d96cfcb067f95377d31abe385546c31010423989ee4dd11',
+      'dcb059e922540bef3294f5bbb79ac5be1b950b2b9cb74ba2363681b6a0e11647',
     );
   });
 

@@ -52,6 +52,31 @@ function solidScriptExampleSegments(sides: string): SolidScriptLine {
   return solidScriptExampleSet('Segments', `[=Max(1, Ceil(${sides} * [Sweep] / 360 - 0.000000001))]`);
 }
 
+/**
+ * Lines that list the path a sweep follows, one point where each piece starts
+ * and ends, then run the texture along it over every piece.
+ *
+ * @param count How many path points, as field text.
+ * @param point The path point for step [K], as field text.
+ * @param tube Whether the texture wraps around a round cross-section.
+ * @returns Lines.
+ */
+function solidScriptExamplePathUvs(count: string, point: string, tube: boolean): SolidScriptLine[] {
+  return [
+    ...solidScriptExampleNote(
+      'Project Path UVs runs the texture along the path, from piece to piece, and across it. Add Item lists one path point where each piece starts and ends.',
+    ),
+    solidScriptExampleLine('clear_variable', { name: 'Path' }),
+    ...solidScriptExampleRepeat('K', '0', count, [solidScriptExampleLine('add_item', { value: point, list: 'Path' })]),
+    solidScriptExampleLine('select_objects'),
+    solidScriptExampleLine('project_path_uvs', {
+      path: '[Path]',
+      ...(tube ? { tube: 'Yes' } : {}),
+      of: '[$Selected.Objects]',
+    }),
+  ];
+}
+
 /** Port of the Pipe generator. */
 export const SOLID_SCRIPT_EXAMPLE_PIPE: readonly SolidScriptLine[] = [
   ...solidScriptExampleNote('Pipe: the wall is cut into pieces around the turn; each piece joins two cross-sections.'),
@@ -76,6 +101,7 @@ export const SOLID_SCRIPT_EXAMPLE_PIPE: readonly SolidScriptLine[] = [
       ]),
     ),
   ]),
+  ...solidScriptExamplePathUvs('[=[Segments] + 1]', '[=WallPoint([Sweep] * [K] / [Segments], [Wall] / 2, 0)]', false),
 ];
 
 /** Port of the Torus generator. */
@@ -110,6 +136,7 @@ export const SOLID_SCRIPT_EXAMPLE_TORUS: readonly SolidScriptLine[] = [
       ]),
     ),
   ]),
+  ...solidScriptExamplePathUvs('[=[Segments] + 1]', '[=WallPoint([Sweep] * [K] / [Segments], [Tube], 0)]', true),
 ];
 
 /** Port of the Curved Stairs generator. */
@@ -148,4 +175,9 @@ export const SOLID_SCRIPT_EXAMPLE_CURVED_STAIRS: readonly SolidScriptLine[] = [
       ),
     ]),
   ]),
+  ...solidScriptExamplePathUvs(
+    '[=[Steps] * [StepDetail] + 1]',
+    '[=RingPoint([Turn] * [K] / [StepDetail], [$Box.Size])]',
+    false,
+  ),
 ];

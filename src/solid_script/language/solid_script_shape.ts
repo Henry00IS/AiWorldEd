@@ -58,6 +58,13 @@ export interface SolidScriptShapeSolid {
    */
   uvCarry?: THREE.Matrix4;
   /**
+   * Point in script space that faces without a mapping measure their texture
+   * from: the box's lowest corner where the solid was built, taken along by
+   * every move and turn its texture follows. None measures from the box's
+   * lowest corner.
+   */
+  uvAnchor?: THREE.Vector3;
+  /**
    * The received brush this solid passes on, from Input Objects; none for built
    * shapes.
    */

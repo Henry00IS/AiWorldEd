@@ -68,6 +68,7 @@ function solidScriptSolidTreeNodes(
     if (shape.faceSmooth) solidScriptSolidTreeSmooth(brush, shape.faceSmooth, options);
     if (shape.boxUvSize !== undefined) brush.boxUvSize = shape.boxUvSize;
     if (shape.faceUvs) brush.faceUvs = solidScriptSolidTreeFaceUvs(brush, shape.faceUvs, options);
+    if (shape.uvAnchor) brush.uvAnchor = solidScriptSolidTreePoint(shape.uvAnchor.clone(), options);
     return [brush];
   }
   if (shape.kind === 'mesh') return [];

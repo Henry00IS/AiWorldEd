@@ -29,6 +29,11 @@ export interface SolidTreeBrush {
   boxUvSize?: number;
   /** UV matrices of single faces, in the centred brush's space. */
   faceUvs?: readonly (SurfaceUvMatrix | undefined)[];
+  /**
+   * Point in the local space of the parent that faces without a mapping measure
+   * their texture from; none measures from the generator's own anchor.
+   */
+  uvAnchor?: THREE.Vector3;
 }
 
 /** A CSG group to insert with its members in evaluation order. */
