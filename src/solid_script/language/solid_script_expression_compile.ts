@@ -17,6 +17,7 @@ import { solidScriptSystemBareHint } from './solid_script_system_names.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptWhereHelperFills } from './solid_script_where_helpers.js';
 import { solidScriptValueShow, solidScriptValueTruthy, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptValueSafe, solidScriptValueSafeTop, solidScriptValuesSafeTop } from './solid_script_number_safe.js';
 
 /** A formula turned into a JavaScript closure. */
 export type SolidScriptCompiled = (
@@ -95,7 +96,8 @@ function solidScriptExpressionCompile(expression: SolidScriptExpression): SolidS
       const items = expression.items.map(solidScriptExpressionCompiled);
       return (evaluator, scope) => {
         const values = new Array<SolidScriptValue>(items.length);
-        for (let index = 0; index < items.length; index++) values[index] = items[index]!(evaluator, scope);
+        for (let index = 0; index < items.length; index++)
+          values[index] = solidScriptValueSafeTop(items[index]!(evaluator, scope));
         return values;
       };
     }
@@ -130,7 +132,7 @@ function solidScriptExpressionCompile(expression: SolidScriptExpression): SolidS
     case 'member':
       return solidScriptCompileMember(expression);
     default:
-      return (evaluator, scope) => evaluator.evaluateWalked(expression, scope);
+      return (evaluator, scope) => solidScriptValueSafe(evaluator.evaluateWalked(expression, scope));
   }
 }
 
@@ -201,6 +203,29 @@ function solidScriptCompileBuiltin(
 }
 
 /**
+ * Built-in functions that only give back values they were given, rearranged,
+ * such as Concat or Sorted, so their result needs no look for NaN or Infinity
+ * once the numbers given to them are ordinary; a long list stays fast.
+ */
+const SOLID_SCRIPT_FUNCTIONS_KEEPING: ReadonlySet<string> = new Set([
+  'concat',
+  'list',
+  'slice',
+  'sorted',
+  'reversed',
+  'unique',
+  'shuffle',
+  'first',
+  'last',
+  'item_or',
+  'item_clamp',
+  'item_wrap',
+  'pick',
+  'keys',
+  'values',
+]);
+
+/**
  * Compiles a call; built-in functions are looked up once. A Where helper that
  * leaves off an input a per-item field fills in, such as the ID of Random, gets
  * that value, such as [$Index].
@@ -221,6 +246,7 @@ function solidScriptCompileCall(written: string, args: readonly SolidScriptCompi
   const inputs = found ? solidScriptFunctionArguments(found) : [];
   const more = inputs.find((input) => input.name === '...');
   const fills = found ? solidScriptWhereHelperFills(found, args.length) : [];
+  const keeps = found !== undefined && SOLID_SCRIPT_FUNCTIONS_KEEPING.has(found);
   return (evaluator, scope) => {
     const values = new Array<SolidScriptValue>(args.length);
     for (let index = 0; index < args.length; index++) values[index] = args[index]!(evaluator, scope);
@@ -231,9 +257,10 @@ function solidScriptCompileCall(written: string, args: readonly SolidScriptCompi
     }
     if (!found || !builtin) return evaluator.callUser(name, values);
     solidScriptCompileInputsCheck(name, inputs, more, values);
+    if (keeps) solidScriptValuesSafeTop(values);
     const result = solidScriptCompileBuiltin(found, builtin, values, evaluator);
     if (result === undefined && found !== 'is_undef') throw solidScriptCompileCallMistake(name, found, values);
-    return result;
+    return keeps ? result : solidScriptValueSafe(result);
   };
 }
 
@@ -283,7 +310,7 @@ function solidScriptCompileBinary(
     return (evaluator, scope) =>
       solidScriptValueTruthy(left(evaluator, scope)) || solidScriptValueTruthy(right(evaluator, scope));
   const general = (a: SolidScriptValue, b: SolidScriptValue): SolidScriptValue =>
-    solidScriptArithmeticBinary(operator, a, b);
+    solidScriptValueSafe(solidScriptArithmeticBinary(operator, a, b));
   const both = (fast: (a: number, b: number) => SolidScriptValue): SolidScriptCompiled => {
     return (evaluator, scope) => {
       const a = left(evaluator, scope);

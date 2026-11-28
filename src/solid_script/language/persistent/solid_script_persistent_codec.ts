@@ -20,6 +20,7 @@ import {
   solidScriptPersistentFirstForbidden,
   solidScriptPersistentKeepError,
 } from './solid_script_persistent_error.js';
+import { solidScriptNumberSafe } from '../solid_script_number_safe.js';
 
 /**
  * Writes a value as the plain data a generator stores, or throws when the value
@@ -100,7 +101,7 @@ function solidScriptPersistentDictionaryEncode(dictionary: SolidScriptDictionary
  */
 export function solidScriptPersistentValueRead(data: unknown): SolidScriptValue | undefined {
   if (data === null) return undefined;
-  if (typeof data === 'number') return Number.isFinite(data) ? (data === 0 ? 0 : data) : undefined;
+  if (typeof data === 'number') return data === 0 ? 0 : solidScriptNumberSafe(data);
   if (typeof data === 'string' || typeof data === 'boolean') return data;
   if (Array.isArray(data)) return solidScriptPersistentListRead(data);
   return solidScriptPersistentObjectRead(data);

@@ -3,6 +3,7 @@ import { solidScriptParameterValueEffective } from '@/solid_script/commands/soli
 import { solidScriptNameWords } from './solid_script_name_words.js';
 import { solidScriptFieldVectorRead } from './solid_script_formula_list_literal.js';
 import { solidScriptVectorOfNumbers } from './solid_script_vector.js';
+import { solidScriptNumberRead } from './solid_script_number_safe.js';
 
 /** Kinds of value a script input takes, as the inspector edits them. */
 export const SOLID_SCRIPT_INPUT_TYPES = [
@@ -119,8 +120,8 @@ export function solidScriptInputRead(values: SolidScriptInputValues): SolidScrip
   const limit = (key: 'min' | 'max', label: string): number | null => {
     const text = (values[key] ?? '').trim();
     if (text === '') return null;
-    const number = Number(text);
-    if (!Number.isFinite(number)) throw new Error(`${label} must be a number or empty, not "${text}"`);
+    const number = solidScriptNumberRead(text);
+    if (number === undefined) throw new Error(`${label} must be a number or empty, not "${text}"`);
     return number;
   };
   const name = solidScriptParameterValueEffective(values['name'], SOLID_SCRIPT_INPUT_DEFAULTS.name).trim();
@@ -201,9 +202,8 @@ function solidScriptInputVector(input: SolidScriptInput, text: string): number[]
  * @returns Number.
  */
 function solidScriptInputNumber(input: SolidScriptInput, trimmed: string): number {
-  const number = Number(trimmed);
-  if (trimmed === '' || !Number.isFinite(number))
-    throw new Error(`input "${input.name}" must be a number, not "${trimmed}"`);
+  const number = solidScriptNumberRead(trimmed);
+  if (number === undefined) throw new Error(`input "${input.name}" must be a number, not "${trimmed}"`);
   if (input.type === 'Count' && !Number.isInteger(number))
     throw new Error(`input "${input.name}" must be a whole number, not ${number}`);
   if ((input.min !== null && number < input.min) || (input.max !== null && number > input.max))

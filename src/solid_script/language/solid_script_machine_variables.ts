@@ -45,6 +45,7 @@ import { SolidScriptElements } from './solid_script_elements.js';
 import { solidScriptMemberRead } from './solid_script_members.js';
 import { solidScriptSystemFillShort } from './solid_script_system_fill_shorts.js';
 import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
+import { solidScriptValueSafe, solidScriptValueSafeTop } from './solid_script_number_safe.js';
 
 /** Pattern of a variable or part name. */
 export const SOLID_SCRIPT_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -739,7 +740,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`the formula "${text}" cannot be read: ${message}`);
     }
-    return this.expressions.evaluate(expression, scope);
+    return solidScriptValueSafeTop(this.expressions.evaluate(expression, scope));
   }
 
   /**
@@ -764,7 +765,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
    * @returns Value.
    */
   fieldFormulaRun(formula: SolidScriptCompiled, scope: SolidScriptScope): SolidScriptValue {
-    return this.expressions.evaluateCompiled(formula, scope);
+    return solidScriptValueSafeTop(this.expressions.evaluateCompiled(formula, scope));
   }
 
   /**
@@ -885,11 +886,12 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     const resource = solidScriptResourceNameOf(name);
     if (resource !== undefined) return this.resourceRead(resource);
     const value = this.system.get(name);
-    if (value !== undefined)
-      return typeof value === 'object' ? solidScriptValueReadOnlyMark(value, 'built-in value', `$${name}`) : value;
+    const safe = value === undefined ? undefined : solidScriptValueSafe(value);
+    if (safe !== undefined)
+      return typeof safe === 'object' ? solidScriptValueReadOnlyMark(safe, 'built-in value', `$${name}`) : safe;
     const part = solidScriptVectorComponent(name);
     const whole = part ? this.system.get(part.name) : undefined;
-    if (part && whole !== undefined) return solidScriptVectorComponentRead(part, whole);
+    if (part && whole !== undefined) return solidScriptValueSafe(solidScriptVectorComponentRead(part, whole));
     const listed = solidScriptSystemListed(part?.name ?? name) ?? solidScriptSystemListed(name);
     if (!listed) return undefined;
     const missing = solidScriptValueReadOnlyMark(this.systemMissing(listed), 'built-in value', `$${listed}`);

@@ -1,4 +1,5 @@
 import type { SolidScriptPath } from './solid_script_path_model.js';
+import { solidScriptNumberRead } from './solid_script_number_safe.js';
 
 /** Runtime value of the solid script language. */
 export type SolidScriptValue = number | string | boolean | undefined | SolidScriptElement | SolidScriptValue[];
@@ -210,9 +211,7 @@ export function solidScriptValueTruthy(value: SolidScriptValue): boolean {
  */
 export function solidScriptValueNumber(value: SolidScriptValue): number | undefined {
   if (typeof value === 'string') {
-    const text = value.trim();
-    const number = text === '' ? NaN : Number(text);
-    return Number.isFinite(number) ? number : undefined;
+    return solidScriptNumberRead(value.trim());
   }
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }

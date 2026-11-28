@@ -17,6 +17,7 @@ import { solidScriptPathFlat, solidScriptPathLoopOpen } from './solid_script_pat
 import { solidScriptPathSample } from './solid_script_path_model.js';
 import { solidScriptPolygonArea, type SolidScriptPoint2 } from './solid_script_polygon.js';
 import { solidScriptVectorOfNumbers } from './solid_script_vector.js';
+import { solidScriptNumberRead } from './solid_script_number_safe.js';
 
 /**
  * How the text typed into a block field is read. Field text is plain text
@@ -586,9 +587,7 @@ export function solidScriptFieldList(text: string, read: (item: string) => Solid
  */
 function solidScriptFieldNumber(value: SolidScriptValue): SolidScriptValue {
   if (typeof value !== 'string') return value;
-  const text = value.trim();
-  const number = text === '' ? NaN : Number(text);
-  return Number.isFinite(number) ? number : value;
+  return solidScriptNumberRead(value.trim()) ?? value;
 }
 
 /**

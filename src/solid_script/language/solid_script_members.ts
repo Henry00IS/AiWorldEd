@@ -42,6 +42,7 @@ import {
   solidScriptValueType,
   type SolidScriptValue,
 } from './solid_script_value.js';
+import { solidScriptNumberSafe, solidScriptValueSafe } from './solid_script_number_safe.js';
 
 /**
  * Members of a list of brushes, faces, edges or corners that read all of it at
@@ -394,7 +395,7 @@ export function solidScriptMemberHint(type: string, member: string): string | un
  * @returns Rounded number.
  */
 export function solidScriptMemberRound(value: number): number {
-  return Math.round(value * 1e9) / 1e9;
+  return solidScriptNumberSafe(Math.round(value * 1e9) / 1e9);
 }
 
 /**
@@ -458,7 +459,8 @@ export function solidScriptMemberRead(
     if (key === 'position') return value.position;
     if (key === 'normal') return value.normal;
   } else if (value instanceof SolidScriptElement) {
-    if (value.kind === 'data') return key === 'data' ? value : elements.dataRead(value, member, written);
+    if (value.kind === 'data')
+      return key === 'data' ? value : solidScriptValueSafe(elements.dataRead(value, member, written));
     const read = solidScriptMemberElement(value, key, elements);
     if (read !== undefined) return read;
   } else if (Array.isArray(value)) {

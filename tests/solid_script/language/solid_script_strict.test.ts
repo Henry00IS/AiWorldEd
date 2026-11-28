@@ -54,8 +54,9 @@ describe('SolidScript stops at the first mistake', () => {
     expect(failure({ command: 'cube', values: { size: '[=1 / 0]' } })).toBe(
       'Line 1: Size: division by zero; check that what is divided by cannot be 0.',
     );
+    // A result with no answer is 0, never NaN, so the line names the 0.
     expect(failure({ command: 'sphere', values: { r: '[=sqrt(-1)]' } })).toBe(
-      'Line 1: Radius needs a number, such as 2, not NaN.',
+      'Line 1: Radius must be greater than 0, not 0.',
     );
   });
 

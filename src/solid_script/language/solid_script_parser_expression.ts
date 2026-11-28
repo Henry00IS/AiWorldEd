@@ -1,5 +1,6 @@
 import type { SolidScriptArgument, SolidScriptBinding, SolidScriptExpression } from './solid_script_ast.js';
 import type { SolidScriptToken } from './solid_script_lexer.js';
+import { solidScriptNumberSafe } from './solid_script_number_safe.js';
 
 /** Binary operators by precedence level, loosest first. */
 const SOLID_SCRIPT_BINARY_LEVELS: readonly (readonly string[])[] = [
@@ -274,7 +275,7 @@ export class SolidScriptParserExpression {
     const first = this.index;
     const token = this.next();
     if (token.kind === 'number')
-      return this.expressionMark({ kind: 'number', value: Number(token.text) }, first, false);
+      return this.expressionMark({ kind: 'number', value: solidScriptNumberSafe(Number(token.text)) }, first, false);
     if (token.kind === 'string') return this.expressionMark({ kind: 'string', value: token.text }, first, false);
     if (token.kind === 'identifier') return this.expressionMark(this.parseName(token.text), first, false);
     if (token.text === '(') {
