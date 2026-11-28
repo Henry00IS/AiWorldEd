@@ -163,7 +163,7 @@ export const SOLID_SCRIPT_COMMANDS_FILL: readonly SolidScriptCommand[] = [
  * @returns Even-Odd or Non-Zero.
  */
 function solidScriptFillRule(run: SolidScriptBlockRun): SolidScriptFillRule {
-  const text = (run.text('rule').trim() || 'Even-Odd').toLowerCase();
+  const text = run.text('rule').trim().toLowerCase();
   if (text === 'even-odd') return 'Even-Odd';
   if (text === 'non-zero') return 'Non-Zero';
   throw new Error(`Fill Paths needs Even-Odd or Non-Zero in Rule, not ${run.text('rule')}`);
@@ -193,7 +193,7 @@ function solidScriptFillEdges(run: SolidScriptBlockRun, count: number): [number,
  * @returns True for Regions.
  */
 function solidScriptFillFaces(run: SolidScriptBlockRun): boolean {
-  const text = (run.text('faces').trim() || 'Triangles').toLowerCase();
+  const text = run.text('faces').trim().toLowerCase();
   if (text === 'regions' || text === 'triangles') return text === 'regions';
   throw new Error(`Fill Points needs Triangles or Regions in Faces, not ${run.text('faces')}`);
 }

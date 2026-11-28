@@ -229,7 +229,7 @@ function solidScriptUvsOrigin(run: SolidScriptBlockRun, radial: boolean, leaf: S
     const text = solidScriptValueText(run.value('center')).trim();
     return text === '' ? solidScriptLeafCenter(leaf) : solidScriptUvsVector(run, 'center', [0, 0, 0], 'Center');
   }
-  const space = solidScriptValueText(run.value('space')).trim() || 'Local';
+  const space = solidScriptValueText(run.value('space')).trim();
   if (space.toLowerCase() === 'world') return new THREE.Vector3();
   if (space.toLowerCase() !== 'local') throw new Error(`Space must be Local or World, not ${space}`);
   return solidScriptLeafCenter(leaf);
@@ -274,7 +274,7 @@ function solidScriptUvsPlanar(
   size: number,
   origin: THREE.Vector3,
 ): SurfaceUvMatrix {
-  const from = solidScriptValueText(run.value('from')).trim() || 'Face';
+  const from = solidScriptValueText(run.value('from')).trim();
   const folded = from.toLowerCase();
   if (folded === 'face') return textureUvProjectPlanar(face.normal, size, origin);
   if (folded === 'overhead') return textureUvProjectView(TEXTURE_UV_PROJECT_OVERHEAD, size, origin);

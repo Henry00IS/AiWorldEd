@@ -663,7 +663,7 @@ function solidScriptUvsTransformOf(
  * @returns Pivot word.
  */
 function solidScriptUvsPivotWord(run: SolidScriptBlockRun): string {
-  return (solidScriptValueText(run.value('pivot')).trim() || 'Center').toLowerCase();
+  return solidScriptValueText(run.value('pivot')).trim().toLowerCase();
 }
 
 /**

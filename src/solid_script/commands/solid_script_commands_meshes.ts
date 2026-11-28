@@ -311,7 +311,7 @@ function solidScriptMeshMergeRun(
   mesh: SolidScriptShapeMesh,
   distance: number,
 ): SolidScriptShapeMesh {
-  const mode = run.text('merging').trim().toLowerCase() || 'all';
+  const mode = run.text('merging').trim().toLowerCase();
   if (mode !== 'all' && mode !== 'connected')
     throw new Error(`Mode needs All or Connected, not ${run.text('merging')}`);
   const count = mesh.points.length;

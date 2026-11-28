@@ -7,6 +7,7 @@ import {
   type SolidScriptFieldCompiled,
   solidScriptFieldMessage,
 } from './solid_script_field.js';
+import { solidScriptFieldEmptyGuarded } from './solid_script_field_empty.js';
 import { solidScriptKindAccepted, solidScriptKindMismatch, solidScriptKindOf } from './solid_script_kinds.js';
 import { solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
 import type { SolidScriptMachine } from './solid_script_machine.js';
@@ -156,13 +157,28 @@ export function solidScriptLinesPassInput(lines: readonly SolidScriptBlockNode<S
  * Makes the reader of one field of a line, the one path every field is read
  * through: a field that names what the line writes or defines is used as typed;
  * every other field reads its [names] and [=formulas] and stops on a kind it
- * does not accept, such as a Brush in a Name.
+ * does not accept, such as a Brush in a Name, and on empty text from something
+ * typed where a condition or a word is needed.
  *
  * @param field The field as its command declares it.
  * @param text Field text, or its default.
  * @returns Field.
  */
 export function solidScriptLineFieldMake(field: SolidScriptMachineField, text: string): SolidScriptLineField {
+  const made = solidScriptLineFieldRead(field, text);
+  return { ...made, compiled: solidScriptFieldEmptyGuarded(field, text, made.compiled) };
+}
+
+/**
+ * Makes the reader of one field before the empty-text check: a field that names
+ * what the line writes or defines is used as typed; every other field reads its
+ * [names] and [=formulas] and stops on a kind it does not accept.
+ *
+ * @param field The field as its command declares it.
+ * @param text Field text, or its default.
+ * @returns Field.
+ */
+function solidScriptLineFieldRead(field: SolidScriptMachineField, text: string): SolidScriptLineField {
   if (solidScriptFieldAsTyped(field)) return { text, label: field.label, compiled: () => text };
   const compiled = solidScriptFieldCompiled(field.type, text);
   if (field.accepts === 'Any') return { text, label: field.label, compiled };

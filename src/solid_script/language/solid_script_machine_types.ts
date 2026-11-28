@@ -47,6 +47,10 @@ export interface SolidScriptMachineField {
   into?: 'copy' | 'label';
   /** Set on an Of field that also reads the drawn paths a Name gives. */
   paths?: boolean;
+  /** Text of a new line. */
+  default?: string;
+  /** The few words the field takes. */
+  words?: readonly { readonly word: string }[];
 }
 
 /** What the machine needs from a command: its structure and its own run step. */

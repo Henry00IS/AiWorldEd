@@ -45,6 +45,7 @@ Solid Script is how AiWorldEd describes solid geometry as a script of block line
 
 - Each line is { "command": id, "values": { key: text } }. command is an id from the command list below.
 - values are always strings of plain text, without quotes. Fields you leave out keep their defaults. See Field values below.
+- A field left empty uses its default. A field with something in it that works out to empty text is not left empty: a number, a condition or a field that takes a few words stops the line, such as "line 10: To needs a number, such as 2, not \"\" (Text)"; a field that holds any value, such as the Value of Set or Add Item, keeps the empty text; empty text in a list field, such as For Each In, is an empty list and runs no round.
 - A command marked "opens a block" holds the lines after it up to its own { "command": "end" } line; blocks nest. Else sits between an If and its End.
 - { "command": "blank" } is an empty line; { "command": "note" } is a note for people. Neither does anything when the script runs.
 - Lines are numbered from 1 in list order; errors say "line N: ..." with that number.

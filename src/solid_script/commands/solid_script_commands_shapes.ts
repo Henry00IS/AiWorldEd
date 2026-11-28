@@ -392,7 +392,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
       if (!curve) throw args.error('curve', 'must be a curve, such as a Curve input', solidScriptValueText(given));
       const height = args.positive('height', args.number('height', 1));
       const depth = args.positive('depth', args.number('depth', 0.2));
-      const sideText = solidScriptValueText(args.value('side')).trim() || 'Normal';
+      const sideText = solidScriptValueText(args.value('side')).trim();
       if (!SOLID_SCRIPT_CURVE_PROFILE_SIDES.some((word) => word.toLowerCase() === sideText.toLowerCase()))
         throw args.error('side', `must be one of ${SOLID_SCRIPT_CURVE_PROFILE_SIDES.join(', ')}`, sideText);
       const side = solidScriptCurveProfileSideRead(sideText, 'Curve');

@@ -102,7 +102,7 @@ export const SOLID_SCRIPT_COMMANDS_PATH_JOIN: readonly SolidScriptCommand[] = [
       read.value('into'),
     ],
     execute: (run) => {
-      const place = solidScriptNoiseWord(run.text('add').trim() || 'End', SOLID_SCRIPT_PATH_JOIN_PLACES, 'Add At');
+      const place = solidScriptNoiseWord(run.text('add').trim(), SOLID_SCRIPT_PATH_JOIN_PLACES, 'Add At');
       solidScriptPathAddRun(run, 'Join Paths', (base, others) =>
         solidScriptPathJoin(base, others, place === 'End', 'Join Paths'),
       );

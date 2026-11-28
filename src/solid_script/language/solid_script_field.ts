@@ -557,6 +557,7 @@ export function solidScriptFieldList(text: string, read: (item: string) => Solid
   const items = solidScriptFieldSplit(text, ',');
   if (items.length === 1) {
     const value = read(items[0]!);
+    if (value === '') return [];
     return Array.isArray(value) ? [...value] : [value];
   }
   return items.map((item) => read(item));
