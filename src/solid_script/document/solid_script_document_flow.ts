@@ -527,7 +527,8 @@ class SolidScriptFlowAnalysis {
   ): readonly string[] {
     const head = this.headOf(state, frame);
     const field = 'field' in gives ? (block.values[gives.field] ?? '') : '';
-    if (gives.rule === 'kind') return solidScriptFlowKindEach(gives.kind, gives.each, block, head);
+    if (gives.rule === 'kind')
+      return [...solidScriptFlowKindEach(gives.kind, gives.each, block, head), ...(gives.also ?? [])];
     if (gives.rule === 'value') return solidScriptFlowValueKinds(field, head);
     if (gives.rule === 'item') return solidScriptFlowItemKinds(field, head);
     if (gives.rule === 'key') return solidScriptFlowKeyKinds(field, head);

@@ -1,9 +1,6 @@
 import type { SolidScriptPath, SolidScriptPathSegment } from './solid_script_path_model.js';
-import {
-  solidScriptPathClosedSet,
-  solidScriptPathResolutionOf,
-  solidScriptPathTyped,
-} from './solid_script_path_handles.js';
+import { solidScriptPathClosedSet } from './solid_script_path_handles.js';
+import { solidScriptPathPicked, solidScriptPathWithoutSpline } from './solid_script_path_pick.js';
 import { solidScriptPathHandleTypesOf, type SolidScriptPathHandleTypes } from './solid_script_path_handle_types.js';
 
 /** Farthest apart, in metres, two end points still count as one place. */
@@ -11,18 +8,6 @@ const SOLID_SCRIPT_PATH_JOIN_SAME = 1e-9;
 
 /** A path with no points, which every join treats as not there. */
 const SOLID_SCRIPT_PATH_NONE: SolidScriptPath<number[]> = { points: [], segments: [], closed: false };
-
-/**
- * Makes a path of straight and Bezier stretches: a Catmull Rom or NURBS path
- * becomes Bezier the way Set Path Type makes it, and any other path stays.
- *
- * @param path Path.
- * @returns Path with no whole-path curve.
- */
-function solidScriptPathJoinPlain(path: SolidScriptPath<number[]>): SolidScriptPath<number[]> {
-  if (!path.spline) return path;
-  return solidScriptPathTyped(path, 'Bezier', solidScriptPathResolutionOf(path));
-}
 
 /**
  * Cuts the points from one number up to another out of an open path, with the
@@ -39,18 +24,8 @@ function solidScriptPathJoinSlice(
   to: number,
 ): SolidScriptPath<number[]> {
   if (to <= from) return SOLID_SCRIPT_PATH_NONE;
-  const types = path.handleTypes;
-  const { normal } = path;
-  return {
-    points: path.points.slice(from, to),
-    segments: path.segments.slice(from, to - 1),
-    closed: false,
-    ...(path.resolution === undefined ? {} : { resolution: path.resolution }),
-    ...(path.tilts ? { tilts: path.tilts.slice(from, to) } : {}),
-    ...(types ? { handleTypes: { left: types.left.slice(from, to), right: types.right.slice(from, to) } } : {}),
-    ...(normal?.mode === 'Free' ? { normal: { mode: 'Free' as const, normals: normal.normals.slice(from, to) } } : {}),
-    ...(normal?.mode === 'Up' ? { normal } : {}),
-  };
+  const indices = Array.from({ length: to - from }, (_, step) => from + step);
+  return solidScriptPathPicked(path, indices, path.segments.slice(from, to - 1));
 }
 
 /**
@@ -209,12 +184,12 @@ export function solidScriptPathInsert(
   others.forEach((path, index) =>
     solidScriptPathJoinOpen(path, others.length === 1 ? 'the path to add' : `path ${index + 1} to add`, label),
   );
-  const plain = solidScriptPathJoinPlain(base);
+  const plain = solidScriptPathWithoutSpline(base);
   const closing = plain.closed ? plain.segments.at(-1) : undefined;
   const open = solidScriptPathClosedSet(plain, false);
   const parts = [
     solidScriptPathJoinSlice(open, 0, at),
-    ...others.map(solidScriptPathJoinPlain),
+    ...others.map(solidScriptPathWithoutSpline),
     solidScriptPathJoinSlice(open, at, open.points.length),
   ];
   const joined = parts.reduce(solidScriptPathJoinAppend, SOLID_SCRIPT_PATH_NONE);

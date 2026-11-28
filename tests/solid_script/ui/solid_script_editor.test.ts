@@ -50,6 +50,7 @@ describe('SolidScript editor', () => {
       'Vertices',
       'Points',
       'Paths',
+      'Curves',
       'UVs',
       'Data',
       'Inputs',

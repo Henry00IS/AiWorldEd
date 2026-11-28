@@ -157,6 +157,7 @@ export const SOLID_SCRIPT_EDITOR_CATEGORY_COLORS: Readonly<Record<string, string
   Vertices: '#b8507f',
   Points: '#7d6fd4',
   Paths: '#3b9fc6',
+  Curves: '#e2762b',
   UVs: '#5aa55a',
   Data: '#9a8256',
   Inputs: '#4f9e6b',

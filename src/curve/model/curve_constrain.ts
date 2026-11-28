@@ -47,6 +47,8 @@ export function curveConstrain(input: Curve): Curve {
 
 /**
  * Repairs one profile line in place: point count, order, segments and handles.
+ * Every handle is brought into its segment before any two meet, so a handle
+ * that is far out of range does not pull its neighbour out with it.
  *
  * @param layer Profile line.
  */
@@ -55,6 +57,7 @@ function curveConstrainLayer(layer: CurveLayer): void {
   while (layer.points.length < 2) layer.points.push(curvePointCreate(layer.points.length, 0));
   curveConstrainPoints(layer.points);
   layer.segments = layer.points.slice(1).map((_, index) => curveConstrainSegment(layer.segments[index]));
+  layer.points.forEach((_, index) => curveHandlesClamp(layer, index));
   layer.points.forEach((_, index) => curveConstrainHandles(layer, index));
 }
 
@@ -107,12 +110,27 @@ function curveConstrainSegment(segment: CurveSegment | undefined): CurveSegment 
 export function curveConstrainHandles(curve: CurveLayer, index: number): void {
   const point = curve.points[index];
   if (!point) return;
+  curveHandlesClamp(curve, index);
+  const previous = curve.points[index - 1];
+  const next = curve.points[index + 1];
+  if (next && curve.segments[index]?.mode === 'bezier') curveHandlesUncross(point, next);
+  if (previous && curve.segments[index - 1]?.mode === 'bezier') curveHandlesUncross(previous, point);
+}
+
+/**
+ * Brings one point's handles inside their segments' horizontal bands and the
+ * unit square.
+ *
+ * @param curve Curve being repaired.
+ * @param index Point index.
+ */
+function curveHandlesClamp(curve: CurveLayer, index: number): void {
+  const point = curve.points[index];
+  if (!point) return;
   const previous = curve.points[index - 1];
   const next = curve.points[index + 1];
   point.in = previous ? curveHandleClamp(point, point.in, previous.x, point.x) : { x: 0, y: 0 };
   point.out = next ? curveHandleClamp(point, point.out, point.x, next.x) : { x: 0, y: 0 };
-  if (next && curve.segments[index]?.mode === 'bezier') curveHandlesUncross(point, next);
-  if (previous && curve.segments[index - 1]?.mode === 'bezier') curveHandlesUncross(previous, point);
 }
 
 /**

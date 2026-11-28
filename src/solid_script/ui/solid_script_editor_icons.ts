@@ -19,6 +19,8 @@ const SOLID_SCRIPT_EDITOR_ICON_PATHS: Readonly<Record<string, string>> = {
     '<circle cx="3" cy="4" r="1.4" fill="currentColor"/><circle cx="8" cy="2.5" r="1.4" fill="currentColor"/><circle cx="12.5" cy="5" r="1.4" fill="currentColor"/><circle cx="5" cy="9" r="1.4" fill="currentColor"/><circle cx="10" cy="9.5" r="1.4" fill="currentColor"/><circle cx="3.5" cy="13.5" r="1.4" fill="currentColor"/><circle cx="12.5" cy="13" r="1.4" fill="currentColor"/>',
   Paths:
     '<path d="M2 12.5C5 2 11 14 14 3.5"/><path d="M2 12.5 4.5 5 M14 3.5l-2.5 7.5" stroke-opacity=".5"/><circle cx="2" cy="12.5" r="1"/><circle cx="14" cy="3.5" r="1"/>',
+  Curves:
+    '<path d="M2 13.5h12 M2 13.5v-11" stroke-opacity=".45"/><path d="M2 12C6 12 6 4 10 4s3 0 4 0"/><circle cx="2" cy="12" r="1"/><circle cx="10" cy="4" r="1"/>',
   UVs: '<rect x="2.5" y="2.5" width="11" height="11"/><path d="M2.5 8h11 M8 2.5v11"/><path d="M2.5 2.5H8V8H2.5z M8 8h5.5v5.5H8z" fill="currentColor" fill-opacity=".45"/>',
   Data: '<ellipse cx="8" cy="3.5" rx="5.5" ry="2"/><path d="M2.5 3.5v9c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2v-9 M2.5 8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2"/>',
   Lists:

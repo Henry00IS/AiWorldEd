@@ -103,7 +103,8 @@ export function curveSegmentSample(curve: Curve, index: number): CurveVector[] {
 
 /**
  * Turns a curve into a polyline from x 0 to x 1, bent segments split by their
- * detail. Equal neighbouring x values are vertical steps.
+ * detail. Equal neighbouring x values are vertical steps, and a point that
+ * would run back in x stays at the one before.
  *
  * @param curve Curve.
  * @returns Polyline points, left to right.
@@ -113,6 +114,23 @@ export function curveSample(curve: Curve): CurveVector[] {
   if (!first) return [];
   const points: CurveVector[] = [{ x: first.x, y: first.y }];
   curve.segments.forEach((_, index) => points.push(...curveSegmentSample(curve, index)));
+  return curveSampleOrdered(points);
+}
+
+/**
+ * Keeps sampled points from running back in x, so a curve that somehow holds
+ * points out of order still samples as a function of x. Valid curves are never
+ * changed.
+ *
+ * @param points Sampled points, left to right.
+ * @returns The same points.
+ */
+function curveSampleOrdered(points: CurveVector[]): CurveVector[] {
+  let floor = 0;
+  for (const point of points) {
+    if (point.x < floor) point.x = floor;
+    else floor = point.x;
+  }
   return points;
 }
 

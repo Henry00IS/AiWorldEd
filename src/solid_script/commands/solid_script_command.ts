@@ -62,6 +62,8 @@ export type SolidScriptCommandGives =
   | {
       readonly rule: 'kind';
       readonly kind: string;
+      /** Other kinds the variable may hold, when the line gives either. */
+      readonly also?: readonly string[];
       readonly what: string;
       /**
        * Fields that, given a list, make the line write a list of the kind, one
@@ -122,6 +124,7 @@ export type SolidScriptCommandCategory =
   | 'Vertices'
   | 'Points'
   | 'Paths'
+  | 'Curves'
   | 'Data'
   | 'UVs'
   | 'Inputs'
