@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { SOLID_SCRIPT_SYSTEM_GLOBALS } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_script_name_key.js';
+import { curveFromPolyline } from '@/curve/model/curve_model.js';
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
+import {
+  solidScriptDocumentResourcesWith,
+  solidScriptResourceCurve,
+} from '@/solid_script/document/solid_script_resource.js';
 import {
   SOLID_SCRIPT_FUNCTION_DOCS,
   solidScriptFunctionArguments,
@@ -268,16 +273,18 @@ describe('SolidScript suggestions', () => {
       const written = solidScriptSuggestionWrite(entry, text, caret, caret);
       return written.text.slice(0, written.caret) + '|' + written.text.slice(written.caret);
     };
-    expect(pick('Width', '[Wi|]')).toBe('[Width]|');
-    expect(pick('Width', '1, |')).toBe('1, [Width]|');
+    expect(pick('Width', '[Wi|]')).toBe('[Width|]');
+    expect(pick('Width', '1, |')).toBe('1, [Width|]');
     expect(pick('Width', '[=Abs(Wi|)]')).toBe('[=Abs(Width|)]');
     expect(pick('Abs', '[A|')).toBe('[=Abs(|)]');
     expect(pick('Abs', '[=1 + A|]')).toBe('[=1 + Abs(|)]');
     expect(pick('$Box.Width', '[=|]')).toBe('[=$Box.Width|]');
     expect(pick('Add', 'Ne|w', WORDY)).toBe('Add|');
-    expect(pick('Width', '[Wi|dth]')).toBe('[Width]|');
+    expect(pick('Width', '[Wi|dth]')).toBe('[Width|]');
     expect(pick('Width', '[=Abs(W|idt)]')).toBe('[=Abs(Width|)]');
     expect(pick('Abs', '[=A|bs(1)]')).toBe('[=Abs(|1)]');
+    expect(pick('$Resources.Curve', '[$Resources.Cu|]')).toBe('[$Resources.Curve|]');
+    expect(pick('$Local.X', '[$Local.|]')).toBe('[$Local.X|]');
   });
 
   it('lists every value group after an open bracket', () => {
@@ -406,5 +413,65 @@ describe('SolidScript suggestions follow the kinds a name may hold where the lin
   it('shows the kind in the Variables tab before running', () => {
     const entry = solidScriptExplorerEntries(HENRY, [], []).find((known) => known.name === 'Henry');
     expect(entry?.type).toBe('Solid');
+  });
+});
+
+describe('SolidScript suggestions follow the kinds of $Resources names', () => {
+  const document = solidScriptDocumentResourcesWith(solidScriptDocumentCreate([{ command: 'cube', values: {} }]), [
+    solidScriptResourceCurve(
+      'Curve',
+      curveFromPolyline([
+        [0, 1],
+        [1, 0],
+      ]),
+    ),
+    {
+      name: 'Walk',
+      kind: 'Path',
+      path: {
+        points: [
+          [0, 0, 0],
+          [1, 0, 0],
+        ],
+        segments: [{ kind: 'Straight' }],
+        closed: false,
+      },
+    },
+    { name: 'Brick', kind: 'Texture', textureId: 'library:brick' },
+  ]);
+
+  /**
+   * Lists the members suggested after a typed $Resources name of the script.
+   *
+   * @param text Field text up to the caret.
+   * @returns Member labels.
+   */
+  function members(text: string): string[] {
+    const scope = { names: solidScriptDocumentNamesAt(document, 0), extra: [], words: [] };
+    return solidScriptSuggestions(solidScriptSuggestionContext(text, text.length, false), scope).map(
+      (entry) => entry.label,
+    );
+  }
+
+  it('offers the members of a curve, path or texture resource after a dot, and deeper chains', () => {
+    expect(members('[$Resources.Curve.')).toEqual(
+      expect.arrayContaining(['$Resources.Curve.Points', '$Resources.Curve.Length', '$Resources.Curve.Segments']),
+    );
+    expect(members('[$Resources.Walk.')).toEqual(
+      expect.arrayContaining(['$Resources.Walk.Points', '$Resources.Walk.Length', '$Resources.Walk.Closed']),
+    );
+    expect(members('[$Resources.Brick.')).toEqual(
+      expect.arrayContaining(['$Resources.Brick.Length', '$Resources.Brick.Words']),
+    );
+    expect(members('[$Resources.Curve.Points.')).toEqual(
+      expect.arrayContaining(['$Resources.Curve.Points.Count', '$Resources.Curve.Points.First']),
+    );
+    expect(members('[$Resources.Curve.Points.First.')).toEqual(
+      expect.arrayContaining([
+        '$Resources.Curve.Points.First.X',
+        '$Resources.Curve.Points.First.Y',
+        '$Resources.Curve.Points.First.Z',
+      ]),
+    );
   });
 });

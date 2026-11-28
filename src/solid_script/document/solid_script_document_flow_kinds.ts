@@ -150,8 +150,8 @@ function solidScriptFlowParts(path: string): string[] {
 
 /**
  * Tells the kinds a name may hold, followed through its members and items, such
- * as Vector for Brush.Faces.First.Normal: a system value, or the kinds of the
- * script's name it starts with.
+ * as Vector for Brush.Faces.First.Normal: a system value, a $Resources name of
+ * the script, or the kinds of the script's name it starts with.
  *
  * @param path Name as written, without brackets.
  * @param head Kinds the script's names may hold.
@@ -159,9 +159,10 @@ function solidScriptFlowParts(path: string): string[] {
  */
 export function solidScriptFlowPathKinds(path: string, head: SolidScriptFlowHead): string[] {
   const parts = solidScriptFlowParts(path.trim());
-  if (parts.length > 1 && /^\$(local|persistent)$/i.test(parts[0] ?? '')) parts.splice(0, 2, `${parts[0]}.${parts[1]}`);
-  const system = solidScriptNameIsSystem(path.trim());
+  if (parts.length > 1 && /^\$(local|persistent|resources)$/i.test(parts[0] ?? ''))
+    parts.splice(0, 2, `${parts[0]}.${parts[1]}`);
   const first = parts[0] ?? '';
+  const system = solidScriptNameIsSystem(path.trim()) && !/^\$resources\./i.test(first);
   const start = system ? solidScriptFlowSystemStart(parts) : null;
   let kinds = start ? start.kinds : [...head(solidScriptFlowWord(first).toLowerCase())];
   if (!system && solidScriptFlowPicks(first)) kinds = kinds.map(solidScriptFlowItemOf);

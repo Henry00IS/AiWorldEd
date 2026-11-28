@@ -259,6 +259,7 @@ function solidScriptMemberDecl(kind: string, member: string): SolidScriptMemberD
     return solidScriptMemberDecl('Object', member);
   }
   if (kind === 'Solid') return solidScriptMemberDecl('Object', member);
+  if (kind === 'Texture') return solidScriptMemberDecl('Text', member);
   const members = SOLID_SCRIPT_MEMBER_DECLS[kind as keyof typeof SOLID_SCRIPT_MEMBER_DECLS];
   if (!members) return undefined;
   const key = solidScriptNameKey(member);
@@ -343,6 +344,7 @@ export function solidScriptMemberNames(type: string): string[] {
  * @returns Key of SOLID_SCRIPT_MEMBER_DECLS.
  */
 function solidScriptMemberDeclared(kind: string): keyof typeof SOLID_SCRIPT_MEMBER_DECLS {
+  if (kind === 'Texture') return 'Text';
   return (SOLID_SCRIPT_MEMBERS_OBJECTS.includes(kind) ? 'Object' : kind) as keyof typeof SOLID_SCRIPT_MEMBER_DECLS;
 }
 

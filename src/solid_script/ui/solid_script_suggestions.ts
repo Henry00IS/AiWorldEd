@@ -897,7 +897,9 @@ export function solidScriptSuggestionHintSignature(hint: SolidScriptSuggestionHi
 /**
  * Writes a pick into field text the way the caret position needs it: a word as
  * the whole field, a value as [Name] or bare inside a formula, a function as
- * [=Name()] or Name() inside a formula, replacing what was typed of it.
+ * [=Name()] or Name() inside a formula, replacing what was typed of it. After a
+ * bracketed value the caret sits just before the closing ], so a period can
+ * follow; after a function it sits inside the ().
  *
  * @param suggestion Picked suggestion.
  * @param text Field text.
@@ -919,7 +921,7 @@ export function solidScriptSuggestionWrite(
   let from = start;
   let after = text.slice(end);
   let insert = call ? `[=${suggestion.label}()]` : `[${suggestion.label}]`;
-  let back = call ? 2 : 0;
+  let back = call ? 2 : 1;
   if (context?.kind === 'formula') {
     from = context.from;
     after = text.slice(context.to);
