@@ -71,6 +71,9 @@ export function playerCollisionDepenetrate(
   if (!playerCollisionPoseIsBlocked(levelWorld, rig, feetPosition, allowEscape)) {
     return 'pushed';
   }
+  if (!allowEscape && playerCollisionCapsuleOnlyGrazes(levelWorld, rig, feetPosition)) {
+    return 'free';
+  }
   return allowEscape && playerCollisionEscapeToFreePose(levelWorld, rig, feetPosition) ? 'lifted' : 'stuck';
 }
 
@@ -161,6 +164,38 @@ function playerCollisionCapsuleTouchesGeometry(
       PHYSICS_LEVEL_GROUPS_LEVEL_QUERY,
     );
   return hit !== null && hit !== undefined;
+}
+
+/**
+ * Returns whether every overlap of the capsule is a graze too shallow to push
+ * out of (a body brushing an edge in flight), so it does not count as stuck.
+ *
+ * @param levelWorld Level world.
+ * @param rig Character rig.
+ * @param feetPosition Feet position.
+ * @returns True when no overlap is deeper than the tolerance.
+ */
+function playerCollisionCapsuleOnlyGrazes(
+  levelWorld: PhysicsLevelWorld,
+  rig: PlayerCollisionCharacterRig,
+  feetPosition: THREE.Vector3,
+): boolean {
+  let grazes = true;
+  playerCollisionWriteCenter(feetPosition);
+  const shape = rig.getCapsuleShape();
+  levelWorld.getRapierWorld().intersectionsWithShape(
+    scratchCenter,
+    IDENTITY_ROTATION,
+    shape,
+    (collider) => {
+      const contact = collider.contactShape(shape, scratchCenter, IDENTITY_ROTATION, 0);
+      grazes = contact !== null && -contact.distance <= PLAYER_DEPENETRATION_TOLERANCE_METERS;
+      return grazes;
+    },
+    undefined,
+    PHYSICS_LEVEL_GROUPS_LEVEL_QUERY,
+  );
+  return grazes;
 }
 
 /**

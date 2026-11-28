@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { clone as cloneSkinnedHierarchy } from 'three/addons/utils/SkeletonUtils.js';
 import { PLAYER_FIGURINE_USERDATA_KEY } from '@/player/player_constants.js';
 import { playerCharacterBoneIdFromGlbName } from './player_character_bone_names.js';
-import type { PlayerCharacterBoneId } from './player_character_bone_ids.js';
+import { PLAYER_CHARACTER_BONE, type PlayerCharacterBoneId } from './player_character_bone_ids.js';
 import { playerCharacterGetPreparedTemplate, playerCharacterIsModelReady } from './player_character_model_loader.js';
 import { playerCharacterTagHelperTree } from './player_character_model_prepare.js';
 
@@ -32,6 +32,24 @@ export function playerCharacterBuildRig(): PlayerCharacterRig {
   const bones = collectMappedBones(root);
   const restLocalQuaternions = captureRestLocalQuaternions(bones);
   return { root, bones, restLocalQuaternions };
+}
+
+/** Palm of the right hand, in the hand bone's frame (past the wrist). */
+const PLAYER_CHARACTER_RIGHT_PALM = new THREE.Vector3(0, 0.15, 0);
+
+/**
+ * Copies where the right palm is as last posed (where a grapple beam leaves).
+ *
+ * @param rig Character rig.
+ * @param target Destination.
+ * @returns False when the rig has no right hand.
+ */
+export function playerCharacterCopyRightHand(rig: PlayerCharacterRig, target: THREE.Vector3): boolean {
+  const hand = rig.bones.get(PLAYER_CHARACTER_BONE.handRight);
+  if (!hand) return false;
+  hand.updateWorldMatrix(true, false);
+  target.copy(PLAYER_CHARACTER_RIGHT_PALM).applyMatrix4(hand.matrixWorld);
+  return true;
 }
 
 /**

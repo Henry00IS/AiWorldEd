@@ -25,6 +25,33 @@ import {
   playerMovementResolveSpeed,
 } from './player_movement_input.js';
 import type { ManagerInput } from '@/input/manager_input.js';
+import {
+  PLAYER_GRAPPLE_CLIMB_AFTER_RELEASE_SECONDS,
+  PLAYER_GRAPPLE_FLIGHT_DRAG_PER_SECOND,
+  PLAYER_GRAPPLE_WALL_FRICTION_PER_SECOND,
+} from '@/player/grapple/player_grapple_constants.js';
+import { playerGrappleClimb } from '@/player/grapple/player_grapple_physics.js';
+
+/** Something pulling the body, such as the grapple beam. */
+export interface PlayerBodyPull {
+  /**
+   * Changes the velocity for one step while pulling.
+   *
+   * @param feet Feet position.
+   * @param velocity Body velocity (changed).
+   * @param grounded Whether the body stands on the ground.
+   * @param climbing Whether Space is held (climb while pulled).
+   * @param deltaSeconds Step in seconds.
+   * @returns True while pulling.
+   */
+  pull(
+    feet: THREE.Vector3,
+    velocity: THREE.Vector3,
+    grounded: boolean,
+    climbing: boolean,
+    deltaSeconds: number,
+  ): boolean;
+}
 
 /** Live play-mode body transform, velocity, and facing. */
 export class PlayerBodyState {
@@ -42,11 +69,16 @@ export class PlayerBodyState {
   private planarSpeed: number;
   private facingYawRadians: number;
   private lockedYawRadians: number | null = null;
+  private puller: PlayerBodyPull | null = null;
+  private isPulled = false;
+  /** Seconds the climb still lifts after the pull ended with Space held. */
+  private climbRemaining = 0;
   private wantsRun: boolean;
   private readonly horizontalDelta: THREE.Vector3;
   private readonly scratchForward: THREE.Vector3;
   private readonly scratchRight: THREE.Vector3;
   private readonly scratchTargetVelocity: THREE.Vector3;
+  private readonly scratchVelocity = new THREE.Vector3();
   private readonly collisionScratch: PlayerCollisionScratch;
 
   /** Creates a body at the world origin. */
@@ -97,6 +129,8 @@ export class PlayerBodyState {
     this.planarSpeed = 0;
     this.facingYawRadians = facingYawRadians;
     this.wantsRun = false;
+    this.isPulled = false;
+    this.climbRemaining = 0;
     playerCollisionForgetSafeFeet(this.collisionScratch);
     this.isGrounded = playerCollisionIsStandingOnGround(world, this.feetPosition);
   }
@@ -188,6 +222,15 @@ export class PlayerBodyState {
   }
 
   /**
+   * Lets something pull the body (the grapple beam), or nothing.
+   *
+   * @param puller Puller, or null.
+   */
+  setPull(puller: PlayerBodyPull | null): void {
+    this.puller = puller;
+  }
+
+  /**
    * Returns the body facing yaw used by the third-person avatar.
    *
    * @returns Facing yaw in radians.
@@ -228,6 +271,8 @@ export class PlayerBodyState {
       this.verticalVelocity -= PLAYER_GRAVITY_METERS_PER_SECOND_SQUARED * deltaSeconds;
     }
     this.buildHorizontalMotion(inputManager, look, deltaSeconds);
+    this.applyPull(deltaSeconds);
+    this.horizontalDelta.copy(this.horizontalVelocity).multiplyScalar(deltaSeconds);
     const wasStable = this.isGrounded && this.groundSnapSuppressionTimeRemaining <= 0;
     const result = playerCollisionIntegrateStep(
       world,
@@ -243,13 +288,36 @@ export class PlayerBodyState {
     this.isGrounded = result.isGrounded && this.groundSnapSuppressionTimeRemaining <= 0;
     this.isWallPushing = result.isWallPushing;
     this.wallNormal.copy(result.wallNormal);
-    this.killHorizontalVelocityIntoWall(result.wallNormal);
+    this.killHorizontalVelocityIntoWall(result.wallNormal, deltaSeconds);
     if (this.isGrounded) {
       this.coyoteTimeRemaining = PLAYER_COYOTE_TIME_SECONDS;
       this.verticalVelocity = 0;
     }
     this.planarSpeed = this.horizontalVelocity.length();
     this.updateFacingYaw(look, deltaSeconds, lockFacingToLookYaw);
+  }
+
+  /**
+   * Lets the puller change the velocity; while pulled the body is airborne and
+   * never snapped to the ground. Space held climbs, and keeps lifting a moment
+   * after letting go, so the body clears the ledge it climbed to.
+   *
+   * @param deltaSeconds Frame delta.
+   */
+  private applyPull(deltaSeconds: number): void {
+    const velocity = this.scratchVelocity.copy(this.horizontalVelocity).setY(this.verticalVelocity);
+    const climbing = this.jumpWasHeld;
+    this.isPulled = this.puller?.pull(this.feetPosition, velocity, this.isGrounded, climbing, deltaSeconds) ?? false;
+    if (!this.isPulled) {
+      this.climbRemaining = climbing && !this.isGrounded ? Math.max(0, this.climbRemaining - deltaSeconds) : 0;
+      if (this.climbRemaining > 0) this.verticalVelocity = playerGrappleClimb(this.verticalVelocity, deltaSeconds);
+      return;
+    }
+    this.climbRemaining = climbing ? PLAYER_GRAPPLE_CLIMB_AFTER_RELEASE_SECONDS : 0;
+    this.horizontalVelocity.set(velocity.x, 0, velocity.z);
+    this.verticalVelocity = velocity.y;
+    this.isGrounded = false;
+    this.groundSnapSuppressionTimeRemaining = Math.max(this.groundSnapSuppressionTimeRemaining, 0.1);
   }
 
   /**
@@ -265,14 +333,19 @@ export class PlayerBodyState {
   }
 
   /**
-   * Removes the into-wall component of planar velocity after wall contact.
+   * Removes the into-wall component of planar velocity after wall contact; a
+   * pulled body also rubs along the wall, so the pull drags it up the wall
+   * instead of swinging it to and fro along it.
    *
    * @param wallNormal Outward wall normal, or zero when no wall.
+   * @param deltaSeconds Frame delta.
    */
-  private killHorizontalVelocityIntoWall(wallNormal: THREE.Vector3): void {
+  private killHorizontalVelocityIntoWall(wallNormal: THREE.Vector3, deltaSeconds: number): void {
     if (wallNormal.lengthSq() < 1e-8) {
       return;
     }
+    if (this.isPulled)
+      this.horizontalVelocity.multiplyScalar(Math.exp(-PLAYER_GRAPPLE_WALL_FRICTION_PER_SECOND * deltaSeconds));
     const intoWall = this.horizontalVelocity.dot(wallNormal);
     if (intoWall < 0) {
       this.horizontalVelocity.addScaledVector(wallNormal, -intoWall);
@@ -330,16 +403,20 @@ export class PlayerBodyState {
     } else {
       this.scratchTargetVelocity.set(0, 0, 0);
     }
-    this.accelerateHorizontalVelocity(deltaSeconds);
-    this.horizontalDelta.copy(this.horizontalVelocity).multiplyScalar(deltaSeconds);
+    this.accelerateHorizontalVelocity(deltaSeconds, targetSpeed);
   }
 
   /**
-   * Accelerates or decelerates planar velocity toward the target velocity.
+   * Accelerates or decelerates planar velocity toward the target velocity. In
+   * the air while pulled or faster than a run (flung by the grapple), the
+   * momentum is kept: input only steers and the speed drags off slowly.
    *
    * @param deltaSeconds Frame delta.
+   * @param targetSpeed Walk or run speed.
    */
-  private accelerateHorizontalVelocity(deltaSeconds: number): void {
+  private accelerateHorizontalVelocity(deltaSeconds: number, targetSpeed: number): void {
+    const flying = this.isPulled || this.horizontalVelocity.length() > PLAYER_RUN_SPEED_METERS_PER_SECOND;
+    if (!this.isGrounded && flying) return this.steerFlight(deltaSeconds, targetSpeed);
     const hasInput = this.scratchTargetVelocity.lengthSq() > 1e-8;
     const rate = this.resolveAccelerationRate(hasInput);
     const maxStep = rate * deltaSeconds;
@@ -350,6 +427,25 @@ export class PlayerBodyState {
       return;
     }
     this.horizontalVelocity.addScaledVector(this.scratchForward, maxStep / errorLength);
+  }
+
+  /**
+   * Air control that keeps momentum: speed is added along the move intent only
+   * up to the walk or run speed in that direction, and the rest drags slowly.
+   *
+   * @param deltaSeconds Frame delta.
+   * @param targetSpeed Walk or run speed.
+   */
+  private steerFlight(deltaSeconds: number, targetSpeed: number): void {
+    this.horizontalVelocity.multiplyScalar(Math.exp(-PLAYER_GRAPPLE_FLIGHT_DRAG_PER_SECOND * deltaSeconds));
+    if (this.moveIntent.lengthSq() < 1e-8) return;
+    const along = this.horizontalVelocity.dot(this.moveIntent);
+    const add = THREE.MathUtils.clamp(
+      targetSpeed - along,
+      0,
+      PLAYER_AIR_ACCELERATION_METERS_PER_SECOND_SQUARED * deltaSeconds,
+    );
+    this.horizontalVelocity.addScaledVector(this.moveIntent, add);
   }
 
   /**

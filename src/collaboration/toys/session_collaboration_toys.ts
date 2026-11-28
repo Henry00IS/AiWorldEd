@@ -1,6 +1,7 @@
+import type * as THREE from 'three';
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import type { ReceiverCollaborationPresence } from '@/collaboration/presence/receiver_collaboration_presence.js';
-import { toyFrameDecode, toyFrameEncode } from '@/collaboration/shared/toy_frame.js';
+import { toyFrameCheck, toyFrameDecode, toyFrameEncode } from '@/collaboration/shared/toy_frame.js';
 import type { SessionCollaborationTransport } from '@/collaboration/session/session_collaboration_types.js';
 import type { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
 import type { PlayerCharacterHandTargets } from '@/player/character/player_character_hand_targets.js';
@@ -35,6 +36,8 @@ export class ToysCollaborationSession implements PlayerBallLink {
   private readonly respawns: ToyRespawnFlags;
   private user: number;
   private running: boolean;
+  /** Whether a frame the relay would refuse was dropped (warned once). */
+  private warnedInvalid: boolean;
 
   /**
    * Creates an idle toys session.
@@ -55,6 +58,7 @@ export class ToysCollaborationSession implements PlayerBallLink {
     this.roster = roster;
     this.presence = presence;
     this.listener = null;
+    this.warnedInvalid = false;
     this.respawns = new ToyRespawnFlags();
     this.user = -1;
     this.running = false;
@@ -138,12 +142,26 @@ export class ToysCollaborationSession implements PlayerBallLink {
   publish(snapshot: PlayerBallSnapshot): boolean {
     if (!this.running) return false;
     const respawned = this.respawns.outgoing(snapshot.balls, performance.now());
-    return this.transport.sendPresence(toyFrameEncode(toyTennisBallEncode(snapshot, respawned)));
+    const frame = toyFrameEncode(toyTennisBallEncode(snapshot, respawned));
+    if (toyFrameCheck(frame)) return this.transport.sendPresence(frame);
+    if (!this.warnedInvalid) console.warn('toys: dropped a toy frame the relay would refuse', snapshot);
+    this.warnedInvalid = true;
+    return true;
   }
 
   /** @inheritdoc */
   handsSet(member: number, hands: PlayerCharacterHandTargets | null): void {
     this.presence.handsSet(member, hands);
+  }
+
+  /** @inheritdoc */
+  reachSet(member: number, anchor: THREE.Vector3 | null): void {
+    this.presence.reachSet(member, anchor);
+  }
+
+  /** @inheritdoc */
+  missSet(member: number, end: THREE.Vector3): void {
+    this.presence.missSet(member, end);
   }
 
   /** @inheritdoc */

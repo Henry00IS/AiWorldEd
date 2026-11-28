@@ -63,6 +63,8 @@ export interface PlayerBallSnapshot {
    * its events overflow one entry (payloads are opaque here).
    */
   keyboard?: ToyEntry[];
+  /** Entry of the thrower's hooked grapple beam, or of a shot just missed. */
+  grapple?: ToyEntry;
 }
 
 /** Another member in play mode, as this client shows them. */
@@ -127,7 +129,8 @@ export interface PlayerBallLink {
    * Sends a snapshot of this client's own balls.
    *
    * @param snapshot Every own ball or the ones that changed.
-   * @returns True when the snapshot went out.
+   * @returns True when the snapshot went out (or was dropped because the relay
+   *   would refuse it and close the connection).
    */
   publish(snapshot: PlayerBallSnapshot): boolean;
   /**
@@ -143,4 +146,19 @@ export interface PlayerBallLink {
    * @param hands Hand targets, or null.
    */
   handsSet?(member: number, hands: PlayerCharacterHandTargets | null): void;
+  /**
+   * Points a member's character at the anchor of its grapple beam (it reaches
+   * for it and draws the beam), or lets go.
+   *
+   * @param member Member id.
+   * @param anchor Anchor, or null.
+   */
+  reachSet?(member: number, anchor: THREE.Vector3 | null): void;
+  /**
+   * Flickers a member's missed grapple shot from its gun out to an end.
+   *
+   * @param member Member id.
+   * @param end End of the flicker.
+   */
+  missSet?(member: number, end: THREE.Vector3): void;
 }
