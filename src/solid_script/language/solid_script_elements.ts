@@ -12,6 +12,7 @@ import {
   type SolidScriptVertexFacts,
 } from './solid_script_geometry.js';
 import { solidScriptGeometryLeafMatrix } from './solid_script_geometry_matrix.js';
+import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptStructureClone } from './solid_script_structure_clone.js';
 import { SOLID_SCRIPT_MODE_DEFAULT, type SolidScriptMode } from './solid_script_mode.js';
 import {
@@ -648,6 +649,17 @@ export class SolidScriptElements {
    */
   private dataValues(element: SolidScriptElement): Map<string, SolidScriptDictionaryEntry> {
     return element instanceof SolidScriptDictionary ? element.entries : this.dataEntry(element).data;
+  }
+
+  /**
+   * Tells whether a user value under .Data has been set.
+   *
+   * @param element Element, its Data or a Dictionary.
+   * @param key Key, folded or as written.
+   * @returns True when the key has a value.
+   */
+  dataHas(element: SolidScriptElement, key: string): boolean {
+    return this.dataValues(element).has(solidScriptNameKey(key));
   }
 
   /**

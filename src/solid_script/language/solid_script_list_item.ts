@@ -184,3 +184,36 @@ export function solidScriptListItemsReplace(items: SolidScriptValue[], next: rea
   items.length = next.length;
   for (let index = 0; index < next.length; index++) items[index] = next[index];
 }
+
+/**
+ * Reads a list item at the end of a name, including after a member path, such
+ * as Box.Data.Items(2), Faces(2).Data.Kind() or Points(0).
+ *
+ * @param text Text inside the brackets, or a variable name.
+ * @returns The list name and the index text, or null when the text has no
+ *   trailing item number.
+ */
+export function solidScriptListItemTargetParse(text: string): SolidScriptListItemReference | null {
+  const trimmed = text.trim();
+  if (!trimmed.endsWith(')')) return null;
+  const open = solidScriptListItemLastOpen(trimmed);
+  if (open <= 0) return null;
+  const name = trimmed.slice(0, open).trim();
+  return name === '' ? null : { name, index: trimmed.slice(open + 1, -1).trim() };
+}
+
+/**
+ * Finds the '(' that opens the last trailing item number in a name.
+ *
+ * @param text Trimmed name.
+ * @returns Index of that bracket, or -1 when none is balanced.
+ */
+function solidScriptListItemLastOpen(text: string): number {
+  let depth = 0;
+  for (let index = text.length - 1; index >= 0; index--) {
+    const character = text[index];
+    if (character === ')') depth++;
+    else if (character === '(' && --depth === 0) return index;
+  }
+  return -1;
+}

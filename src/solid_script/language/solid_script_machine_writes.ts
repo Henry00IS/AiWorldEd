@@ -5,7 +5,7 @@ import { SolidScriptCopier } from './solid_script_object_copy.js';
 import { solidScriptNameIsSystem, solidScriptNameKey } from './solid_script_name_key.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import { solidScriptMemberWriteParse, type SolidScriptMemberWrite } from './solid_script_name_rules.js';
-import { SolidScriptMachineMembers } from './solid_script_machine_members.js';
+import { SolidScriptMachineDataLists, solidScriptValueEmpty } from './solid_script_machine_data_lists.js';
 import { solidScriptEachUsed } from './solid_script_each_uses.js';
 import {
   solidScriptListItemParse,
@@ -34,7 +34,7 @@ const SOLID_SCRIPT_SELECTED_LIST = /^\$selected\.(objects|faces|edges|vertices)$
  * Call results. Variables are dynamic: any write may give a variable a value of
  * another kind.
  */
-export abstract class SolidScriptMachineWrites extends SolidScriptMachineMembers {
+export abstract class SolidScriptMachineWrites extends SolidScriptMachineDataLists {
   /** Paths of the run. */
   protected readonly paths = new SolidScriptPaths();
 
@@ -256,6 +256,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineMembers
    * @param name Name as written.
    */
   variableClearLine(scope: SolidScriptScope, name: string): void {
+    if (this.dataClear(scope, name)) return;
     const where = this.variableWhere(name, scope);
     const old = where.scope.variableHas(where.name) ? where.scope.variableGet(where.name) : undefined;
     this.variableSet(scope, name, solidScriptValueEmpty(old));
@@ -277,6 +278,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineMembers
     change: (items: SolidScriptValue[]) => void,
     create: boolean,
   ): void {
+    if (this.dataListChange(scope, name, change, create)) return;
     const where = this.variableWhere(name, scope);
     if (create && !where.scope.variableHas(where.name)) {
       const made: SolidScriptValue[] = [];
@@ -308,6 +310,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineMembers
     create: boolean,
     change: (dictionary: SolidScriptDictionary) => void,
   ): void {
+    if (this.dataDictionaryChange(scope, name, create, change)) return;
     const where = this.variableWhere(name, scope);
     const made = create && !where.scope.variableHas(where.name);
     const dictionary = made ? new SolidScriptDictionary() : this.dictionaryRead(scope, name);
@@ -326,6 +329,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineMembers
    * @param target Item as written.
    */
   variableItemRemove(scope: SolidScriptScope, target: string): void {
+    if (this.dataItemRemove(scope, target)) return;
     const where = this.variableWhere(target, scope);
     const item = solidScriptListItemParse(where.name);
     if (!item) throw new Error(`"${target}" is not a list item; write list(2), or list() for the last item`);
@@ -337,20 +341,4 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineMembers
     const left = solidScriptListItemRemove(item.name, where.scope.variableGet(item.name), index, this.nameShown);
     this.variableSet(scope, target.trim().replace(/\s*\(.*\)$/s, ''), left);
   }
-}
-
-/**
- * Gives a new empty value of the kind a value holds, for Clear Variable: an
- * empty list for a list or nothing, an empty Dictionary for a Dictionary, 0 for
- * a number, No for a Yes/No and empty text for anything else. Other names for
- * the old value keep it.
- *
- * @param old Value the variable holds, undefined when it is not set.
- * @returns Empty value.
- */
-function solidScriptValueEmpty(old: SolidScriptValue): SolidScriptValue {
-  if (old === undefined || Array.isArray(old)) return [];
-  if (old instanceof SolidScriptDictionary) return new SolidScriptDictionary();
-  if (typeof old === 'number') return 0;
-  return typeof old === 'boolean' ? false : '';
 }

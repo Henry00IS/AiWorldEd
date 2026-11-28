@@ -166,7 +166,7 @@ export abstract class SolidScriptMachineMembers extends SolidScriptMachineVariab
    * @param items Every item, in order.
    * @returns Items with their numbers.
    */
-  private memberPicked<Item>(
+  protected memberPicked<Item>(
     scope: SolidScriptScope,
     write: SolidScriptMemberWrite,
     items: readonly Item[],
@@ -184,6 +184,23 @@ export abstract class SolidScriptMachineMembers extends SolidScriptMachineVariab
   }
 
   /**
+   * Resolves the Data key a write uses, including a key in brackets such as
+   * Data.[Name].
+   *
+   * @param scope Scope of the line.
+   * @param write The write.
+   * @returns The key as written.
+   */
+  protected dataKeyNamed(scope: SolidScriptScope, write: SolidScriptMemberWrite): string {
+    const name = write.key.includes('[')
+      ? solidScriptValueText(solidScriptFieldResolve('value', write.key, this.fieldContext(scope))).trim()
+      : write.key;
+    if (!SOLID_SCRIPT_NAME.test(name))
+      throw new Error(`"${name}" cannot be a Data key; keys use letters, digits and _, not starting with a digit`);
+    return name;
+  }
+
+  /**
    * Writes a user value under .Data, such as Face.Data.Height or
    * Prices.Data.Wood, to one element, every element of a list or a Dictionary.
    *
@@ -191,12 +208,8 @@ export abstract class SolidScriptMachineMembers extends SolidScriptMachineVariab
    * @param write The write.
    * @param valueOf Value of each element.
    */
-  private dataWrite(scope: SolidScriptScope, write: SolidScriptMemberWrite, valueOf: SolidScriptMemberValue): void {
-    const name = write.key.includes('[')
-      ? solidScriptValueText(solidScriptFieldResolve('value', write.key, this.fieldContext(scope))).trim()
-      : write.key;
-    if (!SOLID_SCRIPT_NAME.test(name))
-      throw new Error(`"${name}" cannot be a Data key; keys use letters, digits and _, not starting with a digit`);
+  protected dataWrite(scope: SolidScriptScope, write: SolidScriptMemberWrite, valueOf: SolidScriptMemberValue): void {
+    const name = this.dataKeyNamed(scope, write);
     const owner = this.fieldVariable(solidScriptNameKey(write.owner), scope);
     const items = Array.isArray(owner) ? owner : [owner];
     for (const { item, index, count } of this.memberPicked(scope, write, items))
@@ -229,7 +242,7 @@ export abstract class SolidScriptMachineMembers extends SolidScriptMachineVariab
    * @param written Owner name as written, such as $Persistent.Prices.
    * @param scope Scope of the line.
    */
-  private persistentOwnerKeep(written: string, scope: SolidScriptScope): void {
+  protected persistentOwnerKeep(written: string, scope: SolidScriptScope): void {
     const name = solidScriptNameKey(written);
     if (!name.startsWith(SOLID_SCRIPT_PERSISTENT_PREFIX)) return;
     const where = this.variableWhere(name, scope);
