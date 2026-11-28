@@ -663,16 +663,32 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
       const members = this.memberPath(name, scope);
       if (members) return members.value;
       if (where.persistent && !item) return undefined;
-      const written = this.nameShown(where.local ? `${SOLID_SCRIPT_LOCAL_PREFIX}${base}` : base);
-      throw new Error(
-        where.local
-          ? `there is no local variable [${written}]; it is an input of the Function or set with Set ${written}`
-          : `there is no variable [${written}]; set it on a line above this one`,
-      );
+      throw this.variableMissing(base, where.local);
     }
     if (!item) return where.scope.variableGet(base);
     const index = item.index === '' ? null : this.indexValue(item.index, scope);
     return solidScriptListItemRead(base, where.scope.variableGet(base), index, this.nameShown);
+  }
+
+  /**
+   * Builds the error of a variable that is not set. Inside a Function, a plain
+   * name that the Function holds as its own, such as an input, adds a hint to
+   * write it with $Local.
+   *
+   * @param base Name without any item number.
+   * @param local True when it was written with $Local.
+   * @returns Error.
+   */
+  private variableMissing(base: string, local: boolean): Error {
+    if (local) {
+      const written = this.nameShown(`${SOLID_SCRIPT_LOCAL_PREFIX}${base}`);
+      return new Error(
+        `there is no local variable [${written}]; it is an input of the Function or set with Set ${written}`,
+      );
+    }
+    const missing = `there is no variable [${this.nameShown(base)}]; set it on a line above this one`;
+    if (this.fieldLocal(base.split('.')[0] ?? base) === undefined) return new Error(missing);
+    return new Error(`${missing}. Did you mean [${this.nameShown(`${SOLID_SCRIPT_LOCAL_PREFIX}${base}`)}]?`);
   }
 
   /**

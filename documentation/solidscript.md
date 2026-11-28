@@ -209,6 +209,7 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - RotateBy(rotation, by, local) composes two X, Y, Z degree turns: By turns in world space, or in the rotated space when Local is true, which adding the angles does not do.
 - For Each has a 🔁 Where an item must pass, with [$Item] the item, for the lines inside to run for it, such as Where [=[$Item.Normal.Y] > 0.5]; Key still counts in the whole list.
 - Function inputs may have defaults, such as W, D = 1: a call may leave those off, and they take the value after =. Numbers, Yes/No, quoted text and [lists] are read as values. Inputs with a default come last.
+- Inside a Function, its inputs and own variables are read with `$Local.`, such as `[$Local.Width]`. Writing `[Width]` there when the Function holds Width stops with `there is no variable [Width]; set it on a line above this one. Did you mean [$Local.Width]?`
 - A Function reruns for each item when its formula is used per item, such as in a Where or a per-face field: [$Local.X] holds that item's value each time.
 - The Ids of the scatter blocks write a steady number for each point, worked out from where it lies, so Random seeded by it stays with a point when Count grows or other points are removed.
 - Path From Points Radius can change per corner with [$Index] and [$Point], such as [=[$Index] * 0.1]; a corner with 0 stays sharp. Limit Radius Yes shrinks radii that do not fit so rounded corners never overlap.
