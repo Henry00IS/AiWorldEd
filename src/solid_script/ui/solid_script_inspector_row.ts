@@ -23,6 +23,7 @@ import { modifierStackSolidScriptRunStart } from '@/modifier/stack/kinds/generat
 import { modifierStackSolidScriptRunShown } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_run_share.js';
 import { SOLID_SCRIPT_FILE_EXTENSION } from '@/solid_script/file/solid_script_file.js';
 import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
+import { solidScriptSettingsCheckbox } from './solid_script_editor_settings_option.js';
 import {
   solidScriptInspectorInputValues,
   solidScriptInspectorPersistentValues,
@@ -200,15 +201,9 @@ function solidScriptInspectorUseBox(
   show: (text: string) => void,
   commit: () => void,
 ): { box: HTMLInputElement; wrap: HTMLLabelElement } {
-  const box = document.createElement('input');
-  box.type = 'checkbox';
-  box.setAttribute('aria-label', label);
+  const { box, element: wrap } = solidScriptSettingsCheckbox(label, hint);
   box.dataset['solidScriptUse'] = use;
   box.addEventListener('change', () => solidScriptInspectorUseChange(box, use, locked, show, commit));
-  const wrap = document.createElement('label');
-  wrap.title = hint;
-  Object.assign(wrap.style, { display: 'flex', gap: '4px', alignItems: 'center' });
-  wrap.append(box, label);
   return { box, wrap };
 }
 
@@ -248,15 +243,12 @@ export function solidScriptInspectorEditMode(commit: (on: boolean) => void): {
   element: HTMLElement;
   write: (document: SolidScriptDocument) => void;
 } {
-  const box = document.createElement('input');
-  box.type = 'checkbox';
-  box.setAttribute('aria-label', 'Has Edit Mode');
-  box.addEventListener('change', () => commit(box.checked));
-  const element = document.createElement('label');
+  const { box, element } = solidScriptSettingsCheckbox(
+    'Has Edit Mode',
+    'Shows an Edit button on objects that run this script, to drag its Widget lines in the scene',
+  );
   element.dataset['solidScriptEditMode'] = 'true';
-  element.title = 'Shows an Edit button on objects that run this script, to drag its Widget lines in the scene';
-  Object.assign(element.style, { display: 'flex', gap: '4px', alignItems: 'center' });
-  element.append(box, modifierStackUiText('span', 'Has Edit Mode', true));
+  box.addEventListener('change', () => commit(box.checked));
   return { element, write: (script) => void (box.checked = script.editMode === true) };
 }
 

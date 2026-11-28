@@ -12,6 +12,8 @@ import {
 } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptFileDecode, solidScriptFileEncode } from '@/solid_script/file/solid_script_file.js';
 import { solidScriptEditorCurrentGet, solidScriptEditorOpen } from '@/solid_script/ui/solid_script_editor_open.js';
+import { SOLID_SCRIPT_EDITOR_CLASSES } from '@/solid_script/ui/solid_script_editor_css.js';
+import { SOLID_SCRIPT_EDITOR_VIEW_LABELS } from '@/solid_script/ui/solid_script_editor_view.js';
 import { editorFixture, find } from './solid_script_editor_fixture.js';
 
 afterEach(() => {
@@ -40,6 +42,39 @@ describe('Solid Script editor Settings list', () => {
       'Has Edit Mode',
     ]);
     expect([...list.querySelectorAll('span')].map((span) => span.textContent)).not.toContain('Can Be Used As');
+  });
+
+  it('draws every Settings option with the same row class, in the editor font, not muted monospace', () => {
+    editorFixture([{ command: 'cube' }]);
+    find<HTMLButtonElement>('[role="tab"][data-tab="settings"]').click();
+    const option = SOLID_SCRIPT_EDITOR_CLASSES.settingsOption;
+    const settings = find('[data-solid-script-settings]');
+    const checkboxes = [...settings.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
+    expect(checkboxes.map((box) => box.getAttribute('aria-label'))).toEqual([
+      'Can Be Used As Generator',
+      'Can Be Used As Modifier',
+      'Has Edit Mode',
+      ...SOLID_SCRIPT_EDITOR_VIEW_LABELS.map((entry) => entry[1]),
+    ]);
+    for (const box of checkboxes) {
+      const row = box.closest('label');
+      expect(row?.classList.contains(option), box.getAttribute('aria-label') ?? '').toBe(true);
+      expect(row?.querySelector('span'), box.getAttribute('aria-label') ?? '').toBeNull();
+      expect(row?.style.fontFamily, box.getAttribute('aria-label') ?? '').toBe('');
+    }
+    for (const name of ['Version', 'Author', 'Debug Speed']) {
+      const control = find(`[data-solid-script-settings] [aria-label="${name}"]`);
+      const row = control.closest('label');
+      expect(row?.classList.contains(option), name).toBe(true);
+      const text = [...(row?.childNodes ?? [])].some(
+        (node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').includes(name),
+      );
+      expect(text, name).toBe(true);
+      expect(
+        [...(row?.querySelectorAll('span') ?? [])].some((span) => span.style.fontFamily === 'monospace'),
+        name,
+      ).toBe(false);
+    }
   });
 
   it('defaults the Version menu to Solid Script 1, its only option', () => {

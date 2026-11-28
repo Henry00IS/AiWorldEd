@@ -128,6 +128,7 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   fieldCodeLayer: 'solid-script-editor-field-code-layer',
   guides: 'solid-script-editor-guides',
   settingsGroup: 'solid-script-editor-settings-group',
+  settingsOption: 'solid-script-editor-settings-option',
   fieldFormula: 'solid-script-editor-field-formula',
   colorSwatch: 'solid-script-editor-color-swatch',
   formulaBody: 'solid-script-editor-formula-body',
@@ -264,7 +265,7 @@ const SOLID_SCRIPT_EDITOR_LINES_CSS = `
 .${c.squiggleError} { text-decoration-color: #e5484d; }
 .${c.settingsGroup} { display: grid; gap: 4px; margin: 4px 0 0; padding: 6px 10px 8px; border: 1px solid ${ThemeCss.separatorColor}; border-radius: 5px; }
 .${c.settingsGroup} > legend { padding: 0 4px; font-weight: 600; }
-.${c.settingsGroup} > label { display: flex; gap: 6px; align-items: center; }
+.${c.settingsGroup} > label, .${c.settingsOption} { display: flex; gap: 6px; align-items: center; }
 .${c.fieldCode} { position: relative; display: flex; flex: 1; min-width: 0; }
 .${c.fieldCode}:has(> input[hidden]) { display: none; }
 .${c.fieldCode} > .${c.input} { color: transparent; caret-color: ${ThemeCss.inputTextColor}; }

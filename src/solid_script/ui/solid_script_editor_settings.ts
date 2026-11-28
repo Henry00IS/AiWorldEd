@@ -1,4 +1,3 @@
-import { modifierStackUiText } from '@/modifier/stack/ui/modifier_stack_ui_style.js';
 import {
   SOLID_SCRIPT_DOCUMENT_VERSION,
   SOLID_SCRIPT_VERSION_LABEL,
@@ -11,6 +10,7 @@ import {
   type SolidScriptUse,
 } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptInspectorEditMode, solidScriptInspectorUses } from './solid_script_inspector_row.js';
+import { solidScriptSettingsCheckbox, solidScriptSettingsOption } from './solid_script_editor_settings_option.js';
 import { LocalSettingsStorage, type SettingsStorage } from '@/settings/storage/settings_storage.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import {
@@ -129,11 +129,12 @@ function solidScriptEditorSettingsVersion(commit: (version: typeof SOLID_SCRIPT_
   element: HTMLElement;
   write: (document: SolidScriptDocument) => void;
 } {
-  const row = document.createElement('label');
-  row.title = 'Which Solid Script language this script uses. Later versions may read some lines differently.';
-  Object.assign(row.style, { display: 'flex', gap: '8px', alignItems: 'center' });
   const select = solidScriptEditorSettingsVersionSelect(commit);
-  row.append(modifierStackUiText('span', 'Version', true), select);
+  const row = solidScriptSettingsOption(
+    'Which Solid Script language this script uses. Later versions may read some lines differently.',
+    'Version',
+    select,
+  );
   return { element: row, write: (script) => void (select.value = String(script.version)) };
 }
 
@@ -165,15 +166,11 @@ function solidScriptEditorSettingsVersionSelect(
  * @returns Row.
  */
 function solidScriptEditorSettingsAuthor(author: HTMLInputElement, commit: () => void): HTMLElement {
-  const row = document.createElement('div');
-  row.title = 'Who wrote the script; saved with it';
-  Object.assign(row.style, { display: 'flex', gap: '8px', alignItems: 'center' });
   author.type = 'text';
   author.setAttribute('aria-label', 'Author');
   author.placeholder = 'Name';
   author.addEventListener('change', commit);
-  row.append(modifierStackUiText('span', 'Author', true), author);
-  return row;
+  return solidScriptSettingsOption('Who wrote the script; saved with it', 'Author', author);
 }
 
 /**
@@ -195,18 +192,14 @@ function solidScriptEditorSettingsView(
   group.append(legend);
   const view = solidScriptEditorViewRead(storage);
   for (const [key, label, hint] of SOLID_SCRIPT_EDITOR_VIEW_LABELS) {
-    const row = document.createElement('label');
-    row.title = hint;
-    const box = document.createElement('input');
-    box.type = 'checkbox';
+    const { box, element } = solidScriptSettingsCheckbox(label, hint);
     box.checked = view[key];
     box.addEventListener('change', () => {
       view[key] = box.checked;
       solidScriptEditorViewWrite(view, storage);
       viewChanged({ ...view });
     });
-    row.append(box, label);
-    group.append(row);
+    group.append(element);
   }
   return group;
 }
@@ -225,10 +218,6 @@ function solidScriptEditorSettingsDebug(speedChanged: (ms: number) => void, stor
   const legend = document.createElement('legend');
   legend.textContent = 'Debug';
   legend.title = 'How Debug steps through the script; kept on this computer';
-  const row = document.createElement('label');
-  row.title =
-    'How fast Debug builds one solid after the other when it plays on its own. Slow shows one solid per second, Normal about two, Fast about seven and Fastest about 25. Step still builds one solid per press.';
-  Object.assign(row.style, { display: 'flex', gap: '8px', alignItems: 'center' });
   const speed = document.createElement('select');
   speed.setAttribute('aria-label', 'Debug Speed');
   for (const [name, , words] of SOLID_SCRIPT_EDITOR_DEBUG_SPEEDS) {
@@ -244,7 +233,11 @@ function solidScriptEditorSettingsDebug(speedChanged: (ms: number) => void, stor
     solidScriptEditorDebugSpeedWrite(chosen, storage);
     speedChanged(solidScriptEditorDebugSpeedMs(chosen));
   });
-  row.append(modifierStackUiText('span', 'Debug Speed', true), speed);
+  const row = solidScriptSettingsOption(
+    'How fast Debug builds one solid after the other when it plays on its own. Slow shows one solid per second, Normal about two, Fast about seven and Fastest about 25. Step still builds one solid per press.',
+    'Debug Speed',
+    speed,
+  );
   group.append(legend, row);
   return group;
 }
