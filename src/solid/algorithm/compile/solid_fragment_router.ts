@@ -3,6 +3,7 @@ import { SurfaceCategory } from '@/solid/types/surface_category.js';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { BrushMembership } from '@/solid/algorithm/spatial/brush_membership.js';
+import { BrushMembershipAlignedFaceReach } from '@/solid/algorithm/spatial/brush_membership_aligned_face_reach.js';
 import { SOLID_FAT_PLANE_EPSILON } from '@/solid/algorithm/math/solid_math_constants.js';
 import type { PreparedBrush } from './solid_compile_types.js';
 import { SolidCsgTree } from './solid_csg_tree.js';
@@ -177,7 +178,10 @@ export class SolidFragmentRouter {
    * Classifies the active fragment against a peer by its centroid. A centroid
    * inside or on the peer is overruled to Outside when the fragment reaches
    * clearly past a peer plane that crosses it through the centroid, because
-   * such a plane runs through the fragment instead of bounding it.
+   * such a plane runs through the fragment instead of bounding it. A centroid
+   * aligned with a peer face is overruled to Outside when it lies along that
+   * face's plane clearly beside the face: it only sits in the fat band of a
+   * thin peer wedge, and no peer face covers it.
    *
    * @param brush Peer brush.
    * @param normal Fragment normal.
@@ -185,8 +189,8 @@ export class SolidFragmentRouter {
    */
   private classifyActiveFragment(brush: SolidBrush, normal: THREE.Vector3): SurfaceCategory {
     const category = BrushMembership.classifyPoint(this.scratchCentroid, brush, normal);
-    if (category === SurfaceCategory.Outside) {
-      return category;
+    if (category === SurfaceCategory.Outside || this.isCentroidBesideAlignedFace(category, brush)) {
+      return SurfaceCategory.Outside;
     }
     for (const plane of brush.planes) {
       if (
@@ -197,6 +201,19 @@ export class SolidFragmentRouter {
       }
     }
     return category;
+  }
+
+  /**
+   * Returns true when the centroid was found aligned with a peer face but lies
+   * clearly beside that face's outline.
+   *
+   * @param category Category the centroid got against the peer.
+   * @param brush Peer brush.
+   * @returns True if the alignment is only the fat band of a thin wedge.
+   */
+  private isCentroidBesideAlignedFace(category: SurfaceCategory, brush: SolidBrush): boolean {
+    const aligned = category === SurfaceCategory.Aligned || category === SurfaceCategory.ReverseAligned;
+    return aligned && BrushMembershipAlignedFaceReach.isPointOffClosestFace(this.scratchCentroid, brush);
   }
 
   /**
