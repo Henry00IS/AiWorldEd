@@ -603,8 +603,8 @@ export class BuilderEditorShell {
   }
 
   /**
-   * Adds floating panel toggle icons (UV, textures), About, Audio next to AI
-   * Captures, then a trailing spacer and MCP on the far right.
+   * Adds floating panel toggle icons (UV, textures), About, Audio next to the
+   * Debug Menu, then a trailing spacer and MCP on the far right.
    *
    * @param toolbar Toolbar instance to populate.
    * @param actions Callbacks for each toolbar control.
@@ -619,9 +619,9 @@ export class BuilderEditorShell {
     toolbar.addIconButton('Documentation', ToolbarIcons.documentation(), () => actions.onOpenDocumentation());
     toolbar.addIconButton('About', ToolbarIcons.about(), () => actions.onOpenAboutDialog());
     toolbar.addIconButton('Detached Viewport', ToolbarIcons.detachedViewport(), () => actions.onOpenDetachedViewport());
-    toolbar.addIconButton('AI Captures', ToolbarIcons.aiCaptureDebug(), () =>
+    toolbar.addIconButton('Debug Menu', ToolbarIcons.aiCaptureDebug(), () =>
       actions.onToggleAiCaptureDebugPanel(),
-    ).title = 'AI view_capture images (debug)';
+    ).title = 'Debug Menu: AI view_capture images, image handles, memory';
     toolbar.addSeparator();
     const audioButton = toolbar.addButton('Audio', () => actions.onToggleAudio());
     audioButton.title = 'Editor sound feedback';

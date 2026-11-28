@@ -1,3 +1,7 @@
+import { getImageManager } from '@/texture/image_manager/image_manager_shared.js';
+import type { ImageManagerHandle } from '@/texture/image_manager/manager_image.js';
+import type { ImageManagerThumbnail } from '@/texture/image_manager/image_manager_types.js';
+
 /**
  * Square image thumbnails in a grid, shared by the texture browser and the
  * project browser so both look the same: columns are snapped to whole CSS
@@ -42,8 +46,28 @@ export interface ThumbnailGridOptions {
  */
 const thumbnailGridSources = new WeakMap<HTMLElement, Blob>();
 
+/**
+ * The image manager's thumbnail each shown thumbnail holds (images the manager
+ * knows): drawn from it instead of the full file when it is large enough.
+ */
+const thumbnailGridHandles = new WeakMap<HTMLElement, ImageManagerHandle<ImageManagerThumbnail>>();
+
 /** Resampled thumbnails by URL, size and fit, oldest first. */
 const thumbnailGridCache = new Map<string, Promise<ImageBitmap | null>>();
+
+/** Pixel bytes of each decoded cached thumbnail (for the Debug Menu). */
+const thumbnailGridCacheBytes = new Map<string, number>();
+
+/**
+ * Tells how many resampled thumbnails are cached and their pixel bytes.
+ *
+ * @returns Count and bytes (RGBA, an estimate of what the browser holds).
+ */
+export function thumbnailGridCacheInfo(): { count: number; bytes: number } {
+  let bytes = 0;
+  thumbnailGridCacheBytes.forEach((size) => (bytes += size));
+  return { count: thumbnailGridCache.size, bytes };
+}
 
 /** Ensures the shared thumbnail CSS exists. */
 export function thumbnailGridStylesEnsure(): void {
@@ -85,6 +109,7 @@ export function thumbnailGridTileRelease(root: HTMLElement): void {
   for (const thumb of thumbs) {
     thumbnailGridCanvasRelease(thumb);
     thumbnailGridSources.delete(thumb);
+    thumbnailGridHandleRelease(thumb);
     delete thumb.dataset['thumbnailUrl'];
     delete thumb.dataset['thumbnailDrawn'];
   }
@@ -125,9 +150,22 @@ export function thumbnailGridThumbSet(thumb: HTMLElement, url: string | null, so
   else thumbnailGridSources.set(thumb, source);
   if ((thumb.dataset['thumbnailUrl'] ?? null) === url) return;
   thumbnailGridCanvasRelease(thumb);
+  thumbnailGridHandleRelease(thumb);
   delete thumb.dataset['thumbnailDrawn'];
   if (url === null) delete thumb.dataset['thumbnailUrl'];
   else thumb.dataset['thumbnailUrl'] = url;
+  const handle = url === null ? null : getImageManager().acquireThumbnail(url);
+  if (handle !== null) thumbnailGridHandles.set(thumb, handle);
+}
+
+/**
+ * Gives back a thumbnail's image manager handle.
+ *
+ * @param thumb Thumbnail element.
+ */
+function thumbnailGridHandleRelease(thumb: HTMLElement): void {
+  thumbnailGridHandles.get(thumb)?.release();
+  thumbnailGridHandles.delete(thumb);
 }
 
 /**
@@ -234,24 +272,26 @@ export class ThumbnailGrid {
       const key = `${device}|${fit}|${url}`;
       if (thumb.dataset['thumbnailDrawn'] === key) return;
       thumb.dataset['thumbnailDrawn'] = key;
-      void thumbnailGridBitmap(url, device, fit, thumbnailGridSources.get(thumb)).then((bitmap) => {
-        if (thumb.dataset['thumbnailDrawn'] !== key) return;
-        thumbnailGridCanvasRelease(thumb);
-        if (bitmap === null) return;
-        const canvas = document.createElement('canvas');
-        canvas.width = device;
-        canvas.height = device;
-        try {
-          canvas
-            .getContext('2d')
-            ?.drawImage(bitmap, Math.round((device - bitmap.width) / 2), Math.round((device - bitmap.height) / 2));
-        } catch {
-          // The bitmap was closed meanwhile (evicted from the cache): draw again next time.
-          delete thumb.dataset['thumbnailDrawn'];
-          return;
-        }
-        thumb.appendChild(canvas);
-      });
+      void thumbnailGridBitmap(url, device, fit, thumbnailGridSources.get(thumb), thumbnailGridHandles.get(thumb)).then(
+        (bitmap) => {
+          if (thumb.dataset['thumbnailDrawn'] !== key) return;
+          thumbnailGridCanvasRelease(thumb);
+          if (bitmap === null) return;
+          const canvas = document.createElement('canvas');
+          canvas.width = device;
+          canvas.height = device;
+          try {
+            canvas
+              .getContext('2d')
+              ?.drawImage(bitmap, Math.round((device - bitmap.width) / 2), Math.round((device - bitmap.height) / 2));
+          } catch {
+            // The bitmap was closed meanwhile (evicted from the cache): draw again next time.
+            delete thumb.dataset['thumbnailDrawn'];
+            return;
+          }
+          thumb.appendChild(canvas);
+        },
+      );
     });
   }
 
@@ -293,6 +333,8 @@ export function thumbnailGridSizeSnap(size: number, ratio: number): number {
  * @param device Square side in device pixels.
  * @param fit How the image fills it.
  * @param source The file behind the URL, when known.
+ * @param handle The image manager's thumbnail, when the manager knows the
+ *   image.
  * @returns Bitmap (at most the square), or null when it cannot be drawn.
  */
 function thumbnailGridBitmap(
@@ -300,6 +342,7 @@ function thumbnailGridBitmap(
   device: number,
   fit: ThumbnailGridFit,
   source: Blob | undefined,
+  handle: ImageManagerHandle<ImageManagerThumbnail> | undefined,
 ): Promise<ImageBitmap | null> {
   const key = `${device}|${fit}|${url}`;
   const cached = thumbnailGridCache.get(key);
@@ -308,14 +351,45 @@ function thumbnailGridBitmap(
     thumbnailGridCache.set(key, cached);
     return cached;
   }
-  const made = thumbnailGridBitmapMake(url, device, fit, source);
+  const made = thumbnailGridBitmapFromThumbnail(handle, device, fit).then(
+    (bitmap) => bitmap ?? thumbnailGridBitmapMake(url, device, fit, source),
+  );
   thumbnailGridCache.set(key, made);
+  void made.then((bitmap) => {
+    if (bitmap !== null && thumbnailGridCache.get(key) === made)
+      thumbnailGridCacheBytes.set(key, bitmap.width * bitmap.height * 4);
+  });
   while (thumbnailGridCache.size > THUMBNAIL_GRID_CACHE_SIZE) {
     const oldest = thumbnailGridCache.keys().next().value as string;
     void thumbnailGridCache.get(oldest)?.then((bitmap) => bitmap?.close());
     thumbnailGridCache.delete(oldest);
+    thumbnailGridCacheBytes.delete(oldest);
   }
   return made;
+}
+
+/**
+ * Draws from the image manager's small thumbnail when it has enough pixels for
+ * the square (or is the whole image), so the full file is not decoded again.
+ *
+ * @param handle Thumbnail handle, when the manager knows the image.
+ * @param device Square side in device pixels.
+ * @param fit How the image fills it.
+ * @returns Bitmap, or null to decode the full image instead.
+ */
+async function thumbnailGridBitmapFromThumbnail(
+  handle: ImageManagerHandle<ImageManagerThumbnail> | undefined,
+  device: number,
+  fit: ThumbnailGridFit,
+): Promise<ImageBitmap | null> {
+  if (handle === undefined || typeof createImageBitmap !== 'function') return null;
+  const thumbnail = await handle.ready;
+  if (thumbnail === null) return null;
+  const whole = thumbnail.width >= thumbnail.sourceWidth && thumbnail.height >= thumbnail.sourceHeight;
+  const side =
+    fit === 'cover' ? Math.min(thumbnail.width, thumbnail.height) : Math.max(thumbnail.width, thumbnail.height);
+  if (!whole && side < device) return null;
+  return thumbnailGridBitmapMake('', device, fit, thumbnail.blob);
 }
 
 /**

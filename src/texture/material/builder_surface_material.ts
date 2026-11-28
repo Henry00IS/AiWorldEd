@@ -57,7 +57,7 @@ export function rebuildSurfaceMaterials(
   }
   const perTriangle = buildPerTriangleTextureIds(mesh, triangleCount);
   const materialSlots = collectUniqueTextureIds(perTriangle);
-  const materials = materialSlots.map((textureId) => createSurfaceMaterial(color, cache.resolve(textureId)));
+  const materials = materialSlots.map((textureId) => createSurfaceMaterial(color, cache.resolve(textureId), cache));
   applyMaterialLayout(mesh, perTriangle, materialSlots, options.preserveTriangleOrder === true);
   disposeOwnedMaterials(mesh);
   mesh.material = pickMaterialAssignment(materials);
@@ -94,7 +94,7 @@ function resolveUniformContentTextureId(mesh: THREE.Mesh): string | null {
  */
 function applyUniformSurfaceMaterial(mesh: THREE.Mesh, textureId: string, color: number, cache: TextureMapCache): void {
   mesh.geometry.clearGroups();
-  const material = createSurfaceMaterial(color, cache.resolve(textureId || DEFAULT_CHECKER_TEXTURE_ID));
+  const material = createSurfaceMaterial(color, cache.resolve(textureId || DEFAULT_CHECKER_TEXTURE_ID), cache);
   disposeOwnedMaterials(mesh);
   mesh.material = material;
   publishContentMaterials(mesh);
@@ -143,7 +143,7 @@ export function rebuildSolidResultMaterials(
   if (materialSlots.length > 1) {
     applySlotRunGroups(mesh.geometry, slotPerTriangle, materialSlots.length);
   }
-  const fresh = materialSlots.map((textureId) => createSurfaceMaterial(color, cache.resolve(textureId)));
+  const fresh = materialSlots.map((textureId) => createSurfaceMaterial(color, cache.resolve(textureId), cache));
   mesh.material = pickMaterialAssignment(replaceOwnedMaterials(mesh, fresh));
   publishContentMaterials(mesh);
 }
@@ -542,10 +542,14 @@ function pickMaterialAssignment(materials: ContentViewLitMaterial[]): THREE.Mate
  *
  * @param color Hex tint.
  * @param map Diffuse map texture.
+ * @param cache Cache the map comes from; the material counts as its user until
+ *   disposed.
  * @returns Content view-lit material.
  */
-function createSurfaceMaterial(color: number, map: THREE.Texture): ContentViewLitMaterial {
-  return createContentViewLitMaterial(color, map, { flatShading: true, side: THREE.FrontSide });
+function createSurfaceMaterial(color: number, map: THREE.Texture, cache: TextureMapCache): ContentViewLitMaterial {
+  const material = createContentViewLitMaterial(color, map, { flatShading: true, side: THREE.FrontSide });
+  cache.materialBind(material, map);
+  return material;
 }
 
 /**

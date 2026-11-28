@@ -1,7 +1,11 @@
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
 import { projectFileTextureMime } from '@/project/fs/project_file_kind.js';
 import type { ProjectFileRecord, ProjectSnapshot } from '@/project/scan/project_snapshot.js';
-import { createTextureBrowserEntry, type TextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
+import {
+  createTextureBrowserEntry,
+  revokeTextureBrowserEntry,
+  type TextureBrowserEntry,
+} from '@/texture/library/texture_browser_entry.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
 import { textureSourceBlocked } from '@/texture/library/texture_source_gate.js';
 import { ProjectTextureHashes } from '@/project/textures/project_texture_hashes.js';
@@ -92,8 +96,7 @@ export class ProjectTextureSync {
     const stale = textures.filter((record) => this.loaded.get(record.path) !== projectTextureSyncStamp(record));
     const entries = await this.entriesRead(stale);
     await this.hashesRead(stale, entries, new Set(textures.map((record) => record.path)));
-    if (this.stopped || this.gate() !== null)
-      return entries.forEach((entry) => URL.revokeObjectURL(entry.previewObjectUrl));
+    if (this.stopped || this.gate() !== null) return entries.forEach((entry) => revokeTextureBrowserEntry(entry));
     this.libraryApply(snapshot, entries, stale);
   }
 
@@ -177,7 +180,7 @@ export class ProjectTextureSync {
       const typed = file.type
         ? file
         : new File([file], record.name, { type: projectFileTextureMime(record.name), lastModified: file.lastModified });
-      return createTextureBrowserEntry(typed, record.path);
+      return createTextureBrowserEntry(typed, record.path, 'project');
     } catch {
       return null;
     }

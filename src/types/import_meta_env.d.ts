@@ -4,6 +4,8 @@
  */
 interface ImportMetaEnv {
   readonly VITE_COLLABORATION_SERVER_URL?: string;
+  /** True in development builds (vite dev server, vitest). */
+  readonly DEV?: boolean;
 }
 
 /** Eager strategy discovery supplied by Vite and Vitest. */

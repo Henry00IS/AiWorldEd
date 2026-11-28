@@ -94,7 +94,7 @@ import { setupSolidModelLayout } from '@/solid/layout/solid_model_layout_setup.j
 import { setupPlayerLayout } from '@/player/player_layout_setup.js';
 import type { PlayerSystem } from '@/player/player_system.js';
 import { setupLayoutAi } from '@/layout/setup/layout_ai_setup.js';
-import { PanelAiCaptureDebug } from '@/ai/client/ui/panel_ai_capture_debug.js';
+import { PanelDebugMenu } from '@/ui/debug_menu/panel_debug_menu.js';
 import {
   setupCameraAndShadingCoordinators as createCameraAndShadingCoordinators,
   setupFaceModeCoordinator as createFaceModeCoordinator,
@@ -251,7 +251,7 @@ export abstract class ViewportLayoutCore {
   protected solidModelPanel!: SolidModelPanel | null;
   protected solidModelController!: SolidModelController | null;
   protected playerSystem: PlayerSystem | null = null;
-  protected aiCaptureDebugPanel!: PanelAiCaptureDebug | null;
+  protected aiCaptureDebugPanel!: PanelDebugMenu | null;
   protected cadRulerSystem!: CadRulerSystem;
   protected rulerBoundsBuilder!: BuilderOrientedBounds;
   protected editorOverlayPolicy!: PolicyEditorOverlay;
@@ -1311,10 +1311,7 @@ export abstract class ViewportLayoutCore {
     return result;
   }
 
-  /**
-   * Binds the EditorApi for MCP tool calls and creates the AI Captures debug
-   * panel.
-   */
+  /** Binds the EditorApi for MCP tool calls and creates the Debug Menu panel. */
   protected setupAiBridge(): void {
     setupLayoutAi({
       worldObject: this.worldObject,
@@ -1333,17 +1330,20 @@ export abstract class ViewportLayoutCore {
     this.setupAiCaptureDebugPanel();
   }
 
-  /** Creates the floating AI Captures debug panel (view_capture image history). */
+  /**
+   * Creates the floating Debug Menu (view_capture images, image handles,
+   * memory).
+   */
   protected setupAiCaptureDebugPanel(): void {
     if (this.aiCaptureDebugPanel) {
       return;
     }
-    this.aiCaptureDebugPanel = new PanelAiCaptureDebug(this.toolbarContainer, this.resolveAiCaptureDebugAnchor());
+    this.aiCaptureDebugPanel = new PanelDebugMenu(this.toolbarContainer, this.resolveAiCaptureDebugAnchor());
     this.aiCaptureDebugPanel.setDefaultAnchorResolver(() => this.resolveAiCaptureDebugAnchor());
   }
 
   /**
-   * Chooses a viewport pane as the default open position for AI Captures.
+   * Chooses a viewport pane as the default open position for the Debug Menu.
    *
    * @returns Anchor element or null.
    */
@@ -1356,7 +1356,7 @@ export abstract class ViewportLayoutCore {
     return first ? first.getContainer() : null;
   }
 
-  /** Toggles the floating AI Captures debug panel. */
+  /** Toggles the floating Debug Menu. */
   protected onToggleAiCaptureDebugPanel(): void {
     if (!this.aiCaptureDebugPanel) {
       this.setupAiCaptureDebugPanel();
@@ -1364,7 +1364,7 @@ export abstract class ViewportLayoutCore {
     this.aiCaptureDebugPanel?.toggle();
     if (this.aiCaptureDebugPanel?.isOpen()) {
       this.aiCaptureDebugPanel.refresh();
-      this.statusBar?.setLastAction('AI Captures panel opened');
+      this.statusBar?.setLastAction('Debug Menu opened');
     }
   }
 

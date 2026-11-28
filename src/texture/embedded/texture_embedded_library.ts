@@ -1,4 +1,9 @@
-import { createTextureBrowserEntry, type TextureBrowserEntry } from '@/texture/library/texture_browser_entry.js';
+import {
+  createTextureBrowserEntry,
+  textureBrowserEntryImageSource,
+  type TextureBrowserEntry,
+} from '@/texture/library/texture_browser_entry.js';
+import { getImageManager } from '@/texture/image_manager/image_manager_shared.js';
 import type { TextureLibrary } from '@/texture/library/texture_library.js';
 import { textureLibraryContentFind } from '@/texture/library/texture_library_alias.js';
 import { textureEmbeddedIdParse, textureEmbeddedMime } from './texture_embedded_id.js';
@@ -25,6 +30,7 @@ export function textureEmbeddedEntry(texture: TextureEmbedded): TextureBrowserEn
   const entry = createTextureBrowserEntry(
     new File([texture.blob], fileName, { type: textureEmbeddedMime(texture.id) }),
     texture.id,
+    'embedded',
   );
   entry.displayName = texture.name;
   const hash = textureEmbeddedIdParse(texture.id)?.hash;
@@ -55,9 +61,11 @@ export function textureEmbeddedRepoint(library: TextureLibrary, textures: readon
     const entry = library.getEntryById(texture.id);
     if (entry === null) continue;
     const fresh = textureEmbeddedEntry({ ...texture, name: entry.displayName });
-    URL.revokeObjectURL(entry.previewObjectUrl);
+    const oldUrl = entry.previewObjectUrl;
+    URL.revokeObjectURL(oldUrl);
     entry.sourceFile = fresh.sourceFile;
     entry.previewObjectUrl = fresh.previewObjectUrl;
+    getImageManager().sourceRepoint(oldUrl, textureBrowserEntryImageSource(entry, 'embedded'));
   }
 }
 

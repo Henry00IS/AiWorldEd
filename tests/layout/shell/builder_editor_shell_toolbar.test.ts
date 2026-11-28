@@ -31,13 +31,13 @@ describe('EditorShellBuilder toolbar', () => {
     toolbar.dispose();
   });
 
-  it('places Audio next to AI Captures before the trailing spacer and MCP last', () => {
+  it('places Audio next to the Debug Menu before the trailing spacer and MCP last', () => {
     const toolbar = new Toolbar(document.body);
     const builder = new BuilderEditorShell() as unknown as ToolbarButtonBuilder;
     builder.createToolbarButtons(toolbar, createToolbarActions());
     const labels = Array.from(document.querySelectorAll('button')).map(getButtonLabel);
     const audioIndex = labels.indexOf('Audio');
-    const captureIndex = labels.indexOf('AI Captures');
+    const captureIndex = labels.indexOf('Debug Menu');
     expect(audioIndex).toBe(captureIndex + 1);
     expect(labels[labels.length - 1]).toBe('MCP');
     expect(document.querySelector('[data-toolbar-trailing-spacer="true"]')).not.toBeNull();

@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { TextureLibrary } from './texture_library.js';
-import { TextureBrowserEntry } from './texture_browser_entry.js';
+import { TextureBrowserEntry, textureBrowserEntryImageSource } from './texture_browser_entry.js';
+import { getImageManager } from '@/texture/image_manager/image_manager_shared.js';
+import type { ImageManagerHandle } from '@/texture/image_manager/manager_image.js';
+import type { ImageManagerFullImage } from '@/texture/image_manager/image_manager_types.js';
 import { getDebugCheckerTexture } from './factory_debug_texture.js';
 import { getMissingCheckerImage } from './factory_missing_texture.js';
 import { isDefaultCheckerTextureId } from './texture_id.js';
@@ -21,6 +24,14 @@ import {
  * or the one texture of that file name), so pending references resolve live
  * without changing the id. The built-in checker is never cached as a disposable
  * user texture.
+ *
+ * Images come from the image manager: each id holds a full-image handle for the
+ * image its texture shows (ids showing the same file share one decoded image),
+ * and a GPU handle while materials made by the surface builder use the texture
+ * ({@link materialBind}); once none do, the manager frees the upload
+ * (texture.dispose()) after a while or when over the VRAM budget. The decoded
+ * image stays while the texture shows it, as three.js reads it again after a
+ * context loss and for every other window's renderer.
  */
 export class TextureMapCache {
   private textures: Map<string, THREE.Texture>;
@@ -31,6 +42,16 @@ export class TextureMapCache {
   private usedRoot: THREE.Object3D | null;
   private readonly alias = new TextureLibraryAlias();
   private readonly loadFailedListeners = new Set<(entry: TextureBrowserEntry) => void>();
+  /** Full image each id's texture shows. */
+  private readonly shownHandles = new Map<string, ImageManagerHandle<ImageManagerFullImage>>();
+  /** Full image each id is loading, to show once loaded. */
+  private readonly pendingHandles = new Map<string, ImageManagerHandle<ImageManagerFullImage>>();
+  /** GPU upload of each id's texture while materials use it. */
+  private readonly gpuHandles = new Map<string, { url: string; handle: ImageManagerHandle<object> }>();
+  /** Number of live materials using each id's texture. */
+  private readonly materialUsers = new Map<string, number>();
+  /** Id of each cached texture. */
+  private readonly textureIds = new WeakMap<THREE.Texture, string>();
 
   /** Creates an empty texture map cache with best-quality default filters. */
   constructor() {
@@ -155,6 +176,7 @@ export class TextureMapCache {
     // Exporters name map files after the texture (textures/brick.png → brick.png).
     texture.name = textureId;
     this.textures.set(textureId, texture);
+    this.textureIds.set(texture, textureId);
     this.sources.set(textureId, null);
     this.entryShow(textureId, this.alias.resolve(this.library, textureId));
     return texture;
@@ -213,15 +235,88 @@ export class TextureMapCache {
     const texture = this.textures.get(textureId);
     if (!texture) return;
     this.sources.set(textureId, entry);
-    if (entry === null) return textureImageSwap(texture, getMissingCheckerImage());
-    if (isDefaultCheckerTextureId(entry.id)) return textureImageSwap(texture, getDebugCheckerTexture().image);
-    const image = new Image();
-    image.onload = () => {
-      if (this.textures.get(textureId) === texture && this.sources.get(textureId) === entry)
-        textureImageSwap(texture, image);
+    this.pendingHandles.get(textureId)?.release();
+    this.pendingHandles.delete(textureId);
+    if (entry === null || isDefaultCheckerTextureId(entry.id)) {
+      textureImageSwap(texture, entry === null ? getMissingCheckerImage() : getDebugCheckerTexture().image);
+      this.shownRelease(textureId);
+      return;
+    }
+    const manager = getImageManager();
+    if (!manager.has(entry.previewObjectUrl)) manager.sourceSet(textureBrowserEntryImageSource(entry, 'texture'));
+    const handle = manager.acquireFull(entry.previewObjectUrl)!;
+    this.pendingHandles.set(textureId, handle);
+    handle.onReady((image) => {
+      if (this.pendingHandles.get(textureId) !== handle) return;
+      this.pendingHandles.delete(textureId);
+      if (image === null) {
+        handle.release();
+        this.loadFailedListeners.forEach((listener) => listener(entry));
+        return;
+      }
+      if (this.textures.get(textureId) !== texture || this.sources.get(textureId) !== entry) return handle.release();
+      textureImageSwap(texture, image);
+      this.shownRelease(textureId);
+      this.shownHandles.set(textureId, handle);
+      this.gpuSync(textureId);
+    });
+  }
+
+  /**
+   * Lets go of the image an id's texture showed (it now shows another one).
+   *
+   * @param textureId Texture id.
+   */
+  private shownRelease(textureId: string): void {
+    this.shownHandles.get(textureId)?.release();
+    this.shownHandles.delete(textureId);
+    this.gpuSync(textureId);
+  }
+
+  /**
+   * Holds the GPU upload of an id's texture while materials use it and it shows
+   * a library image; lets go of it otherwise.
+   *
+   * @param textureId Texture id.
+   */
+  private gpuSync(textureId: string): void {
+    const texture = this.textures.get(textureId);
+    const shown = this.shownHandles.get(textureId);
+    const url = (this.materialUsers.get(textureId) ?? 0) > 0 && texture && shown ? shown.key : null;
+    const held = this.gpuHandles.get(textureId);
+    if (held?.url === url) return;
+    if (url !== null && texture) {
+      const handle = getImageManager().acquireGpu(url, texture, {
+        mipmaps: textureMapCacheMipmapped(texture),
+        dispose: () => texture.dispose(),
+      });
+      if (handle !== null) this.gpuHandles.set(textureId, { url, handle });
+      else this.gpuHandles.delete(textureId);
+    } else this.gpuHandles.delete(textureId);
+    held?.handle.release();
+  }
+
+  /**
+   * Counts a material as a user of a cached texture until the material is
+   * disposed, so the texture's GPU memory can be freed once no material uses
+   * it. Textures not from this cache (the built-in checker) are ignored.
+   *
+   * @param material Material showing the texture.
+   * @param texture Its map.
+   */
+  materialBind(material: THREE.Material, texture: THREE.Texture): void {
+    const id = this.textureIds.get(texture);
+    if (id === undefined || this.textures.get(id) !== texture) return;
+    this.materialUsers.set(id, (this.materialUsers.get(id) ?? 0) + 1);
+    this.gpuSync(id);
+    const unbind = (): void => {
+      material.removeEventListener('dispose', unbind);
+      const users = (this.materialUsers.get(id) ?? 1) - 1;
+      if (users > 0) this.materialUsers.set(id, users);
+      else this.materialUsers.delete(id);
+      if (this.textures.get(id) === texture) this.gpuSync(id);
     };
-    image.onerror = () => this.loadFailedListeners.forEach((listener) => listener(entry));
-    image.src = entry.previewObjectUrl;
+    material.addEventListener('dispose', unbind);
   }
 
   /**
@@ -246,9 +341,24 @@ export class TextureMapCache {
 
   /** Disposes all cached user textures. */
   dispose(): void {
+    [...this.textures.keys()].forEach((id) => this.handlesRelease(id));
     this.textures.forEach((texture) => texture.dispose());
     this.textures.clear();
     this.sources.clear();
+  }
+
+  /**
+   * Lets go of every image handle an id holds.
+   *
+   * @param textureId Texture id.
+   */
+  private handlesRelease(textureId: string): void {
+    this.pendingHandles.get(textureId)?.release();
+    this.pendingHandles.delete(textureId);
+    this.shownHandles.get(textureId)?.release();
+    this.shownHandles.delete(textureId);
+    this.gpuHandles.get(textureId)?.handle.release();
+    this.gpuHandles.delete(textureId);
   }
 
   /**
@@ -259,6 +369,7 @@ export class TextureMapCache {
   private disposeId(textureId: string): void {
     const texture = this.textures.get(textureId);
     if (!texture) return;
+    this.handlesRelease(textureId);
     texture.dispose();
     this.textures.delete(textureId);
     this.sources.delete(textureId);
@@ -305,6 +416,18 @@ function textureMapCacheMaps(object: THREE.Object3D): THREE.Texture[] {
     const map = (each as Partial<THREE.MeshStandardMaterial>).map;
     return map ? [map] : [];
   });
+}
+
+/**
+ * Tells whether a texture uploads a mip chain.
+ *
+ * @param texture Texture.
+ * @returns True with generated mipmaps and a mipmapped minification filter.
+ */
+function textureMapCacheMipmapped(texture: THREE.Texture): boolean {
+  return (
+    texture.generateMipmaps && texture.minFilter !== THREE.NearestFilter && texture.minFilter !== THREE.LinearFilter
+  );
 }
 
 /**

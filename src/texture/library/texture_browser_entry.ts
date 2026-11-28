@@ -1,3 +1,6 @@
+import { getImageManager } from '@/texture/image_manager/image_manager_shared.js';
+import type { ImageManagerSource } from '@/texture/image_manager/image_manager_types.js';
+
 /** One texture listed in the texture browser grid. */
 export interface TextureBrowserEntry {
   /** Stable unique id for selection (usually relative path). */
@@ -26,13 +29,17 @@ export interface TextureBrowserEntry {
 /**
  * Creates a browser entry from a File and relative path.
  *
+ * And registers its image with the image manager (keyed by the object URL).
+ *
  * @param file Browser File from the folder scan.
  * @param relativePath Path relative to the opened root folder.
+ * @param origin Where it comes from, shown in the Debug Menu (folder, project,
+ *   embedded, collaboration).
  * @returns Texture browser entry with a live object URL.
  */
-export function createTextureBrowserEntry(file: File, relativePath: string): TextureBrowserEntry {
+export function createTextureBrowserEntry(file: File, relativePath: string, origin = 'folder'): TextureBrowserEntry {
   const previewObjectUrl = URL.createObjectURL(file);
-  return {
+  const entry: TextureBrowserEntry = {
     id: relativePath,
     displayName: stripExtension(file.name),
     fileName: file.name,
@@ -42,14 +49,35 @@ export function createTextureBrowserEntry(file: File, relativePath: string): Tex
     byteSize: file.size,
     sourceFile: file,
   };
+  getImageManager().sourceSet(textureBrowserEntryImageSource(entry, origin));
+  return entry;
 }
 
 /**
- * Releases the object URL held by an entry.
+ * Describes an entry's image for the image manager.
+ *
+ * @param entry Entry.
+ * @param origin Where it comes from.
+ * @returns Image source (name, file and hash follow the entry).
+ */
+export function textureBrowserEntryImageSource(entry: TextureBrowserEntry, origin: string): ImageManagerSource {
+  return {
+    name: entry.fileName,
+    origin,
+    blob: entry.sourceFile,
+    url: entry.previewObjectUrl,
+    hash: () => entry.sha256,
+  };
+}
+
+/**
+ * Releases the object URL held by an entry; the image manager lets go of its
+ * image once nothing uses it any more.
  *
  * @param entry Entry whose preview URL should be revoked.
  */
 export function revokeTextureBrowserEntry(entry: TextureBrowserEntry): void {
+  getImageManager().sourceRemove(entry.previewObjectUrl);
   URL.revokeObjectURL(entry.previewObjectUrl);
 }
 

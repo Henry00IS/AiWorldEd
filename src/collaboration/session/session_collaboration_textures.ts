@@ -273,7 +273,7 @@ export class TexturesCollaborationSession {
       const file = new File([new Uint8Array(incoming.bytes)], texturesCollaborationFileName(incoming.name), {
         type: sniffed.mime,
       });
-      const entry = createTextureBrowserEntry(file, incoming.name);
+      const entry = createTextureBrowserEntry(file, incoming.name, 'collaboration');
       entry.displayName =
         this.prefetch.nameOf(incoming.name) ??
         (textureEmbeddedIdIs(incoming.name) ? textureEmbeddedFallbackName(incoming.name) : entry.displayName);

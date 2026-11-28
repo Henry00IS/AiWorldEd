@@ -5,6 +5,7 @@ import { createEditorWebGLCanvas, getEditorWebGLRendererOptions } from '@/viewpo
 import { markWebGLContextLossAsIntentional } from '@/viewports/webgl/webgl_context_diagnostics.js';
 import { isDrawableRect } from '@/viewports/pane/pane_content_rect.js';
 import type { RenderSurface, SurfaceRenderPane } from './render_surface.js';
+import { imageManagerRendererAdd } from '@/texture/image_manager/image_manager_renderers.js';
 
 /**
  * Positions a workspace canvas to fill the host box exactly (no independent
@@ -44,6 +45,11 @@ export class SharedWebGLSurface implements RenderSurface {
   private readonly logicalSize: THREE.Vector2;
   private isDisposed: boolean;
   private backgroundGradient: ViewportBackgroundGradient | null;
+  /**
+   * Removes the renderer from the image manager's list (Debug Menu, VRAM
+   * estimates).
+   */
+  private readonly rendererUnlist: () => void;
 
   /**
    * Creates a surface and appends its canvas behind chrome in the workspace.
@@ -70,6 +76,7 @@ export class SharedWebGLSurface implements RenderSurface {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.setScissorTest(true);
     this.renderer.autoClear = false;
+    this.rendererUnlist = imageManagerRendererAdd(ownerName, this.renderer);
     this.syncSizeFromWorkspace();
   }
 
@@ -189,6 +196,7 @@ export class SharedWebGLSurface implements RenderSurface {
   dispose(): void {
     if (this.isDisposed) return;
     this.isDisposed = true;
+    this.rendererUnlist();
     this.backgroundGradient?.dispose();
     this.backgroundGradient = null;
     markWebGLContextLossAsIntentional(this.canvas);

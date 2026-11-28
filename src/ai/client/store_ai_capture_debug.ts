@@ -34,10 +34,31 @@ export interface AiCaptureDebugRecordInput {
   message: string;
 }
 
-/** Maximum captures retained in the debug list. */
-export const AI_CAPTURE_DEBUG_MAX_ENTRIES = 48;
+/** Maximum captures retained in the debug list (the oldest go first). */
+export const AI_CAPTURE_DEBUG_MAX_ENTRIES = 20;
 
-/** In-memory history of AI capture debug images. */
+/**
+ * Most image bytes retained in the debug list (decoded from base64); the oldest
+ * captures go first, but the newest one is always kept.
+ */
+export const AI_CAPTURE_DEBUG_MAX_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Returns the bytes of a capture's image (its base64 text decodes to 3 bytes
+ * per 4 characters).
+ *
+ * @param entry Capture.
+ * @returns Image bytes.
+ */
+export function aiCaptureDebugEntryBytes(entry: Pick<AiCaptureDebugEntry, 'base64'>): number {
+  const padding = entry.base64.endsWith('==') ? 2 : entry.base64.endsWith('=') ? 1 : 0;
+  return Math.max(0, Math.floor((entry.base64.length * 3) / 4) - padding);
+}
+
+/**
+ * In-memory history of AI capture debug images, as base64 text (no object URLs
+ * or decoded bitmaps: the Debug Menu decodes them only while it shows them).
+ */
 export class StoreAiCaptureDebug {
   private readonly entries: AiCaptureDebugEntry[];
   private readonly listeners: Set<() => void>;
@@ -80,6 +101,15 @@ export class StoreAiCaptureDebug {
    */
   list(): readonly AiCaptureDebugEntry[] {
     return this.entries;
+  }
+
+  /**
+   * Returns the image bytes of every stored capture.
+   *
+   * @returns Byte count.
+   */
+  bytes(): number {
+    return this.entries.reduce((sum, entry) => sum + aiCaptureDebugEntryBytes(entry), 0);
   }
 
   /**
@@ -127,12 +157,16 @@ export class StoreAiCaptureDebug {
     };
   }
 
-  /** Drops oldest entries when over the retention limit. */
+  /**
+   * Drops the oldest entries while over the count or byte limit (keeps the
+   * newest).
+   */
   private trimToMaxEntries(): void {
-    if (this.entries.length <= AI_CAPTURE_DEBUG_MAX_ENTRIES) {
-      return;
+    if (this.entries.length > AI_CAPTURE_DEBUG_MAX_ENTRIES) this.entries.length = AI_CAPTURE_DEBUG_MAX_ENTRIES;
+    let bytes = this.bytes();
+    while (this.entries.length > 1 && bytes > AI_CAPTURE_DEBUG_MAX_BYTES) {
+      bytes -= aiCaptureDebugEntryBytes(this.entries.pop()!);
     }
-    this.entries.length = AI_CAPTURE_DEBUG_MAX_ENTRIES;
   }
 
   /** Notifies all subscribers of a store change. */
