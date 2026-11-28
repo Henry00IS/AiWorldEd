@@ -1,3 +1,4 @@
+import { solidScriptValueInsideCheck } from './solid_script_value_share.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { SOLID_SCRIPT_NAME } from './solid_script_machine_variables.js';
 import {
@@ -32,29 +33,22 @@ export function solidScriptDictionaryKey(text: string, usage: string): SolidScri
 }
 
 /**
- * Gives a value its own copy when it is a Dictionary, so a Dictionary stored in
- * another one changes on its own.
- *
- * @param value Value to store.
- * @returns The value, or a copy of a Dictionary.
- */
-function solidScriptDictionaryStored(value: SolidScriptValue): SolidScriptValue {
-  return value instanceof SolidScriptDictionary ? value.copy() : value;
-}
-
-/**
  * Puts a value under a key, replacing what was there; a new key goes last.
  *
  * @param dictionary Dictionary to change.
  * @param key Checked key.
  * @param value Value to store.
+ * @param shown Name of the Dictionary, to check it does not go inside itself;
+ *   none for a new Dictionary.
  */
 export function solidScriptDictionaryAdd(
   dictionary: SolidScriptDictionary,
   key: SolidScriptDictionaryKey,
   value: SolidScriptValue,
+  shown?: string,
 ): void {
-  dictionary.entries.set(key.key, { name: key.name, value: solidScriptDictionaryStored(value) });
+  if (shown !== undefined) solidScriptValueInsideCheck(dictionary, value, shown);
+  dictionary.entries.set(key.key, { name: key.name, value });
 }
 
 /**
@@ -87,11 +81,13 @@ export function solidScriptDictionarySource(value: SolidScriptValue, usage: stri
  *
  * @param dictionary Dictionary to change.
  * @param entries Entries to add.
+ * @param shown Name of the Dictionary, for messages.
  */
 export function solidScriptDictionaryMerge(
   dictionary: SolidScriptDictionary,
   entries: readonly SolidScriptDictionaryEntry[],
+  shown: string,
 ): void {
   for (const entry of entries)
-    solidScriptDictionaryAdd(dictionary, { name: entry.name, key: solidScriptNameKey(entry.name) }, entry.value);
+    solidScriptDictionaryAdd(dictionary, { name: entry.name, key: solidScriptNameKey(entry.name) }, entry.value, shown);
 }

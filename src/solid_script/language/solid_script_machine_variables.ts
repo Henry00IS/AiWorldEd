@@ -1,3 +1,6 @@
+import { solidScriptFailure } from './solid_script_error.js';
+import type { SolidScriptFailure } from './solid_script_machine_types.js';
+import { solidScriptValueReadOnlyMark } from './solid_script_value_share.js';
 import { solidScriptNameIsSystem } from './solid_script_name_key.js';
 import { solidScriptKindNamed } from './solid_script_kinds.js';
 import { solidScriptVectorIsFlat } from './solid_script_vector.js';
@@ -33,6 +36,10 @@ import {
   type SolidScriptPersistentRecord,
 } from './persistent/solid_script_persistent_record.js';
 import { solidScriptPersistentValueWrite } from './persistent/solid_script_persistent_codec.js';
+import {
+  solidScriptPersistentSnapshotChanged,
+  solidScriptPersistentSnapshotTake,
+} from './persistent/solid_script_persistent_snapshot.js';
 import { solidScriptSelectFresh, solidScriptSelectIds } from './solid_script_select.js';
 import { SolidScriptElements } from './solid_script_elements.js';
 import { solidScriptMemberRead } from './solid_script_members.js';
@@ -201,24 +208,25 @@ function solidScriptVectorComponentRead(part: SolidScriptVectorPart, vector: Sol
 }
 
 /**
- * Changes one part of a vector, keeping the others.
+ * Changes one part of a vector in place, keeping the others; a flat vector
+ * given a Z grows one.
  *
  * @param part Part.
  * @param vector Vector value.
  * @param value New number.
- * @returns New vector.
+ * @returns The vector.
  */
 export function solidScriptVectorComponentWrite(
   part: SolidScriptVectorPart,
   vector: SolidScriptValue,
   value: SolidScriptValue,
 ): SolidScriptValue {
-  const full = part.index === 2 && solidScriptVectorIsFlat(vector) ? [...(vector as SolidScriptValue[]), 0] : vector;
-  if (!Array.isArray(full) || full.length < 2 || full.length > 3 || part.index >= full.length)
+  const grows = part.index === 2 && solidScriptVectorIsFlat(vector);
+  if (!Array.isArray(vector) || vector.length < 2 || vector.length > 3 || (part.index >= vector.length && !grows))
     throw new Error(`[${part.name}] is ${solidScriptKindNamed(vector)}, not a vector with a .${part.axis}`);
-  const changed = [...full];
-  changed[part.index] = value;
-  return changed;
+  if (grows) vector.push(0);
+  vector[part.index] = value;
+  return vector;
 }
 
 /** Names without their $local. start, by full name, so reads do not cut text. */
@@ -311,6 +319,9 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   protected readonly persistentRemoved = new Set<string>();
   /** Variables kept with the generator between runs, by bare name. */
   protected readonly persistent = new SolidScriptScope(null);
+
+  /** Persistent values as they were stored when the run started, by folded name. */
+  private readonly persistentStarted = new Map<string, string>();
   protected root = new SolidScriptScope(null);
   /** Brushes, faces, edges and corners the script holds. */
   protected readonly elements = new SolidScriptElements({
@@ -792,13 +803,40 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   }
 
   /**
+   * Remembers the persistent values as the run starts, so a handler can tell
+   * which ones lines changed through another name.
+   */
+  protected persistentSnapshot(): void {
+    solidScriptPersistentSnapshotTake(this.persistent, this.persistentStarted);
+  }
+
+  /**
+   * Stores again every persistent value a handler changed, also one changed in
+   * place through another name, such as a list from Set [Rows] to
+   * [$Persistent.Rows] that Add Item then grew.
+   *
+   * @returns The mistake when a value cannot be kept, or null.
+   */
+  protected persistentRefresh(): SolidScriptFailure | null {
+    try {
+      for (const name of solidScriptPersistentSnapshotChanged(this.persistent, this.persistentStarted))
+        if (!(name in this.persistentChanged)) this.persistentKeep(name);
+      for (const name of Object.keys(this.persistentChanged))
+        if (this.persistent.variableHas(name)) this.persistentKeep(name);
+      return null;
+    } catch (error) {
+      return solidScriptFailure(null, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
    * Reads a list variable.
    *
    * @param scope Scope of the line.
    * @param name Name.
    * @returns Items.
    */
-  protected listRead(scope: SolidScriptScope, name: string): readonly SolidScriptValue[] {
+  protected listRead(scope: SolidScriptScope, name: string): SolidScriptValue[] {
     const where = this.variableWhere(name, scope);
     this.nameCheck(where.name, 'a list');
     if (!where.scope.variableHas(where.name)) {
@@ -847,13 +885,14 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     const resource = solidScriptResourceNameOf(name);
     if (resource !== undefined) return this.resourceRead(resource);
     const value = this.system.get(name);
-    if (value !== undefined) return value;
+    if (value !== undefined)
+      return typeof value === 'object' ? solidScriptValueReadOnlyMark(value, 'built-in value', `$${name}`) : value;
     const part = solidScriptVectorComponent(name);
     const whole = part ? this.system.get(part.name) : undefined;
     if (part && whole !== undefined) return solidScriptVectorComponentRead(part, whole);
     const listed = solidScriptSystemListed(part?.name ?? name) ?? solidScriptSystemListed(name);
     if (!listed) return undefined;
-    const missing = this.systemMissing(listed);
+    const missing = solidScriptValueReadOnlyMark(this.systemMissing(listed), 'built-in value', `$${listed}`);
     return part && solidScriptNameKey(part.name) === solidScriptNameKey(listed)
       ? solidScriptVectorComponentRead(part, missing)
       : missing;

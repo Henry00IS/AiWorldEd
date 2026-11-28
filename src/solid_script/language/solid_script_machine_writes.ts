@@ -1,3 +1,7 @@
+import { SolidScriptPaths } from './solid_script_paths.js';
+import { solidScriptIntoName } from './solid_script_into.js';
+import { solidScriptShapeClone } from './solid_script_shape_clone.js';
+import { solidScriptValueCopy, type SolidScriptValueCopyHost } from './solid_script_value_copy.js';
 import { solidScriptNameIsSystem } from './solid_script_name_key.js';
 import { solidScriptKindNamed } from './solid_script_kinds.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
@@ -14,18 +18,21 @@ import {
   solidScriptPositionApply,
   solidScriptPositionAxis,
   solidScriptPositionByLeaf,
+  solidScriptPositionItem,
   solidScriptPositionOwner,
   solidScriptPositionValue,
   type SolidScriptPositionMove,
 } from './solid_script_position_write.js';
 import { solidScriptFieldResolve } from './solid_script_field.js';
 import {
+  solidScriptListIndex,
   solidScriptListItemParse,
   solidScriptListItemRemove,
   solidScriptListItemWrite,
 } from './solid_script_list_item.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptNameWritesMember } from './solid_script_name_writes_member.js';
+import { solidScriptValueEditCheck, solidScriptValueInsideCheck } from './solid_script_value_share.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
 import {
   SolidScriptDictionary,
@@ -56,6 +63,9 @@ import {
   type SolidScriptVariableWhere,
 } from './solid_script_machine_variables.js';
 
+/** The $Selected lists a line may set, by kind. */
+const SOLID_SCRIPT_SELECTED_LIST = /^\$selected\.(objects|faces|edges|vertices)$/;
+
 /** One corner a position write will move, as it was before the line. */
 interface SolidScriptPositionTarget {
   leaf: SolidScriptGeometryLeaf;
@@ -70,6 +80,49 @@ interface SolidScriptPositionTarget {
  * another kind.
  */
 export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariables {
+  /** Paths of the run. */
+  protected readonly paths = new SolidScriptPaths();
+
+  /** Makes the new objects and paths of a copy. */
+  private readonly copyHost: SolidScriptValueCopyHost = {
+    objectCopy: (element, copy) => this.objectCopied(element, copy),
+    pathCopy: (element) => this.paths.created(element.path, element.name),
+    objectDataValues: (element) => this.elements.dataEntries(element).map((entry) => entry.value),
+  };
+
+  /**
+   * Makes a deep copy of a value for Copy and Set with Copy on.
+   *
+   * @param value Value to copy.
+   * @param shown Name it was read from, for messages.
+   * @returns The copy.
+   */
+  valueCopied(value: SolidScriptValue, shown: string): SolidScriptValue {
+    return solidScriptValueCopy(value, shown, this.copyHost);
+  }
+
+  /**
+   * Makes an independent second solid or mesh, with its Mode and a copy of its
+   * .Data. It is kept only by the name it is written to, until Output.
+   *
+   * @param element Solid or mesh.
+   * @param copy Copies one .Data value.
+   * @returns The new object.
+   */
+  private objectCopied(
+    element: SolidScriptElement,
+    copy: (value: SolidScriptValue) => SolidScriptValue,
+  ): SolidScriptElement {
+    const leaf = this.elements.leaf(element);
+    const clone = solidScriptShapeClone(leaf) as SolidScriptGeometryLeaf;
+    this.elements.modeRoleCopy(leaf, clone);
+    const made = this.elements.brush(clone);
+    const data = this.elements.data(made);
+    for (const entry of this.elements.dataEntries(element))
+      this.elements.dataWrite(data, solidScriptNameKey(entry.name), entry.name, copy(entry.value));
+    return made;
+  }
+
   /**
    * Returns what a solid or mesh became after later writes.
    *
@@ -112,20 +165,29 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     if (!SOLID_SCRIPT_NAME.test(name))
       throw new Error(`"${name}" cannot be a Data key; keys use letters, digits and _, not starting with a digit`);
     const items = Array.isArray(owner) ? owner : [owner];
-    for (const [index, item] of items.entries()) {
-      if (!(item instanceof SolidScriptElement))
-        throw new Error(
-          `only solids, faces, edges, corners and dictionaries have .Data; ${parts.slice(0, at).join('.')} is ${solidScriptKindNamed(item)}`,
-        );
-      this.elements.dataWrite(
-        item.kind === 'data' ? item : this.elements.data(item),
-        solidScriptNameKey(name),
-        name,
-        valueOf(item, index, items.length),
-      );
-    }
-    this.persistentOwnerKeep(parts.slice(0, at).join('.'), scope);
+    const shown = parts.slice(0, at).join('.');
+    for (const [index, item] of items.entries())
+      this.dataSetItem(item, name, valueOf(item, index, items.length), shown);
+    this.persistentOwnerKeep(shown, scope);
     return true;
+  }
+
+  /**
+   * Writes one user value under the .Data of one element or Dictionary.
+   *
+   * @param item Element or Dictionary.
+   * @param name Key as written.
+   * @param value Value to keep.
+   * @param shown Owner name, for messages.
+   */
+  private dataSetItem(item: SolidScriptValue, name: string, value: SolidScriptValue, shown: string): void {
+    if (!(item instanceof SolidScriptElement))
+      throw new Error(
+        `only solids, faces, edges, corners and dictionaries have .Data; ${shown} is ${solidScriptKindNamed(item)}`,
+      );
+    const data = item.kind === 'data' ? item : this.elements.data(item);
+    this.listEditCheck(data, shown, value);
+    this.elements.dataWrite(data, solidScriptNameKey(name), name, value);
   }
 
   /**
@@ -235,15 +297,15 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
 
   /**
    * Sets a variable after checking its name and that lines may change it. A
-   * Dictionary the script made is copied, so the two names change on their
-   * own.
+   * list, Dictionary or any other value that is not a number or text is not
+   * copied: the name becomes one more name for it.
    *
    * @param scope Scope of the line.
    * @param written Name.
    * @param given Value.
    */
   protected variableSet(scope: SolidScriptScope, written: string, given: SolidScriptValue): void {
-    const value = given instanceof SolidScriptDictionary ? given.copy() : given;
+    const value = given;
     const name = this.nameKey(written);
     if (SOLID_SCRIPT_NAMES_PLAIN.has(name)) {
       this.writableCheck(name, name);
@@ -251,11 +313,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
       home.variableSet(name, value);
       return;
     }
-    if (solidScriptNameIsSystem(name)) {
-      if (this.positionAssign(scope, written, value)) return;
-      if (this.modeSet(written, scope, value)) return;
-      return this.variableSetSelected(written, name, value);
-    }
+    if (solidScriptNameIsSystem(name)) return this.variableSetSystem(scope, written, name, value);
     if (solidScriptNameWritesMember(written) && this.memberSet(scope, written, value)) return;
     const locals = name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX) ? this.frameFunction()?.locals : undefined;
     const bare = locals ? solidScriptLocalBare(name) : '';
@@ -295,17 +353,38 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
    * @param written Name as written.
    * @param key Value field of the line.
    * @param run Line run, for the value.
+   * @param copied Whether the name gets a deep copy of the value.
    */
-  protected variableWrite(scope: SolidScriptScope, written: string, key: string, run: SolidScriptBlockRun): void {
+  protected variableWrite(
+    scope: SolidScriptScope,
+    written: string,
+    key: string,
+    run: SolidScriptBlockRun,
+    copied = false,
+  ): void {
     const member = solidScriptNameWritesMember(written);
     if (member && this.positionWriteEach(scope, written, key, run)) return;
     if (member && solidScriptEachUsed(run.source(key))) {
       const each = (item: SolidScriptValue, index: number, count: number): SolidScriptValue =>
-        run.valueWith(key, { $Item: item, $Index: index, $Count: count });
+        this.valueKept(run, key, run.valueWith(key, { $Item: item, $Index: index, $Count: count }), copied);
       if (solidScriptNameIsDataWrite(written) && this.dataSet(written, scope, each)) return;
       if (this.faceCornerUvSet(written, scope, each)) return;
     }
-    this.variableSet(scope, written, run.valueItems(key));
+    this.variableSet(scope, written, this.valueKept(run, key, run.valueItems(key), copied));
+  }
+
+  /**
+   * Gives the value a Set line keeps: the value itself, or with Copy on a deep
+   * copy of it.
+   *
+   * @param run Line run, for the name the value was read from.
+   * @param key Value field of the line.
+   * @param value Value worked out.
+   * @param copied Whether Copy is on.
+   * @returns Value to keep.
+   */
+  private valueKept(run: SolidScriptBlockRun, key: string, value: SolidScriptValue, copied: boolean): SolidScriptValue {
+    return copied ? this.valueCopied(value, solidScriptIntoName(run.source(key))) : value;
   }
 
   /**
@@ -440,7 +519,32 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     const targets: SolidScriptPositionTarget[] = [];
     for (const item of Array.isArray(owner) ? owner : [owner]) this.positionTargetAdd(targets, item, ownerName);
     if (targets.length === 0) throw new Error(`${written} has no vertices to set`);
-    return targets;
+    const item = solidScriptPositionItem(written);
+    return item === null ? targets : [this.positionTargetPicked(targets, item, ownerName, scope)];
+  }
+
+  /**
+   * Picks the one corner a write such as Vertices.Positions(2) sets.
+   *
+   * @param targets Every corner of the owner, in order.
+   * @param item Item number as written.
+   * @param ownerName Name of the owner, for messages.
+   * @param scope Scope of the line, for the item number.
+   * @returns The corner.
+   */
+  private positionTargetPicked(
+    targets: readonly SolidScriptPositionTarget[],
+    item: string,
+    ownerName: string,
+    scope: SolidScriptScope,
+  ): SolidScriptPositionTarget {
+    const shown = `${ownerName}.Positions`;
+    if (item.trim() === '') throw new Error(`${shown}() needs a corner number, such as ${shown}(0)`);
+    const at = solidScriptListIndex(shown, this.indexValue(item, scope), (name) => name);
+    const target = targets[at];
+    if (!target)
+      throw new Error(`${shown}(${at}) is past the end: there are ${targets.length} corners, numbered from 0`);
+    return target;
   }
 
   /**
@@ -483,17 +587,31 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
   }
 
   /**
-   * Sets one of the [$Selected.*] lists, the only system values a line may set.
+   * Sets a name starting with $: a corner position, Mode, UVs or a value under
+   * .Data reached through a system value, one of the $Selected lists or an item
+   * of one. Anything else can only be read, which stops the line.
    *
+   * @param scope Scope of the line.
    * @param written Name as written.
    * @param name Its key.
    * @param value Value.
    */
-  private variableSetSelected(written: string, name: string, value: SolidScriptValue): void {
-    const kind = /^\$selected\.(objects|faces|edges|vertices)$/.exec(name)?.[1] as SolidScriptSelectedKind | undefined;
+  private variableSetSystem(scope: SolidScriptScope, written: string, name: string, value: SolidScriptValue): void {
+    if (this.memberSet(scope, written, value)) return;
+    const item = solidScriptListItemParse(name);
+    const kind = SOLID_SCRIPT_SELECTED_LIST.exec(item?.name ?? name)?.[1] as SolidScriptSelectedKind | undefined;
     if (!kind)
-      throw new Error(`[${written}] is a system value and can only be read; only the $Selected lists can be set`);
-    this.selected[kind] = Array.isArray(value) ? [...value] : value === undefined ? [] : [value];
+      throw new Error(
+        `[${written}] is a built-in value and can only be read; through a system value you can set Vertex.Position, Face.UVs, FaceCorner.UV, Object.Mode and the values under .Data, such as [$Selected.Vertices.Positions(0)], and the $Selected lists`,
+      );
+    if (!item) {
+      this.selected[kind] = Array.isArray(value) ? value : value === undefined ? [] : [value];
+      return;
+    }
+    const list = this.selected[kind] ?? [];
+    this.listEditCheck(list, item.name, value);
+    const index = item.index === '' ? null : this.indexValue(item.index, scope);
+    this.selected[kind] = solidScriptListItemWrite(item.name, list, index, value, this.nameShown);
   }
 
   /**
@@ -514,6 +632,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     }
     const vector = where.scope.variableGet(component.name);
     if (!where.local && !where.persistent) this.writableCheck(component.name);
+    this.listEditCheck(vector, component.name);
     const changed = solidScriptVectorComponentWrite(component, vector, value);
     where.scope.variableSet(component.name, changed);
     if (where.persistent) this.persistentKeep(component.name);
@@ -533,6 +652,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     if (!where.local) this.writableCheck(base);
     const home = !where.local && !where.persistent && !scope.variableHas(base) ? this.root : where.scope;
     const index = item && item.index !== '' ? this.indexValue(item.index, scope) : null;
+    if (item) this.listEditCheck(home.variableGet(base), base, value);
     const whole = item ? solidScriptListItemWrite(base, home.variableGet(base), index, value, this.nameShown) : value;
     home.variableSet(base, whole);
     if (where.persistent) this.persistentKeep(base);
@@ -571,6 +691,50 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
   }
 
   /**
+   * Changes a list variable in place for a list line, so every name for the
+   * list sees the change. With create, a name not set yet starts as an empty
+   * list.
+   *
+   * @param scope Scope of the line.
+   * @param name Name as written.
+   * @param change Changes the items.
+   * @param create Whether a missing name becomes a list.
+   */
+  listChange(
+    scope: SolidScriptScope,
+    name: string,
+    change: (items: SolidScriptValue[]) => void,
+    create: boolean,
+  ): void {
+    const where = this.variableWhere(name, scope);
+    if (create && !where.scope.variableHas(where.name)) {
+      const made: SolidScriptValue[] = [];
+      change(made);
+      this.variableSet(scope, name, made);
+      return;
+    }
+    const items = this.listRead(scope, name);
+    if (!where.local) this.writableCheck(where.name);
+    this.listEditCheck(items, where.name);
+    change(items);
+    if (where.persistent) this.persistentKeep(where.name);
+  }
+
+  /**
+   * Stops a line that would change a list or Dictionary lines may only read, or
+   * put one inside itself.
+   *
+   * @param target List or Dictionary about to change.
+   * @param name Its name key.
+   * @param value Value going in, when there is one.
+   */
+  protected listEditCheck(target: SolidScriptValue, name: string, value?: SolidScriptValue): void {
+    const shown = this.nameShown(solidScriptNameKey(name));
+    solidScriptValueEditCheck(target, shown);
+    if (value !== undefined) solidScriptValueInsideCheck(target, value, shown);
+  }
+
+  /**
    * Changes a Dictionary variable in place for an Add Entry, Remove Entry or
    * Merge Dictionary line. With create, a name not set yet starts as an empty
    * Dictionary.
@@ -591,6 +755,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     const made = create && !where.scope.variableHas(where.name);
     const dictionary = made ? new SolidScriptDictionary() : this.dictionaryRead(scope, name);
     if (!where.local) this.writableCheck(where.name);
+    this.listEditCheck(dictionary, where.name);
     change(dictionary);
     if (made) this.variableSet(scope, name, dictionary);
     else if (where.persistent) this.persistentKeep(where.name);
@@ -611,15 +776,17 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     if (!where.scope.variableHas(item.name))
       throw new Error(`there is no variable [${this.nameShown(item.name)}]; set it on a line above this one`);
     const index = item.index === '' ? null : this.indexValue(item.index, scope);
+    this.listEditCheck(where.scope.variableGet(item.name), item.name);
     const left = solidScriptListItemRemove(item.name, where.scope.variableGet(item.name), index, this.nameShown);
     this.variableSet(scope, target.trim().replace(/\s*\(.*\)$/s, ''), left);
   }
 }
 
 /**
- * Gives the empty value of the kind a value holds, for Clear Variable: an empty
- * list for a list or nothing, an empty Dictionary for a Dictionary, 0 for a
- * number, No for a Yes/No and empty text for anything else.
+ * Gives a new empty value of the kind a value holds, for Clear Variable: an
+ * empty list for a list or nothing, an empty Dictionary for a Dictionary, 0 for
+ * a number, No for a Yes/No and empty text for anything else. Other names for
+ * the old value keep it.
  *
  * @param old Value the variable holds, undefined when it is not set.
  * @returns Empty value.

@@ -120,10 +120,11 @@ describe('SolidScript Dictionary blocks', () => {
     ).toEqual(['4 Oak 3 3 2 Yes']);
   });
 
-  it('gives a Dictionary stored in another its own copy', () => {
+  it('shares a Dictionary stored in another, and stops one stored inside itself', () => {
     expect(
       echoed(add('A', '1', 'Inner'), add('Inner', '[Inner]'), add('B', '2', 'Inner'), echo('[Prices.Inner] | [Inner]')),
-    ).toEqual(['A: 1 | A: 1, B: 2']);
+    ).toEqual(['A: 1, B: 2 | A: 1, B: 2']);
+    expect(echoed(add('A', '1'), add('Self', '[Prices]'))).toContain('this would put [Prices] inside itself');
   });
 
   it('stops with a clear message for a key that is not a name', () => {

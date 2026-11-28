@@ -136,7 +136,6 @@ const SOLID_SCRIPT_AUDIT_FACES = new Set([
   'subdivide_path',
   'join_paths',
   'insert_path',
-  'copy_path',
   'remove_segment',
 ]);
 

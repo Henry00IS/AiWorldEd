@@ -45,8 +45,11 @@ const SOLID_SCRIPT_NAME_PART = /^[A-Za-z_]\w*\s*(\(.*\))?$/s;
 /** A name of the script set as a whole, with an optional prefix and vector part. */
 const SOLID_SCRIPT_NAME_OWN = /^(\$local\.|\$persistent\.)?[A-Za-z_]\w*\s*(\(.*\))?(\.[xyzXYZ])?$/is;
 
-/** The [$Selected.*] lists, the only system values a line may set. */
-const SOLID_SCRIPT_NAME_SELECTED = /^\$selected\.(objects|faces|edges|vertices)$/i;
+/**
+ * The Position or Positions member of a name, maybe with an item number such as
+ * Positions(0).
+ */
+const SOLID_SCRIPT_NAME_POSITION_MEMBER = /^positions?(\s*\(.*\))?$/is;
 
 /**
  * Splits a name at its dots outside brackets.
@@ -54,7 +57,7 @@ const SOLID_SCRIPT_NAME_SELECTED = /^\$selected\.(objects|faces|edges|vertices)$
  * @param name Name.
  * @returns Parts.
  */
-function solidScriptNameParts(name: string): string[] {
+export function solidScriptNameParts(name: string): string[] {
   const parts: string[] = [];
   let depth = 0;
   let start = 0;
@@ -82,16 +85,7 @@ function solidScriptNameParts(name: string): string[] {
 export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): string {
   const text = name.trim();
   if (!text.includes('.')) return '';
-  if (solidScriptNameIsSystem(text)) {
-    if (
-      use === 'set' &&
-      !SOLID_SCRIPT_NAME_SELECTED.test(text) &&
-      !solidScriptNameIsPositionWrite(text) &&
-      !solidScriptNameIsModeWrite(text)
-    )
-      return `${text} is a system value and can only be read; only the $Selected lists can be set`;
-    return '';
-  }
+  if (solidScriptNameIsSystem(text)) return '';
   const parts = solidScriptNameParts(text);
   const last = parts.length - 1;
   const bad = parts.find(
@@ -184,11 +178,10 @@ export function solidScriptNameIsPositionWrite(name: string): boolean {
   const text = name.trim().startsWith('$') ? name.trim().slice(1) : name.trim();
   const parts = solidScriptNameParts(text);
   if (parts.length < 2) return false;
-  const last = parts[parts.length - 1]?.toLowerCase() ?? '';
-  if (last === 'position' || last === 'positions') return true;
-  if (parts.length < 3 || (last !== 'x' && last !== 'y' && last !== 'z')) return false;
-  const member = parts[parts.length - 2]?.toLowerCase() ?? '';
-  return member === 'position' || member === 'positions';
+  const last = parts[parts.length - 1] ?? '';
+  if (SOLID_SCRIPT_NAME_POSITION_MEMBER.test(last)) return true;
+  if (parts.length < 3 || !/^[xyz]$/i.test(last)) return false;
+  return SOLID_SCRIPT_NAME_POSITION_MEMBER.test(parts[parts.length - 2] ?? '');
 }
 
 /**

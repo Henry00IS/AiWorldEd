@@ -10,6 +10,7 @@ import { solidScriptUseSolidOf } from './solid_script_use_solid.js';
 const END: SolidScriptLine = { command: 'end' };
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
 const HELD = 'Held';
+const COPIED = '[$Selected.Objects]';
 const MESH_TOOLS = new Set([
   'inset_face',
   'delete_faces',
@@ -261,6 +262,7 @@ function listScript(command: SolidScriptCommand): SolidScriptLine[] | null {
       intoLine(command),
     ];
   if (command.id === 'select_objects') return [CUBE, intoLine(command)];
+  if (command.id === 'copy') return [CUBE, { command: 'select_objects' }, intoLine(command, { value: COPIED })];
   if (command.id.startsWith('select_'))
     return [CUBE, { command: 'select_objects' }, intoLine(command, { which: 'All', of: '' })];
   return null;
@@ -381,6 +383,13 @@ describe('Into-set results stay out of the world until Output', () => {
     const leaves = solidScriptGeometryLeaves(result.shapes);
     if (SCRIPT_ONLY.includes(command.id)) expect(leaves).toHaveLength(0);
     else expect(leaves).toHaveLength(1);
+  });
+
+  it('Copy with Into keeps the copied object out of the output until Output places it', () => {
+    const copy = solidScriptCommands.find((command) => command.id === 'copy')!;
+    const lines = [CUBE, { command: 'select_objects' }, intoLine(copy, { value: COPIED })];
+    expect(world(lines)).toHaveLength(1);
+    expect(world([...lines, { command: 'output', values: { of: '[Held]' } }])).toHaveLength(2);
   });
 
   it('warns when a Cube is only stored Into a variable, and traces the line', () => {

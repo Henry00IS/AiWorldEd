@@ -1,3 +1,4 @@
+import { solidScriptValueReadOnlyMark } from './solid_script_value_share.js';
 import type { SolidScriptResource } from '@/solid_script/document/solid_script_resource.js';
 import { SolidScriptResourceValues } from './solid_script_resource_value.js';
 import { solidScriptEachUsed, solidScriptEachUses } from './solid_script_each_uses.js';
@@ -62,7 +63,7 @@ import {
 } from './solid_script_machine_runs.js';
 import { solidScriptGeometryLeaves, type SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import { SolidScriptOutputProcessed } from './solid_script_output_processed.js';
-import { SolidScriptPaths, solidScriptPathFlatPoint } from './solid_script_paths.js';
+import { solidScriptPathFlatPoint } from './solid_script_paths.js';
 import { solidScriptPathFlat, solidScriptPathLoopOpen } from './solid_script_path_flat.js';
 import { solidScriptPathStraight } from './solid_script_path_model.js';
 import { solidScriptGeneratorPiecesCacheClear } from './solid_script_generator_pieces.js';
@@ -172,7 +173,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   /** What each swapped solid or mesh became. */
   private readonly leafSwaps = new Map<SolidScriptGeometryLeaf, SolidScriptGeometryLeaf>();
   /** Paths of the run: written by Path lines, or drawn for a block to fill. */
-  private readonly paths = new SolidScriptPaths();
   private resources = new SolidScriptResourceValues([], (path, name) => this.paths.created(path, name));
   /** How many Group or Part blocks are around the running line. */
   private groupDepth = 0;
@@ -647,6 +647,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
           `line ${this.steps[0] ?? handler.line}: ${handler.command.label} blocks only check and change inputs; objects are built by the script from the top`,
         );
     }
+    this.failure ??= this.persistentRefresh();
     return {
       inputs: this.inputsChanged,
       persistent: { ...this.persistentChanged },
@@ -664,6 +665,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     this.used = true;
     for (const [name, value] of solidScriptPersistentRead(this.inputs, this.persistentStored))
       this.persistent.variableDefine(solidScriptNameKey(name), value);
+    this.persistentSnapshot();
   }
 
   /**
@@ -1050,9 +1052,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         return field.listed ? this.list(key) : value(key);
       },
       variableSet: (name, assigned) => state.machine.variableSet(state.scope, name, assigned),
-      variableWrite(name, key) {
-        state.machine.variableWrite(state.scope, name, key, this);
+      variableWrite(name, key, copied = false) {
+        state.machine.variableWrite(state.scope, name, key, this, copied);
       },
+      valueCopy: (value, shown) => state.machine.valueCopied(value, shown),
       positionsMove: (items, to) => state.machine.positionsMove(items, node.command.label, to),
       solid: (body, faceUvs) => built(() => body, faceUvs),
       solidFromPoints: (points) => built(() => solidScriptBodyHull(points, labelOf())),
@@ -1341,18 +1344,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         if (state.machine.readOnly.has(key)) throw new Error(`an input named "${name}" is already defined`);
         if (state.scope.variableHas(key))
           throw new Error(`"${name}" is already a variable; inputs come before the lines that use them`);
-        state.scope.variableDefine(key, value);
+        state.scope.variableDefine(key, solidScriptValueReadOnlyMark(value, 'input', name.trim()));
         state.machine.readOnly.set(key, 'input');
       },
       listRead: (name) => state.machine.listRead(state.scope, name),
-      listUpdate: (name, change, create) => {
-        const where = state.machine.variableWhere(name, state.scope);
-        if (!create || where.scope.variableHas(where.name)) {
-          state.machine.variableSet(state.scope, name, change(state.machine.listRead(state.scope, name)));
-          return;
-        }
-        state.machine.variableSet(state.scope, name, change([]));
-      },
+      listUpdate: (name, change, create) => state.machine.listChange(state.scope, name, change, create),
       dictionaryChange: (name, create, change) => state.machine.dictionaryChange(state.scope, name, create, change),
       variableDelete: (name) => state.machine.variableDeleteLine(state.scope, name),
       variableClear: (name) => state.machine.variableClearLine(state.scope, name),

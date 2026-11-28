@@ -14,7 +14,7 @@ describe('Block palette categories', () => {
     ['sweep_along_path', 'Paths'],
     ['join_paths', 'Paths'],
     ['insert_path', 'Paths'],
-    ['copy_path', 'Paths'],
+    ['copy', 'Logic'],
     ['linear_curve', 'Curves'],
     ['bezier_curve', 'Curves'],
     ['quadratic_curve', 'Curves'],

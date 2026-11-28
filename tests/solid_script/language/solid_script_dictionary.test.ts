@@ -74,8 +74,18 @@ describe('Dictionary', () => {
     expect(printed(PRICES, echo('[=IsDictionary([Prices])] [=IsDictionary(5)]'))).toEqual(['Yes No']);
   });
 
-  it('copies a dictionary when it is set to another name', () => {
-    expect(printed(PRICES, set('Copy', '[Prices]'), set('Copy.Data.Wood', '1'), echo('[Prices.Wood]'))).toEqual(['5']);
+  it('shares a dictionary set to another name, and Copy gives it its own', () => {
+    expect(printed(PRICES, set('Other', '[Prices]'), set('Other.Data.Wood', '1'), echo('[Prices.Wood]'))).toEqual([
+      '1',
+    ]);
+    expect(
+      printed(
+        PRICES,
+        { command: 'copy', values: { value: '[Prices]', into: 'Own' } },
+        set('Own.Data.Wood', '1'),
+        echo('[Prices.Wood]'),
+      ),
+    ).toEqual(['5']);
   });
 
   it('gives its keys and values, finds a key and builds one with the Dictionary function', () => {

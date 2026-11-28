@@ -68,7 +68,7 @@ function solidScriptPathAddRun(
   solidScriptPathWrite(run, made);
 }
 
-/** Join Paths, Insert Path and Copy Path. */
+/** Join Paths and Insert Path. */
 export const SOLID_SCRIPT_COMMANDS_PATH_JOIN: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'join_paths',
@@ -147,30 +147,6 @@ export const SOLID_SCRIPT_COMMANDS_PATH_JOIN: readonly SolidScriptCommand[] = [
       solidScriptPathAddRun(run, 'Insert Path', (base, others) =>
         solidScriptPathInsert(base, others, at, 'Insert Path'),
       );
-      return [];
-    },
-  }),
-  new SolidScriptCommand({
-    id: 'copy_path',
-    edits: true,
-    label: 'Copy Path',
-    category: 'Paths',
-    description: 'Make an independent copy of a path',
-    manual:
-      'Writes a copy of From to Into as a new Path. Setting a variable to a Path, such as Set [B] to [A], gives both names the same path, so Move By, Rotate By or Scale By on one with no Into changes the other as well; a copy is its own path. It keeps everything the path has: points, handles and their types, tilts, the way its up side faces, Closed and the curve kind. A list of points becomes a straight open Path. Example: Copy Path From [Rail] Into [Spare], then Move By 0, 1, 0 Of [Spare] leaves Rail where it was.',
-    stops: ['A From that is not a Path or a list of at least 2 points.'],
-    parameters: [
-      solidScriptPathField(
-        'from',
-        'From',
-        '[0, 0, 0], [4, 0, 0]',
-        'The Path to copy, or a list of points, such as [Rail].',
-      ),
-      solidScriptPathIntoField(),
-    ],
-    listing: (read) => ['Copy Path', 'From ', read.value('from'), ' Into ', read.value('into')],
-    execute: (run) => {
-      solidScriptPathWrite(run, solidScriptPathSource(run, 'Copy Path', 'from', 'From'));
       return [];
     },
   }),

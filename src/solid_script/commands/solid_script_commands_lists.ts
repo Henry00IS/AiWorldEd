@@ -8,6 +8,8 @@ import {
 } from './solid_script_command_parameters.js';
 import { solidScriptConditionHolds } from '@/solid_script/language/solid_script_condition.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
+import { solidScriptListItemsReplace } from '@/solid_script/language/solid_script_list_item.js';
+import { solidScriptValueInsideCheck } from '@/solid_script/language/solid_script_value_share.js';
 import {
   solidScriptValueEquals,
   solidScriptValueNumber,
@@ -61,6 +63,33 @@ function solidScriptListPosition(run: SolidScriptBlockRun, items: readonly Solid
       `Position needs a whole number from 0 to ${last}, because the list has ${items.length} items, not ${solidScriptValueText(run.value('at'))}`,
     );
   return number;
+}
+
+/**
+ * Puts a value into a list in place at a position, after checking the list
+ * would not end up inside itself.
+ *
+ * @param run Running line.
+ * @param items Items of the list.
+ * @param at Position, from 0 to the item count.
+ * @param value Value to put in.
+ */
+function solidScriptListItemsInsert(
+  run: SolidScriptBlockRun,
+  items: SolidScriptValue[],
+  at: number,
+  value: SolidScriptValue,
+): void {
+  solidScriptValueInsideCheck(
+    items,
+    value,
+    run
+      .text('list')
+      .trim()
+      .replace(/^\[(.*)\]$/s, '$1'),
+  );
+  if (at === items.length) items.push(value);
+  else items.splice(at, 0, value);
 }
 
 /**
@@ -125,7 +154,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     listing: (read) => ['Add Item', read.value('value'), ' To ', read.value('list')],
     execute: (run) => {
       const value = run.value('value');
-      run.listUpdate(run.text('list'), (items) => [...items, value], true);
+      run.listUpdate(run.text('list'), (items) => solidScriptListItemsInsert(run, items, items.length, value), true);
       return [];
     },
   }),
@@ -157,10 +186,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       const value = run.value('value');
       run.listUpdate(
         run.text('list'),
-        (items) => {
-          const at = solidScriptListPosition(run, items, true);
-          return [...items.slice(0, at), value, ...items.slice(at)];
-        },
+        (items) => solidScriptListItemsInsert(run, items, solidScriptListPosition(run, items, true), value),
         false,
       );
       return [];
@@ -227,9 +253,13 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       run.listUpdate(
         run.text('list'),
         (items) => {
-          if (every) return items.filter((item) => !solidScriptValueEquals(item, value));
+          if (every)
+            return solidScriptListItemsReplace(
+              items,
+              items.filter((item) => !solidScriptValueEquals(item, value)),
+            );
           const at = items.findIndex((item) => solidScriptValueEquals(item, value));
-          return at < 0 ? [...items] : [...items.slice(0, at), ...items.slice(at + 1)];
+          if (at >= 0) items.splice(at, 1);
         },
         false,
       );
@@ -367,7 +397,11 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     ],
     execute: (run) => {
       const sign = run.fields().flag('descending') ? -1 : 1;
-      run.listUpdate(run.text('list'), (items) => solidScriptListSorted(run, items, sign), false);
+      run.listUpdate(
+        run.text('list'),
+        (items) => solidScriptListItemsReplace(items, solidScriptListSorted(run, items, sign)),
+        false,
+      );
       return [];
     },
   }),
@@ -382,7 +416,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     parameters: [SOLID_SCRIPT_LIST_NAME],
     listing: (read) => ['Reverse List', read.value('list')],
     execute: (run) => {
-      run.listUpdate(run.text('list'), (items) => [...items].reverse(), false);
+      run.listUpdate(run.text('list'), (items) => items.reverse(), false);
       return [];
     },
   }),

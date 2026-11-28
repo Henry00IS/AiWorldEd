@@ -102,14 +102,14 @@ export function solidScriptListItemRead(
 }
 
 /**
- * Returns a list with one item set or added.
+ * Sets or adds one item of a list in place; a missing list starts empty.
  *
  * @param name List name.
  * @param list Current value, or undefined for a new list.
  * @param index Index to set, or null to add at the end.
  * @param value New item.
  * @param shown Spells the name for a message.
- * @returns New list.
+ * @returns The list.
  */
 export function solidScriptListItemWrite(
   name: string,
@@ -126,19 +126,19 @@ export function solidScriptListItemWrite(
     throw new Error(
       `${shown(name)}(${at}) is past the end: ${shown(name)} has ${items.length} items, so the next one is ${shown(name)}(${items.length})`,
     );
-  const next = [...items];
-  next[at] = value;
-  return next;
+  items[at] = value;
+  return items;
 }
 
 /**
- * Takes one item out of a list for Remove Item; the items after it move up.
+ * Takes one item out of a list in place for Remove Item; the items after it
+ * move up.
  *
  * @param name List name, for messages.
  * @param list Current value.
  * @param index Item to remove, or null for the last item.
  * @param shown Spells the name for a message.
- * @returns New list.
+ * @returns The list.
  */
 export function solidScriptListItemRemove(
   name: string,
@@ -152,5 +152,18 @@ export function solidScriptListItemRemove(
   const at = index === null ? list.length - 1 : solidScriptListIndex(name, index, shown);
   if (at >= list.length)
     throw new Error(`${shown(name)}(${at}) is past the end: ${shown(name)} has ${list.length} items, numbered from 0`);
-  return list.filter((_, position) => position !== at);
+  list.splice(at, 1);
+  return list;
+}
+
+/**
+ * Replaces every item of a list in place, so every name for the list sees the
+ * new items.
+ *
+ * @param items List to change.
+ * @param next Items it holds afterwards.
+ */
+export function solidScriptListItemsReplace(items: SolidScriptValue[], next: readonly SolidScriptValue[]): void {
+  items.length = next.length;
+  for (let index = 0; index < next.length; index++) items[index] = next[index];
 }

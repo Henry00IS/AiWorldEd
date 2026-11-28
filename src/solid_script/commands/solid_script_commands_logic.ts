@@ -10,6 +10,7 @@ import {
 } from './solid_script_command_parameters.js';
 import {
   SolidScriptElement,
+  solidScriptValueShow,
   solidScriptValueText,
   solidScriptValueTruthy,
   type SolidScriptValue,
@@ -85,6 +86,18 @@ function solidScriptRepeatValues(run: SolidScriptBlockRun): number[] {
   return values;
 }
 
+/**
+ * Reads the Copy switch of a Set line.
+ *
+ * @param run Running line.
+ * @returns True when the name gets its own copy.
+ */
+function solidScriptSetCopyOn(run: SolidScriptBlockRun): boolean {
+  const on = run.value('copy');
+  if (on === undefined || typeof on === 'boolean') return on === true;
+  throw new Error(`Copy needs Yes or No, not ${solidScriptValueShow(on)}`);
+}
+
 /** Commands for values, loops, conditions, parts and notes. */
 export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
@@ -93,12 +106,14 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Set a variable to a value',
     manual:
-      'Gives a value a name, so later lines can use the name. Lines below see the new value. Lines above do not. Setting the same name again changes it, so a Set in a Repeat can count up. Read it in any field as [Width], or compute with it as [=[Width] * 2]. Example: Set [Width] to 3, then a Cube of size [Width], 1, 1. Commas typed outside brackets make a list, each item read on its own: [5, 3, 4], zu, 45 is a vector, a text and a number, three plain numbers such as 1, 2, 3 are a vector, and $, keeps a comma in a text such as Hello$, World. Lists: Set Points() adds an item at the end. Set Points(2) changes item 2. Items count from 0. [Points(2)] reads one item, and [Points.Count] says how many there are. Data: Set Face.Data.Height keeps your own value on a face, solid, edge or corner. Through a list it sets every item, so Set Object.Edges.Data.Kind to trim marks every edge of [Object]; a Value that reads [$Item] or [$Index] is worked out once per item, such as Object.Faces.Data.Height to [=[$Index] * 0.1], and Object.Faces(0).Edges.Data.Kind only the edges of its first face. The key may come from a variable, such as Object.Data.[Key]. Mode: Set [Object.Mode] or Set [Objects.Modes] to Additive, Subtractive or Intersecting changes its CSG mode in the output. Position: Set [$Selected.Vertices.Positions] or Set [$Vertex.Position] moves those corners; Value is worked out once per corner, with $Vertex and $Index, and every read in the line sees the geometry as it was before the line. All the moves apply together. A solid may be left not convex for now, so later lines can keep moving its corners; only when the script ends does a warning list the solids still not convex, which are not built.',
+      'Gives a value a name, so later lines can use the name. Lines below see the new value. Lines above do not. Setting the same name again changes it, so a Set in a Repeat can count up. Set gives a second name, Copy gives a second thing: a number or a text is its own value, but anything else, such as a list, a vector, a Dictionary, a Path or an object, is shared, so after Set [B] to [A], Add Item to B or Set [B.X] changes A too. Switch on Copy to give the name its own copy instead, such as Set [P] to Copy Of [Pos]; it copies lists and Dictionaries all the way down, Paths, and solids and meshes as new objects. Read it in any field as [Width], or compute with it as [=[Width] * 2]. Example: Set [Width] to 3, then a Cube of size [Width], 1, 1. Commas typed outside brackets make a list, each item read on its own: [5, 3, 4], zu, 45 is a vector, a text and a number, three plain numbers such as 1, 2, 3 are a vector, and $, keeps a comma in a text such as Hello$, World. Lists: Set Points() adds an item at the end. Set Points(2) changes item 2. Items count from 0. [Points(2)] reads one item, and [Points.Count] says how many there are. Data: Set Face.Data.Height keeps your own value on a face, solid, edge or corner. Through a list it sets every item, so Set Object.Edges.Data.Kind to trim marks every edge of [Object]; a Value that reads [$Item] or [$Index] is worked out once per item, such as Object.Faces.Data.Height to [=[$Index] * 0.1], and Object.Faces(0).Edges.Data.Kind only the edges of its first face. The key may come from a variable, such as Object.Data.[Key]. Mode: Set [Object.Mode] or Set [Objects.Modes] to Additive, Subtractive or Intersecting changes its CSG mode in the output. Position: Set [$Selected.Vertices.Positions] or Set [$Vertex.Position] moves those corners, and [$Selected.Vertices.Positions(0)] only the first; Value is worked out once per corner, with $Vertex and $Index, and every read in the line sees the geometry as it was before the line. All the moves apply together. A solid may be left not convex for now, so later lines can keep moving its corners; only when the script ends does a warning list the solids still not convex, which are not built.',
     stops: [
       'A name that is not letters, digits and _, or starts with a digit.',
       'A [Name] for a variable not set above this line, or a [=formula] that cannot be read.',
       'Setting an input of the script, which can only be read.',
-      'Setting a member such as Face.Center or Object.Edges, which can only be read; Vertex.Position, Face.UVs, FaceCorner.UV, Object.Mode and the values under .Data can be set.',
+      'Setting something that can only be read, such as Face.Center, Object.Edges or $Box.Width, when the line runs; Vertex.Position, Face.UVs, FaceCorner.UV, Object.Mode, the values under .Data and the $Selected lists can be set, also through $Selected, such as $Selected.Vertices.Positions(0).',
+      'Changing a list that belongs to an input or a built-in value through another name, such as Set [Size.X] after Set [Size] to [$Box.Size]; switch on Copy to change your own copy.',
+      'Copy on with something that cannot be copied: the Data of an object or a part of one, or a face, edge, corner or face corner on its own.',
       'An item number past the end of a list, such as Points(5) when Points has 3 items.',
     ],
     parameters: [
@@ -123,10 +138,17 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         'Vertex',
         { field: 'name', position: true, data: true },
       ),
+      solidScriptParameter(
+        'copy',
+        'Copy',
+        'boolean',
+        'No',
+        'Give the name its own copy of the value, so changing one leaves the other as it was. Type Yes or No, such as Yes.',
+      ),
     ],
-    listing: (read) => ['Set', read.value('name'), ': ', read.value('value')],
+    listing: (read) => ['Set', read.value('name'), ': ', ...(read.on('copy') ? ['Copy Of '] : []), read.value('value')],
     execute: (run) => {
-      run.variableWrite(run.text('name'), 'value');
+      run.variableWrite(run.text('name'), 'value', solidScriptSetCopyOn(run));
       return [];
     },
   }),

@@ -141,9 +141,15 @@ export interface SolidScriptBlockRun {
   variableSet(name: string, value: SolidScriptValue): void;
   /**
    * Writes a Set value, evaluating a Vertex.Position formula once per corner
-   * with $Vertex and $Index.
+   * with $Vertex and $Index; with copied, the name gets a deep copy of the
+   * value.
    */
-  variableWrite(name: string, key: string): void;
+  variableWrite(name: string, key: string, copied?: boolean): void;
+  /**
+   * Makes a deep copy of a value, solids, meshes and paths included; a value
+   * that cannot be copied stops the line.
+   */
+  valueCopy(value: SolidScriptValue, shown: string): SolidScriptValue;
   /**
    * Moves the corners of brushes, faces, edges or vertices, each to the
    * position worked out for it from the geometry before the line, all at once;
@@ -348,10 +354,10 @@ export interface SolidScriptBlockRun {
   /** Removes one item of a list, or its last item for list(). */
   itemRemove(target: string): void;
   /**
-   * Changes a whole list in place. With create, a missing name starts as an
-   * empty list.
+   * Changes a list in place, so every name for it sees the change. With create,
+   * a missing name starts as an empty list.
    */
-  listUpdate(name: string, change: (items: readonly SolidScriptValue[]) => SolidScriptValue[], create: boolean): void;
+  listUpdate(name: string, change: (items: SolidScriptValue[]) => void, create: boolean): void;
   /** Reads a list, failing with a plain message when the name is not a list. */
   listRead(name: string): readonly SolidScriptValue[];
   /**

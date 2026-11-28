@@ -173,9 +173,9 @@ describe('Insert Path', () => {
   });
 });
 
-describe('Copy Path', () => {
+describe('Copy of a Path', () => {
   const alias: SolidScriptLine = { command: 'variable', values: { name: 'C', value: '[A]' } };
-  const copy: SolidScriptLine = { command: 'copy_path', values: { from: '[A]', into: 'C' } };
+  const copy: SolidScriptLine = { command: 'copy', values: { value: '[A]', into: 'C' } };
   const move: SolidScriptLine = { command: 'move_by', values: { by: '0, 5, 0', of: '[C]' } };
 
   it('is needed: setting a variable to a Path shares it, so moving one moves the other', () => {
@@ -207,15 +207,8 @@ describe('Copy Path', () => {
       expect(ran(prep, `[C.${member}]`)).toBe(ran(prep, `[A.${member}]`));
   });
 
-  it('copies a list of points into a straight open path, and stops on a single point', () => {
-    const points: SolidScriptLine = { command: 'copy_path', values: { from: '[0, 0, 0], [1, 0, 0]', into: 'C' } };
-    expect(ran([points], '[C.Points.Count]')).toBe('2');
-    const one: SolidScriptLine = { command: 'copy_path', values: { from: '[0, 0, 0]', into: 'C' } };
-    expect(ran([one], '[C]')).toContain('Copy Path needs a Path or a list of points in From');
-  });
-
   it('can copy over its own name, leaving a path nothing else shares', () => {
-    const own: SolidScriptLine = { command: 'copy_path', values: { from: '[C]', into: 'C' } };
+    const own: SolidScriptLine = { command: 'copy', values: { value: '[C]', into: 'C' } };
     expect(ran([alias, own, move], '[A.Points(0)]')).toBe('[0, 0, 0]');
   });
 });

@@ -635,7 +635,7 @@ function solidScriptSuggestionPaths(prefix: string, scope: SolidScriptSuggestion
 /**
  * Tells whether a member leads to a value a line can set: Data, a member that
  * gives brushes, faces, edges or corners, or a part a Set may write, such as .X
- * of a vector.
+ * of a vector. A system value offers the same members as any other value.
  *
  * @param base Typed value before the dot.
  * @param kind Kind of that value.
@@ -645,7 +645,8 @@ function solidScriptSuggestionPaths(prefix: string, scope: SolidScriptSuggestion
 function solidScriptSuggestionWritable(base: string, kind: string, name: string): boolean {
   const gives = solidScriptSuggestionMemberGives(kind, name);
   if (gives?.replace(/ List$/, '') === 'Dictionary' || solidScriptSuggestionPathElement(gives)) return true;
-  return solidScriptNameDotProblem(`${base}.${name}`, 'set') === '';
+  const written = `${base}.${name}`;
+  return solidScriptNameDotProblem(written.startsWith('$') ? written.slice(1) : written, 'set') === '';
 }
 
 /**

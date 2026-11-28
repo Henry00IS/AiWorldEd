@@ -138,7 +138,7 @@ export const SOLID_SCRIPT_COMMANDS_DICTIONARY: readonly SolidScriptCommand[] = [
       const key = solidScriptDictionaryKeyRun(run, 'Add Entry');
       const value = run.value('value');
       run.dictionaryChange(run.text('dictionary'), true, (dictionary) =>
-        solidScriptDictionaryAdd(dictionary, key, value),
+        solidScriptDictionaryAdd(dictionary, key, value, run.text('dictionary').trim()),
       );
       return [];
     },
@@ -182,7 +182,7 @@ export const SOLID_SCRIPT_COMMANDS_DICTIONARY: readonly SolidScriptCommand[] = [
     execute: (run) => {
       const into = run.text('dictionary');
       const entries = solidScriptDictionarySource(run.value('from'), 'Merge Dictionary');
-      run.dictionaryChange(into, true, (dictionary) => solidScriptDictionaryMerge(dictionary, entries));
+      run.dictionaryChange(into, true, (dictionary) => solidScriptDictionaryMerge(dictionary, entries, into.trim()));
       return [];
     },
   }),

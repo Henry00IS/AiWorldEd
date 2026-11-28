@@ -133,17 +133,6 @@ export class SolidScriptDictionary extends SolidScriptElement {
   }
 
   /**
-   * Copies a dictionary the script made, so a copy set to another name changes
-   * on its own; the .Data of geometry stays shared.
-   *
-   * @returns Copy, or this for the .Data of geometry.
-   */
-  copy(): SolidScriptDictionary {
-    if (this.id > 0) return this;
-    return new SolidScriptDictionary(new Map([...this.entries].map(([key, entry]) => [key, { ...entry }])));
-  }
-
-  /**
    * Writes a dictionary the script made as its keys and values, such as Wood:
    * 5, Stone: 7; the .Data of geometry by its kind and number.
    *
