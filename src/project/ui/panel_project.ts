@@ -10,6 +10,7 @@ import { PANEL_PROJECT_CLASS, panelProjectStylesheetEnsure } from './panel_proje
 import { PANEL_PROJECT_PATH_DRAG_TYPE, panelProjectTileDragBind } from './panel_project_drag.js';
 import { MenuContext, type MenuContextItem } from '@/ui/menu/menu_context.js';
 import { ThumbnailGrid, thumbnailGridThumbCreate, thumbnailGridThumbSet } from '@/ui/thumbnail_grid/thumbnail_grid.js';
+import { ThumbnailGridWindow } from '@/ui/thumbnail_grid/thumbnail_grid_window.js';
 import {
   VIRTUAL_LIST_SCROLLBAR_BIND_SCROLLER_CLASS,
   virtualListScrollbarBind,
@@ -90,6 +91,12 @@ export interface PanelProjectHandlers {
   onClose: () => void;
   onActivate: (record: ProjectFileRecord) => void;
   thumbnail: (record: ProjectFileRecord) => string | null;
+  /**
+   * The file behind a tile's preview URL, when known: its preview is then
+   * decoded straight from the file, and no decoded copy of the full image stays
+   * in the browser.
+   */
+  thumbnailSource?: (record: ProjectFileRecord) => Blob | null;
   /** Context menu items of a tile; none means no menu. */
   menu?: (record: ProjectFileRecord) => MenuContextItem[];
   /**
@@ -99,6 +106,12 @@ export interface PanelProjectHandlers {
   folderDropAccepts?: (folder: string) => boolean;
   /** Handles a tile dropped onto a folder row that takes it. */
   folderDrop?: (folder: string, path: string) => void;
+}
+
+/** What the grid lists: a subfolder tile or a file tile. */
+interface PanelProjectGridItem {
+  folder: PanelProjectFolderRow | null;
+  record: ProjectFileRecord | null;
 }
 
 /**
@@ -123,6 +136,7 @@ export class PanelProject extends PanelFloating {
   private readonly scrollbars: { scroller: HTMLElement; binding: VirtualListScrollbarBinding; padding: number }[] = [];
   private scrollObserver: ResizeObserver | null = null;
   private thumbnails: ThumbnailGrid | null = null;
+  private window: ThumbnailGridWindow<PanelProjectGridItem> | null = null;
   private readonly statusLabel: HTMLElement;
   private state: PanelProjectState;
   private folder: string;
@@ -197,6 +211,7 @@ export class PanelProject extends PanelFloating {
 
   /** Fills in thumbnails that finished loading since the last render. */
   thumbnailsRefresh(): void {
+    // Only tiles in view exist; the others pick up their preview when they are built.
     this.grid.querySelectorAll<HTMLElement>('[data-file-path]').forEach((tile) => {
       const record = this.state.snapshot.files.get(tile.dataset['filePath'] ?? '');
       const thumb = tile.firstElementChild as HTMLElement | null;
@@ -269,6 +284,8 @@ export class PanelProject extends PanelFloating {
     this.menu?.dispose();
     this.menu = null;
     this.scrollObserver?.disconnect();
+    this.window?.dispose();
+    this.window = null;
     this.thumbnails?.dispose();
     this.tree.dispose();
     this.scrollbars.forEach(({ binding }) => binding.dispose());
@@ -331,6 +348,11 @@ export class PanelProject extends PanelFloating {
       minColumnPx: PANEL_PROJECT_TILE_MIN_PX,
       gapPx: PANEL_PROJECT_TILE_GAP_PX,
       tileChromePx: PANEL_PROJECT_TILE_CHROME_PX,
+    });
+    // Only the tiles in or near view exist; the rest is blank space of the same height.
+    this.window = new ThumbnailGridWindow(this.grid, this.thumbnails, {
+      key: (item) => (item.folder !== null ? `folder:${item.folder.path}` : `file:${item.record!.path}`),
+      create: (item) => (item.folder !== null ? this.folderTileElement(item.folder) : this.tileElement(item.record!)),
     });
   }
 
@@ -439,9 +461,13 @@ export class PanelProject extends PanelFloating {
     if (list.total === 0 && folders.length === 0)
       return this.gridEmpty(panelProjectNoFilesText(this.state, this.folder, query));
     const scroll = this.grid.scrollTop;
-    const folderTiles = folders.map((row) => this.folderTileElement(row));
-    this.grid.replaceChildren(...folderTiles, ...list.files.map((record) => this.tileElement(record)));
+    this.grid.querySelectorAll(`:scope > .${PANEL_PROJECT_CLASS}-empty`).forEach((message) => message.remove());
+    this.window?.itemsSet([
+      ...folders.map((folder): PanelProjectGridItem => ({ folder, record: null })),
+      ...list.files.map((record): PanelProjectGridItem => ({ folder: null, record })),
+    ]);
     this.grid.scrollTop = scroll;
+    this.window?.refresh();
     this.scrollLayout();
     this.thumbnails?.draw();
     this.statusLabel.textContent = this.gridStatusText(folders.length, list.total, list.files.length);
@@ -519,6 +545,7 @@ export class PanelProject extends PanelFloating {
   private gridEmpty(text: string): void {
     const empty = panelProjectDiv('empty');
     empty.textContent = text;
+    this.window?.itemsSet([]);
     this.grid.replaceChildren(empty);
     this.scrollLayout();
     this.statusLabel.textContent = this.state.name === null ? 'No project open' : '0 files';
@@ -592,7 +619,7 @@ export class PanelProject extends PanelFloating {
    */
   private thumbShow(thumb: HTMLElement, record: ProjectFileRecord): void {
     const url = PANEL_PROJECT_PREVIEW_KINDS.has(record.kind) ? this.handlers.thumbnail(record) : null;
-    thumbnailGridThumbSet(thumb, url || null);
+    thumbnailGridThumbSet(thumb, url || null, url ? (this.handlers.thumbnailSource?.(record) ?? null) : null);
     if (url) {
       if (thumb.firstChild?.nodeType === Node.TEXT_NODE) thumb.firstChild.remove();
     } else thumb.textContent = PANEL_PROJECT_KIND_LABELS[record.kind] ?? '…';

@@ -118,6 +118,7 @@ export class ControllerProjectEditor {
         onClose: () => void this.close(),
         onActivate: (record) => void this.activate(record),
         thumbnail: (record) => this.thumbnail(record),
+        thumbnailSource: (record) => this.thumbnailSource(record),
         menu: (record) => this.menu(record),
         folderDropAccepts: (folder) => this.curveDropTarget(folder) !== null,
         folderDrop: (folder, path) => void this.curveDrop(folder, path),
@@ -327,6 +328,18 @@ export class ControllerProjectEditor {
     if (record.kind === 'scene')
       return this.sceneThumbnails.get(record.path, record.lastModified, () => this.fileBlob(record.path));
     return this.host.textureLibrary().getEntryById(record.path)?.previewObjectUrl ?? null;
+  }
+
+  /**
+   * Returns the file behind a texture tile's preview.
+   *
+   * @param record File record.
+   * @returns The texture's file, or null for other previews.
+   */
+  private thumbnailSource(record: ProjectFileRecord): Blob | null {
+    if (record.kind !== 'texture') return null;
+    const file = this.host.textureLibrary().getEntryById(record.path)?.sourceFile;
+    return file !== undefined && file.size > 0 ? file : null;
   }
 
   /**
