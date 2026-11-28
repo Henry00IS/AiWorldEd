@@ -32,6 +32,7 @@ const READ_ELSEWHERE: Readonly<Record<string, Readonly<Record<string, string>>>>
   part: { name: 'The machine names the part.' },
   when_input_changes: { name: 'The machine runs the block when that input changes.' },
   when_button_pressed: { name: 'The machine runs the block when that button is pressed.' },
+  while: { condition: 'The machine reads the condition before each round, with the counter set.' },
 };
 
 /** Keys read per command id while the fixtures run. */
