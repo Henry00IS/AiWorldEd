@@ -81,7 +81,12 @@ import {
   solidScriptLeafRewritten,
   solidScriptShapePolygon,
 } from './solid_script_shape.js';
-import { SolidScriptElement, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import {
+  SolidScriptElement,
+  solidScriptValueText,
+  solidScriptValueTruthy,
+  type SolidScriptValue,
+} from './solid_script_value.js';
 import { SOLID_SCRIPT_HANDLERS, SolidScriptMachineCalls } from './solid_script_machine_calls.js';
 import type {
   SolidScriptBlockRun,
@@ -108,6 +113,7 @@ import {
   solidScriptVariableView,
 } from './solid_script_machine_variables.js';
 import { SOLID_SCRIPT_LIMITS, SOLID_SCRIPT_WORK_LIMIT, solidScriptLimitCount } from './solid_script_limits.js';
+import { solidScriptWhileHolds } from './solid_script_loop_control.js';
 
 /**
  * Most steps of work one run may take: lines, loop rounds and function calls.
@@ -738,7 +744,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     context: SolidScriptContext,
     known: SolidScriptLineRun,
   ): SolidScriptShape[] {
-    if (this.failure || this.paused || this.leaving || this.stopping) return [];
+    if (this.lineSkipped()) return [];
     const outer = this.line;
     this.line = node.line;
     const line = this.runOf(node, scope, context, known);
@@ -776,6 +782,26 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
+   * Tells whether the run stopped, by a mistake, a pause, Stop Script or
+   * Return, so no more lines and loop rounds run.
+   *
+   * @returns True when it stopped.
+   */
+  private halted(): boolean {
+    return this.failure !== null || this.paused !== null || this.leaving || this.stopping;
+  }
+
+  /**
+   * Tells whether lines are skipped now: the run stopped, or a Stop Loop or
+   * Next Round is leaving its loops.
+   *
+   * @returns True when they are.
+   */
+  private lineSkipped(): boolean {
+    return this.halted() || this.loops.jumping;
+  }
+
+  /**
    * Runs one line and adds its count and time to the profile; a line that calls
    * itself is timed once, by its outermost run.
    *
@@ -791,7 +817,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     context: SolidScriptContext,
     known: SolidScriptLineRun,
   ): SolidScriptShape[] {
-    if (this.failure || this.paused || this.leaving || this.stopping) return [];
+    if (this.lineSkipped()) return [];
     let entry = this.profile.get(node.line);
     if (!entry) this.profile.set(node.line, (entry = { count: 0, ms: 0 }));
     entry.count += 1;
@@ -835,7 +861,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * @returns Its result, or undefined when the run stopped.
    */
   protected guarded<T>(line: number, step: () => T): T | undefined {
-    if (this.failure || this.paused || this.leaving || this.stopping) return undefined;
+    if (this.lineSkipped()) return undefined;
     const outer = this.line;
     this.line = line;
     try {
@@ -954,6 +980,30 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       if (into !== '') state.machine.variableSet(state.scope, into, state.machine.paths.element(outline));
       return [outline];
     };
+    // Later rounds can Select and Move brushes earlier rounds already built.
+    // [$Selected.*] is not copied: it carries from round to round and stays after.
+    const looped = (start: (index: number, inner: SolidScriptScope) => boolean): SolidScriptShape[] => {
+      const shapes: SolidScriptShape[] = [];
+      state.machine.builtStack.push(shapes);
+      try {
+        state.machine.loops.rounds(
+          (index) => {
+            const inner = new SolidScriptScope(state.scope);
+            if (!start(index, inner)) return false;
+            state.machine.workTake();
+            if (node.children.length === 0) return true;
+            for (const shape of state.machine.linesRun(node.children, inner, state.context, inner, children()))
+              shapes.push(shape);
+            return true;
+          },
+          () => state.machine.halted(),
+        );
+      } finally {
+        state.machine.builtStack.pop();
+      }
+      const joined = solidScriptShapeJoin(shapes, labelOf());
+      return joined ? [joined] : [];
+    };
     const built = (body: () => SolidScriptBody, faceUvs?: SolidScriptFaceUv[]): SolidScriptShape[] => {
       state.machine.gatherCheck(node);
       state.machine.flatCheck(node, state.context, false);
@@ -1070,26 +1120,29 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
           state.machine.writableCheck(keyed.name);
         }
         const keyName = keyed ? state.machine.nameKey(keyed.name) : '';
-        const shapes: SolidScriptShape[] = [];
-        // Later rounds can Select and Move brushes earlier rounds already built.
-        // [$Selected.*] is not copied: it carries from round to round and stays after.
-        state.machine.builtStack.push(shapes);
-        try {
-          values.forEach((round, index) => {
-            state.machine.workTake();
-            const inner = new SolidScriptScope(state.scope);
-            inner.variableDefine(key, round);
-            if (keyed) inner.variableDefine(keyName, keyed.keys[index]);
-            solidScriptScopeElementBind(inner, round, index, state.machine.elements);
-            if (node.children.length === 0) return;
-            const built = state.machine.linesRun(node.children, inner, state.context, inner, children());
-            for (const shape of built) shapes.push(shape);
-          });
-        } finally {
-          state.machine.builtStack.pop();
-        }
-        const joined = solidScriptShapeJoin(shapes, labelOf());
-        return joined ? [joined] : [];
+        return looped((index, inner) => {
+          if (index >= values.length) return false;
+          const round = values[index];
+          inner.variableDefine(key, round);
+          if (keyed) inner.variableDefine(keyName, keyed.keys[index]);
+          solidScriptScopeElementBind(inner, round, index, state.machine.elements);
+          return true;
+        });
+      },
+      whileRepeated: (counter, condition) => {
+        state.machine.nameCheck(counter, 'a counter');
+        state.machine.writableCheck(counter);
+        const key = state.machine.nameKey(counter);
+        return looped((index, inner) => {
+          inner.variableDefine(key, index);
+          return solidScriptWhileHolds(index, () =>
+            solidScriptValueTruthy(state.machine.fieldValue(fields, node, condition, inner)),
+          );
+        });
+      },
+      loopJump: (levels, next) => {
+        state.machine.loops.jumpStart(node.command.label, levels, next);
+        return [];
       },
       branched: (holds) => {
         const lines = holds ? node.children : (node.otherwise ?? []);
@@ -1422,7 +1475,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * @param scope Scope it runs in.
    */
   private lineSeenNote(line: number, scope: SolidScriptScope): void {
-    if (this.failure || this.paused || this.leaving || this.stopping || this.passedSeen !== null) return;
+    if (this.lineSkipped() || this.passedSeen !== null) return;
     if (this.lineSeenValues >= SOLID_SCRIPT_SEEN_LIMIT) {
       this.lineSeen.set(line, null);
       return;

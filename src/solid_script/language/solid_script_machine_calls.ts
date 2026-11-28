@@ -30,6 +30,7 @@ import {
 } from './solid_script_shape.js';
 import { SolidScriptElement, type SolidScriptDictionary, type SolidScriptValue } from './solid_script_value.js';
 import { solidScriptDictionaryMissingText } from './solid_script_dictionary_missing.js';
+import { SolidScriptLoopControl } from './solid_script_loop_control.js';
 import * as THREE from 'three';
 import { solidScriptFunctionInputDefault, solidScriptFunctionInputs } from './solid_script_function_inputs.js';
 
@@ -129,6 +130,8 @@ export abstract class SolidScriptMachineCalls<
   protected leaving = false;
   protected failure: SolidScriptFailure | null = null;
   protected paused: SolidScriptBreak | null = null;
+  /** Loops around the running line, and a Stop Loop or Next Round leaving them. */
+  protected readonly loops = new SolidScriptLoopControl();
 
   /**
    * Runs lines one after the other in a new scope.
@@ -218,12 +221,14 @@ export abstract class SolidScriptMachineCalls<
     for (const [key, value] of given) locals.variableDefine(key, value);
     const frame: SolidScriptFrame = { kind: 'function', name, line: this.line, locals, returned: null };
     this.stack.push(frame);
+    const outerLoops = this.loops.frameEnter();
     try {
       const scope = new SolidScriptScope(this.root, name);
       const shapes = node.children.length > 0 ? this.linesRun(node.children, scope, context, scope) : [];
       this.leaving = false;
       return { shapes, value: frame.returned?.value };
     } finally {
+      this.loops.frameLeave(outerLoops);
       this.stack.pop();
     }
   }
@@ -375,6 +380,7 @@ export abstract class SolidScriptMachineCalls<
         `this line ran functions or parts more than ${solidScriptLimitCount(SOLID_SCRIPT_PART_DEPTH_MAX)} levels deep. A function or part that uses itself needs an If that stops it.`,
       );
     this.stack.push({ kind: 'part', name, line: this.line, locals: null, returned: null });
+    const outerLoops = this.loops.frameEnter();
     try {
       const inner = new SolidScriptScope(scope, name);
       const built = node.children.length === 0 ? [] : build(inner);
@@ -389,6 +395,7 @@ export abstract class SolidScriptMachineCalls<
       this.variableSet(scope, name, brushes);
       return [];
     } finally {
+      this.loops.frameLeave(outerLoops);
       this.stack.pop();
     }
   }

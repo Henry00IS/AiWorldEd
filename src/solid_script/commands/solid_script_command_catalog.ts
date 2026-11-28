@@ -6,6 +6,7 @@ import { SOLID_SCRIPT_COMMANDS_ROTATION } from './solid_script_commands_rotation
 import { SOLID_SCRIPT_COMMANDS_ARRAY } from './solid_script_commands_array.js';
 import { SOLID_SCRIPT_COMMANDS_LISTS } from './solid_script_commands_lists.js';
 import { SOLID_SCRIPT_COMMANDS_LOGIC } from './solid_script_commands_logic.js';
+import { SOLID_SCRIPT_COMMANDS_LOOPS } from './solid_script_commands_loops.js';
 import { SOLID_SCRIPT_COMMANDS_MESH_EDGES } from './solid_script_commands_mesh_edges.js';
 import { SOLID_SCRIPT_COMMANDS_SCALE_EDGES } from './solid_script_commands_scale_edges.js';
 import { SOLID_SCRIPT_COMMANDS_SHORTEST_PATHS } from './solid_script_commands_shortest_paths.js';
@@ -117,6 +118,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_UV_PROJECT,
   ...SOLID_SCRIPT_COMMANDS_UVS,
   ...SOLID_SCRIPT_COMMANDS_LOGIC,
+  ...SOLID_SCRIPT_COMMANDS_LOOPS,
   ...SOLID_SCRIPT_COMMANDS_LISTS,
   ...SOLID_SCRIPT_COMMANDS_DICTIONARY,
   ...SOLID_SCRIPT_COMMANDS_PROGRAM,

@@ -187,6 +187,16 @@ export interface SolidScriptBlockRun {
   extruded(fields: SolidScriptBlockArguments): SolidScriptShape[];
   /** Runs the lines inside once per value, with the counter set to it. */
   repeated(counter: string, values: readonly SolidScriptValue[], key?: SolidScriptRoundKey): SolidScriptShape[];
+  /**
+   * Runs the lines inside while the condition field holds, checked before each
+   * round with the counter set to the round number, at most the round limit.
+   */
+  whileRepeated(counter: string, condition: string): SolidScriptShape[];
+  /**
+   * Leaves Levels loops around the line (Stop Loop), or goes on with the next
+   * round of the last of them (Next Round).
+   */
+  loopJump(levels: number, next: boolean): SolidScriptShape[];
   /** Runs the lines inside, or the lines after Else, depending on a condition. */
   branched(holds: boolean): SolidScriptShape[];
   /**

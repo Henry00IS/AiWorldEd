@@ -196,6 +196,8 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   )
     return [{ command: 'cube', values: { anchor: 'Center, Center, Center' } }, { command: 'select_objects' }, line];
   if (command.id === 'stop_script') return [{ command: 'cube' }, line, { command: 'sphere' }];
+  if (command.id === 'stop_loop' || command.id === 'next_round')
+    return [{ command: 'repeat' }, { command: 'cube' }, line, { command: 'end' }];
   if (command.id === 'else')
     return [counter, { command: 'if' }, { command: 'cube' }, line, { command: 'sphere' }, { command: 'end' }];
   if (command.category === 'Lists' && command.id !== 'remove_item' && command.id !== 'add_item')

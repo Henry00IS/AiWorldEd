@@ -17,7 +17,7 @@ export const SOLID_SCRIPT_LIMITS = {
   callDepth: 256,
   /** Lines, loop rounds and calls one run may take. */
   work: 10_000_000,
-  /** Rounds one Repeat or For Each may run. */
+  /** Rounds one Repeat, For Each or While may run. */
   repeatRounds: 10_000,
 } as const;
 
@@ -30,7 +30,7 @@ export const SOLID_SCRIPT_PART_DEPTH_MAX = SOLID_SCRIPT_LIMITS.callDepth;
 /** Most corner points a mesh may have after an operation. */
 export const SOLID_SCRIPT_MESH_POINTS_MAX = SOLID_SCRIPT_LIMITS.meshPoints;
 
-/** Most rounds one Repeat or For Each may run. */
+/** Most rounds one Repeat, For Each or While may run. */
 export const SOLID_SCRIPT_REPEAT_ROUNDS_MAX = SOLID_SCRIPT_LIMITS.repeatRounds;
 
 /**

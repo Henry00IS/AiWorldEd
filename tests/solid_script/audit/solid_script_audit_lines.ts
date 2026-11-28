@@ -75,6 +75,8 @@ const SOLID_SCRIPT_AUDIT_PLACES: Readonly<Record<string, (self: SolidScriptLine)
     [self, line('cube', { anchor: 'Center, Center, Center' }), line('end')],
   ],
   end: (self) => [[line('if', { condition: '1 == 1' }), line('cube', { anchor: 'Center, Center, Center' })], [self]],
+  stop_loop: (self) => [[line('repeat')], [self, line('end')]],
+  next_round: (self) => [[line('repeat')], [self, line('end')]],
   return: (self) => [
     [line('function'), line('cube', { anchor: 'Center, Center, Center' })],
     [self, line('end'), line('call')],
