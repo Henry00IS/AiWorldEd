@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest';
+import type { SolidScriptCommandCategory } from '@/solid_script/commands/solid_script_command.js';
 import {
   SOLID_SCRIPT_COMMAND_CATEGORIES,
+  solidScriptCommandLabelCompare,
   solidScriptCommandsOfCategory,
 } from '@/solid_script/commands/solid_script_command_catalog.js';
-import { solidScriptFormulaCatalog } from '@/solid_script/commands/solid_script_formula_commands.js';
+import {
+  SOLID_SCRIPT_FORMULA_CATEGORIES,
+  solidScriptFormulaCatalog,
+} from '@/solid_script/commands/solid_script_formula_commands.js';
 import { SolidScriptEditorFavorites } from '@/solid_script/ui/solid_script_editor_favorites.js';
 import {
   SOLID_SCRIPT_EDITOR_PALETTE_SCRIPT,
   SolidScriptEditorPalette,
 } from '@/solid_script/ui/solid_script_editor_palette.js';
+import { SOLID_SCRIPT_EDITOR_CLASSES } from '@/solid_script/ui/solid_script_editor_css.js';
 
 /**
  * Sentences of a tooltip said more than once.
@@ -22,19 +28,67 @@ function repeated(tip: string): string[] {
 }
 
 describe('SolidScript editor palette', () => {
-  it('lists the commands of each group in display-name order', () => {
-    const palette = new SolidScriptEditorPalette(
+  /**
+   * Reads the displayed command names under one category caption in a palette.
+   *
+   * @param palette Palette.
+   * @param category Group name.
+   * @returns Labels in the order they are shown.
+   */
+  function shownIn(palette: SolidScriptEditorPalette, category: string): string[] {
+    const labels: string[] = [];
+    let inside = false;
+    for (const child of palette.element.querySelectorAll<HTMLElement>(
+      `.${SOLID_SCRIPT_EDITOR_CLASSES.paletteCaption}, [data-command]`,
+    )) {
+      if (child.classList.contains(SOLID_SCRIPT_EDITOR_CLASSES.paletteCaption)) {
+        inside = child.textContent === category && !child.hidden;
+        continue;
+      }
+      if (inside && !child.hidden) labels.push(child.lastElementChild?.textContent ?? '');
+    }
+    return labels;
+  }
+
+  /**
+   * Checks that a palette lists every group alphabetically by displayed name.
+   *
+   * @param palette Palette.
+   * @param categories Groups it shows, in group order.
+   * @param ofCategory Commands of one group, already in display-name order.
+   */
+  function expectCategoryOrder(
+    palette: SolidScriptEditorPalette,
+    categories: readonly SolidScriptCommandCategory[],
+    ofCategory: (category: SolidScriptCommandCategory) => readonly { label: string }[],
+  ): void {
+    for (const category of categories) {
+      const shown = shownIn(palette, category);
+      const expected = ofCategory(category).map((command) => command.label);
+      expect(shown, category).toEqual(expected);
+      expect(shown, category).toEqual([...shown].sort(solidScriptCommandLabelCompare));
+    }
+  }
+
+  it('lists the commands of each group in display-name order, in the script and formula palettes, also after clearing a search', () => {
+    const script = new SolidScriptEditorPalette(
       () => undefined,
       () => undefined,
     );
-    const visible = palette.visible();
-    for (const category of SOLID_SCRIPT_COMMAND_CATEGORIES) {
-      const expected = solidScriptCommandsOfCategory(category).map((command) => command.id);
-      expect(
-        visible.filter((id) => expected.includes(id)),
-        category,
-      ).toEqual(expected);
-    }
+    expectCategoryOrder(script, SOLID_SCRIPT_COMMAND_CATEGORIES, solidScriptCommandsOfCategory);
+    script.search.value = 'path';
+    script.search.dispatchEvent(new Event('input'));
+    script.search.value = '';
+    script.search.dispatchEvent(new Event('input'));
+    expectCategoryOrder(script, SOLID_SCRIPT_COMMAND_CATEGORIES, solidScriptCommandsOfCategory);
+    const catalog = solidScriptFormulaCatalog();
+    const formula = new SolidScriptEditorPalette(
+      () => undefined,
+      () => undefined,
+      new SolidScriptEditorFavorites(undefined, catalog),
+      { ...SOLID_SCRIPT_EDITOR_PALETTE_SCRIPT, catalog, target: 'the formula' },
+    );
+    expectCategoryOrder(formula, SOLID_SCRIPT_FORMULA_CATEGORIES, (category) => catalog.ofCategory(category));
   });
 
   it('says nothing twice in the tooltip of any entry, in the script and the formula palette', () => {

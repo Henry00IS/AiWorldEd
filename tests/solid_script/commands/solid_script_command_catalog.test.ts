@@ -5,6 +5,7 @@ import {
   solidScriptCommandPreservesBrushes,
   solidScriptCommands,
   solidScriptCommandsOfCategory,
+  solidScriptCommandLabelCompare,
 } from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
@@ -469,7 +470,7 @@ describe('solid script command catalog', () => {
   it('sorts the palette commands of every group by display name', () => {
     for (const category of SOLID_SCRIPT_COMMAND_CATEGORIES) {
       const labels = solidScriptCommandsOfCategory(category).map((command) => command.label);
-      expect(labels, category).toEqual([...labels].sort((left, right) => left.localeCompare(right)));
+      expect(labels, category).toEqual([...labels].sort(solidScriptCommandLabelCompare));
     }
   });
 

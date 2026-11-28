@@ -57,7 +57,7 @@ interface SolidScriptEditorPaletteEntry {
   score: number;
 }
 
-/** A category caption and its commands in catalog order. */
+/** A category caption and its commands in display-name order. */
 interface SolidScriptEditorPaletteGroup {
   caption: HTMLElement;
   entries: SolidScriptEditorPaletteEntry[];
@@ -249,13 +249,14 @@ export class SolidScriptEditorPalette {
    * the captions of groups with a shown command and sets the empty notice.
    */
   private listArrange(): void {
+    const typed = SearchFuzzyEntry.words(this.search.value).length > 0;
     const best = (group: SolidScriptEditorPaletteGroup): number =>
       group.entries.reduce((top, entry) => Math.max(top, entry.score), SEARCH_FUZZY_NONE);
-    const ordered = [...this.groups].sort((left, right) => best(right) - best(left));
+    const ordered = typed ? [...this.groups].sort((left, right) => best(right) - best(left)) : this.groups;
     const shown: HTMLElement[] = [];
     this.entries = [];
     for (const group of ordered) {
-      const entries = [...group.entries].sort((left, right) => right.score - left.score);
+      const entries = typed ? [...group.entries].sort((left, right) => right.score - left.score) : group.entries;
       group.caption.hidden = best(group) === SEARCH_FUZZY_NONE;
       if (!group.caption.hidden)
         shown.push(group.caption, ...entries.filter((entry) => !entry.element.hidden).map((entry) => entry.element));

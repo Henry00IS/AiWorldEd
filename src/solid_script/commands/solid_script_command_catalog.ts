@@ -42,6 +42,8 @@ import { SOLID_SCRIPT_COMMANDS_WIDGET_HANDLES } from './solid_script_commands_wi
 import { SOLID_SCRIPT_COMMANDS_QUERY } from './solid_script_commands_query.js';
 import { SOLID_SCRIPT_COMMANDS_CLIP } from './solid_script_commands_clip.js';
 import { SolidScriptCommandCatalog } from './solid_script_command_catalog_base.js';
+
+export { solidScriptCommandLabelCompare } from './solid_script_command_catalog_base.js';
 import { SOLID_SCRIPT_COMMAND_INPUT } from '@/solid_script/language/solid_script_input.js';
 
 /** Palette groups in palette order. */
@@ -145,7 +147,7 @@ export function solidScriptCommandFind(id: string): SolidScriptCommand | undefin
 
 /**
  * Palette commands of one group of the script editor, sorted by their display
- * name.
+ * name, ignoring case.
  *
  * @param category Palette group.
  * @returns Commands of that group, sorted by label.

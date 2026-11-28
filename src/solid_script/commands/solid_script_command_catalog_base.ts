@@ -4,6 +4,18 @@ import type { SolidScriptCommand, SolidScriptCommandCategory } from './solid_scr
  * A set of commands one editor works with: the commands, their palette groups
  * in palette order, and the favorites a palette starts with.
  */
+/**
+ * Orders two displayed command names as the palette lists them, ignoring case.
+ *
+ * @param left A name.
+ * @param right Another name.
+ * @returns A negative number when left comes first, zero when they match, or a
+ *   positive number when right comes first.
+ */
+export function solidScriptCommandLabelCompare(left: string, right: string): number {
+  return left.localeCompare(right, undefined, { sensitivity: 'accent' });
+}
+
 export class SolidScriptCommandCatalog {
   /** Commands by id. */
   private readonly byId: ReadonlyMap<string, SolidScriptCommand>;
@@ -42,11 +54,11 @@ export class SolidScriptCommandCatalog {
    * registry.
    *
    * @param category Palette group.
-   * @returns Commands of that group, sorted by label.
+   * @returns Commands of that group, sorted by label, ignoring case.
    */
   ofCategory(category: SolidScriptCommandCategory): SolidScriptCommand[] {
     return this.commands
       .filter((command) => command.inPalette && (command.category === category || command.alsoIn.includes(category)))
-      .sort((left, right) => left.label.localeCompare(right.label));
+      .sort((left, right) => solidScriptCommandLabelCompare(left.label, right.label));
   }
 }
