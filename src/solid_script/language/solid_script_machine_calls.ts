@@ -28,7 +28,8 @@ import {
   type SolidScriptShape,
   type SolidScriptShapeGroup,
 } from './solid_script_shape.js';
-import { SolidScriptElement, type SolidScriptValue } from './solid_script_value.js';
+import { SolidScriptElement, type SolidScriptDictionary, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptDictionaryMissingText } from './solid_script_dictionary_missing.js';
 import * as THREE from 'three';
 import { solidScriptFunctionInputDefault, solidScriptFunctionInputs } from './solid_script_function_inputs.js';
 
@@ -87,6 +88,17 @@ export abstract class SolidScriptMachineCalls<
   protected systemMissing(name: string): SolidScriptValue {
     this.warnings.set(this.line, `[$${name}] is only known where there is a box; 1 is used here.`);
     return solidScriptSystemMissingBox(name);
+  }
+
+  /**
+   * Warns on the running line that a Dictionary the script made has no such
+   * key, naming the keys it has when there are few.
+   *
+   * @param dictionary Dictionary read.
+   * @param written Key as written.
+   */
+  protected dictionaryKeyMissing(dictionary: SolidScriptDictionary, written: string): void {
+    this.warnings.set(this.line, solidScriptDictionaryMissingText(dictionary, written));
   }
   protected readonly parts = new Map<string, SolidScriptPart<Command>>();
   /** CSG groups built by each Part, by name key, so Output can stamp Mode. */

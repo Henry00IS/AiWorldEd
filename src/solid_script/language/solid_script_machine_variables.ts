@@ -313,7 +313,10 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   protected readonly persistent = new SolidScriptScope(null);
   protected root = new SolidScriptScope(null);
   /** Brushes, faces, edges and corners the script holds. */
-  protected readonly elements = new SolidScriptElements({ leafLatest: (leaf) => this.leafSwapsLatest(leaf) });
+  protected readonly elements = new SolidScriptElements({
+    leafLatest: (leaf) => this.leafSwapsLatest(leaf),
+    dataMissing: (dictionary, written) => this.dictionaryKeyMissing(dictionary, written),
+  });
   /** The [$Selected.*] lists of the round running. */
   protected selected: SolidScriptSelected = { objects: null, faces: [], edges: [], vertices: [] };
   /** Element ids each Select kind last looked at, for Which Between. */
@@ -344,6 +347,15 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
    */
   protected abstract leafLatestOf(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf;
   protected abstract leafSwapsLatest(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf;
+
+  /**
+   * Warns on the running line that a Dictionary the script made has no such
+   * key.
+   *
+   * @param dictionary Dictionary read.
+   * @param written Key as written.
+   */
+  protected abstract dictionaryKeyMissing(dictionary: SolidScriptDictionary, written: string): void;
 
   /**
    * Lists the brushes a modifier receives, as [$Input.Objects].

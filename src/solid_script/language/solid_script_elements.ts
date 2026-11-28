@@ -63,6 +63,15 @@ export interface SolidScriptElementsHost {
    * @returns Latest version.
    */
   leafLatest(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf;
+
+  /**
+   * Hears that a Dictionary the script made was read under a key it does not
+   * have.
+   *
+   * @param dictionary Dictionary read.
+   * @param written Key as written.
+   */
+  dataMissing?(dictionary: SolidScriptDictionary, written: string): void;
 }
 
 /** Held faces of one solid or mesh. */
@@ -641,14 +650,19 @@ export class SolidScriptElements {
   }
 
   /**
-   * Reads one user value; a key never set reads as empty.
+   * Reads one user value; a key never set reads as empty, and on a Dictionary
+   * the script made it is reported to the host.
    *
    * @param element Element, its Data or a Dictionary.
    * @param key Key, folded.
+   * @param written Key as written, for the report.
    * @returns Value.
    */
-  dataRead(element: SolidScriptElement, key: string): SolidScriptValue {
-    return this.dataValues(element).get(key)?.value ?? '';
+  dataRead(element: SolidScriptElement, key: string, written = key): SolidScriptValue {
+    const entry = this.dataValues(element).get(key);
+    if (entry) return entry.value;
+    if (element instanceof SolidScriptDictionary && element.id <= 0) this.host.dataMissing?.(element, written);
+    return '';
   }
 
   /**

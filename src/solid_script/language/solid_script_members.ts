@@ -458,7 +458,7 @@ export function solidScriptMemberRead(
     if (key === 'position') return value.position;
     if (key === 'normal') return value.normal;
   } else if (value instanceof SolidScriptElement) {
-    if (value.kind === 'data') return key === 'data' ? value : elements.dataRead(value, member);
+    if (value.kind === 'data') return key === 'data' ? value : elements.dataRead(value, member, written);
     const read = solidScriptMemberElement(value, key, elements);
     if (read !== undefined) return read;
   } else if (Array.isArray(value)) {

@@ -1,3 +1,4 @@
+import { solidScriptTextureChecked } from '@/solid_script/language/solid_script_texture_known.js';
 import { solidScriptGeometryFacesOutside } from '@/solid_script/language/solid_script_geometry_outside.js';
 import { SOLID_SCRIPT_COMMANDS_EXTRUDE } from './solid_script_commands_extrude.js';
 import { solidScriptListingOf } from './solid_script_command_listing.js';
@@ -246,7 +247,7 @@ function solidScriptTextureLeaf(run: SolidScriptBlockRun, leaf: SolidScriptShape
   if ((leaf.kind !== 'solid' && leaf.kind !== 'mesh') || texture === '') return leaf;
   const latest = run.leafLatest(leaf);
   if (latest.texture !== undefined) return latest;
-  const painted = { ...latest, texture };
+  const painted = { ...latest, texture: solidScriptTextureChecked(run, texture) };
   run.leafReplace(latest, painted);
   return painted;
 }
@@ -592,7 +593,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Objects',
     description: 'Paint objects with a texture',
     manual:
-      "Gives every face of the objects between this line and its End the texture named by Texture, the name a texture has in the texture library. Objects outside any Texture block keep the generator's own texture, and an inner Texture block wins over an outer one. A texture Input picks the name from the library, so the inspector can change it. The 🔁 Texture may change per object, such as with [$Index]. Example: Input Wall, texture, then Texture [Wall] around the walls paints them with the picked texture.",
+      "Gives every face of the objects between this line and its End the texture named by Texture, the name a texture has in the texture library. Objects outside any Texture block keep the generator's own texture, and an inner Texture block wins over an outer one. A name this project has no texture for still paints, as the texture may come with another project, and adds a warning. A texture Input picks the name from the library, so the inspector can change it. The 🔁 Texture may change per object, such as with [$Index]. Example: Input Wall, texture, then Texture [Wall] around the walls paints them with the picked texture.",
     stops: ['A missing End line.', 'A [Name] for a variable not set above this line.'],
     nesting: 'open',
     parameters: [
@@ -620,7 +621,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Paint faces with a texture',
     manual:
-      'Gives faces their own library texture. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. It works on solids and meshes and wins over a Texture block around them. On a mesh each texture becomes one of its texture slots, and each face points at its slot. The faces keep it when the object is moved, turned or scaled. Example: Cube, Select Faces Facing Up, Texture Faces grass gives a box a grass top.',
+      'Gives faces their own library texture. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. It works on solids and meshes and wins over a Texture block around them. A name this project has no texture for adds a warning. On a mesh each texture becomes one of its texture slots, and each face points at its slot. The faces keep it when the object is moved, turned or scaled. Example: Cube, Select Faces Facing Up, Texture Faces grass gives a box a grass top.',
     stops: ['No faces.', 'An empty Texture.', 'A [Name] for a variable not set above this line.'],
     parameters: [
       solidScriptParameterEach(
@@ -647,7 +648,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       const textureOf = (face: SolidScriptFaceFacts): string => {
         const texture = solidScriptValueText(read(face)).trim();
         if (texture === '') throw new Error('Texture Faces needs a Texture name');
-        return texture;
+        return solidScriptTextureChecked(run, texture);
       };
       for (const [leaf, faces] of solidScriptFaceGroups(targets, (face) => face.leaf)) {
         const added = faces.map((face) => ({

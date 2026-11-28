@@ -161,6 +161,19 @@ export class TextureMapCache {
   }
 
   /**
+   * Tells whether a texture id names a texture of the bound library, by its id
+   * or by the name the library knows it under.
+   *
+   * @param textureId Texture id or name.
+   * @returns True or false, or null when no library is bound.
+   */
+  knows(textureId: string): boolean | null {
+    if (this.library === null) return null;
+    if (isDefaultCheckerTextureId(textureId)) return true;
+    return this.alias.resolve(this.library, textureId) !== null;
+  }
+
+  /**
    * Tells whether an id currently shows its placeholder (no file loaded).
    *
    * @param textureId Texture id.
