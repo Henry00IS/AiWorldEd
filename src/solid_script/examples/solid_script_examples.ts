@@ -5,6 +5,7 @@ import {
   SOLID_SCRIPT_EXAMPLE_RHOMBICUBOCTAHEDRON,
 } from './solid_script_examples_polyhedra.js';
 import { SOLID_SCRIPT_EXAMPLE_WIDGET_SHOWCASE } from './solid_script_examples_widgets.js';
+import { solidScriptCommandLabelCompare } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 import type { SolidScriptLine, SolidScriptUses } from '@/solid_script/document/solid_script_document.js';
 import {
   SOLID_SCRIPT_EXAMPLE_COLUMNS,
@@ -124,8 +125,22 @@ function solidScriptExampleModifier(
   };
 }
 
+/**
+ * Lists examples in group order, and each group by name, ignoring case.
+ *
+ * @param examples Examples to list.
+ * @returns The same examples, ordered for the Examples window.
+ */
+function solidScriptExamplesListed(examples: readonly SolidScriptExample[]): readonly SolidScriptExample[] {
+  return SOLID_SCRIPT_EXAMPLE_GROUPS.flatMap((group) =>
+    examples
+      .filter((example) => example.group === group)
+      .sort((left, right) => solidScriptCommandLabelCompare(left.name, right.name)),
+  );
+}
+
 /** Built-in example scripts, in the order the Examples window lists them. */
-export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
+export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = solidScriptExamplesListed([
   {
     id: 'spiralStaircase',
     name: 'Spiral Staircase',
@@ -297,7 +312,7 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
   solidScriptExampleModifier('mirror', 'Mirror', SOLID_SCRIPT_EXAMPLE_MIRROR),
   solidScriptExampleModifier('transform', 'Transform Array', SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY),
   solidScriptExampleModifier('radial', 'Radial Array', SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY),
-];
+]);
 
 /**
  * Counts the lines of an example that do something, leaving out notes and blank
