@@ -20,23 +20,23 @@ import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_com
 import { SolidScriptEditorHelp } from '@/solid_script/ui/solid_script_editor_help.js';
 
 describe('Solid Script Path and Curve input defaults', () => {
-  it('stores Baseboard Wall in Solid Script syntax with Follows instead of JSON', () => {
+  it('stores Baseboard Wall in Solid Script syntax, with no Follows name', () => {
     const baseboard = SOLID_SCRIPT_EXAMPLES.find((example) => example.id === 'baseboard');
     expect(baseboard).toBeDefined();
     const document = solidScriptDocumentCreate(baseboard!.lines);
     const inputLine = document.blocks.find((block) => block.command === 'input' && block.values['name'] === 'Wall');
-    expect(inputLine?.values['default']).toBe('[-2, 0, 1.5], [-2, 0, -1.5], [2, 0, -1.5], [2, 0, 1.5]');
-    expect(inputLine?.values['follows']).toBe('Room Wall');
+    expect(inputLine?.values['default']).toBe('[2, 0, 1.5], [2, 0, -1.5], [-2, 0, -1.5], [-2, 0, 1.5]');
+    expect(inputLine?.values['follows'] ?? '').toBe('');
     expect(JSON.stringify(inputLine)).not.toContain('{"scene":');
     const listing = solidScriptDocumentListing(document).join('\n');
-    expect(listing).toContain("Input 'Wall' ('Path') = '[-2, 0, 1.5], [-2, 0, -1.5], [2, 0, -1.5], [2, 0, 1.5]'");
-    expect(listing).toContain("Follows 'Room Wall'");
+    expect(listing).toContain("Input 'Wall' ('Path') = '[2, 0, 1.5], [2, 0, -1.5], [-2, 0, -1.5], [-2, 0, 1.5]'");
+    expect(listing).not.toContain("Follows 'Room Wall'");
     expect(listing).not.toContain('{');
 
     const help = new SolidScriptEditorHelp();
     help.show(solidScriptCommandFind('input')!, inputLine!);
     expect(help.element.textContent).not.toContain('{"scene":');
-    expect(help.element.textContent).toContain('[-2, 0, 1.5], [-2, 0, -1.5], [2, 0, -1.5], [2, 0, 1.5]');
+    expect(help.element.textContent).toContain('[2, 0, 1.5], [2, 0, -1.5], [-2, 0, -1.5], [-2, 0, 1.5]');
   });
 
   it('parses Solid Script Path point lists and Curve presets/point lists', () => {
@@ -59,7 +59,7 @@ describe('Solid Script Path and Curve input defaults', () => {
     expect(solidScriptFieldMistake('[-1.5, 0, 1], [1.5, 0, 1]')).toBe('');
   });
 
-  it('links Baseboard to a Room Wall Path object in the scene from its Follows setting', () => {
+  it('keeps Baseboard on its own default path when a Room Wall Path object is in the scene', () => {
     const baseboard = SOLID_SCRIPT_EXAMPLES.find((example) => example.id === 'baseboard')!;
     const world = new THREE.Group();
     const model = new SolidModel('Room');
@@ -107,12 +107,13 @@ describe('Solid Script Path and Curve input defaults', () => {
     const compiled = modifierStackCompile(model.getBrushes(), model.root);
     const bounds = new THREE.Box3();
     for (const instance of compiled.instances) bounds.union(instance.getModelSpaceBounds());
-    expect(bounds.max.x).toBeGreaterThan(5.9);
-    expect(bounds.min.x).toBeGreaterThanOrEqual(-0.05);
-    expect(modifierStackPaths(scriptNode)).toEqual([]);
+    expect(bounds.max.x).toBeLessThan(2.05);
+    expect(bounds.min.x).toBeGreaterThan(-2.05);
+    expect(bounds.max.x).toBeLessThan(5);
+    expect(modifierStackPaths(scriptNode).length).toBeGreaterThan(0);
 
     const run = solidScriptProgramRun(solidScriptDocumentCreate(baseboard.lines));
     expect(run.error).toBeNull();
-    expect(solidScriptInputsList(solidScriptDocumentCreate(baseboard.lines).blocks)[0]?.follows).toBe('Room Wall');
+    expect(solidScriptInputsList(solidScriptDocumentCreate(baseboard.lines).blocks)[0]?.follows ?? '').toBe('');
   });
 });

@@ -68,7 +68,7 @@ const COVERAGE: Readonly<Record<string, string>> = {
   'Input Objects': 'pedestal',
   'Move To': 'pedestal',
   'Extrude Face': 'pushOutFaces',
-  $Box: 'pyramid',
+  $Box: 'doorway',
   'Polyhedron and Point': 'pyramid',
   If: 'prism',
   'Function, Call and Local': 'hollowBox',

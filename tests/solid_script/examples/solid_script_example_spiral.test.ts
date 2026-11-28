@@ -7,21 +7,24 @@ import { SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE } from '@/solid_script/examples/s
 
 describe('SolidScript Spiral Staircase example', () => {
   it('runs the handrail through the top of every post along the spiral', () => {
+    const box = 4;
     const result = solidScriptProgramRun(solidScriptDocumentCreate([...SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE]), {
-      box: [4, 4, 4],
+      box: [box, box, box],
     });
     expect(result.error?.message ?? null).toBeNull();
-    // Posts and rail pieces are the brushes near the rail radius of 1.7 m.
+    const outerMax = box / 2;
+    const outer = outerMax - outerMax * 0.044;
+    const railRadius = (outer * 2 - outer * 0.111) / 2;
     const near = result.shapes
       .flatMap(solidScriptShapeLeavesPositive)
       .filter((shape) => shape.kind === 'solid')
       .map((shape) => new THREE.Box3().setFromPoints(shape.points))
       .filter((bounds) => {
         const middle = bounds.getCenter(new THREE.Vector3());
-        return Math.abs(Math.hypot(middle.x, middle.z) - 1.7) < 0.05;
+        return Math.abs(Math.hypot(middle.x, middle.z) - railRadius) < 0.05;
       });
-    const posts = near.filter((bounds) => bounds.max.y - bounds.min.y > 0.5);
-    const rails = near.filter((bounds) => bounds.max.y - bounds.min.y <= 0.5);
+    const posts = near.filter((bounds) => bounds.max.y - bounds.min.y > box * 0.15);
+    const rails = near.filter((bounds) => bounds.max.y - bounds.min.y <= box * 0.15);
     expect(posts).toHaveLength(18);
     expect(rails.length).toBeGreaterThan(0);
     for (const post of posts) {

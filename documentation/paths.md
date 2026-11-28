@@ -9,7 +9,7 @@ A **Path** is a line of points you draw in the scene: the bottom corners of a ro
 
 Adding a Path input turns on **Has Edit Mode** for the script, so its points can be reached in the scene. A new Path is a straight line two metres long.
 
-The **Baseboard** example (Examples window, Basics) follows a Path object named Room Wall and sweeps a moulding along it.
+The **Baseboard** example (Examples window, Basics) sweeps a moulding along a Path input you can edit in the scene, or link to a Path object from the inspector.
 
 ## Path objects
 
@@ -30,7 +30,7 @@ Every Path input in the inspector has a choice beside its name: **Own Path** kee
 - Its points are edited on the Path object, not on the script.
 - The input keeps the shape it had before it was linked. Picking **Own Path** again goes back to that shape; while no Path object has the name, the script uses it and says which name is missing.
 
-A Path input whose default names a Path object, as the Baseboard example's does, follows it as soon as the scene has one by that name.
+A Path input can name a Path object under **Follows**, and then follows it as soon as the scene has one by that name.
 
 ## Draw and edit in the scene
 

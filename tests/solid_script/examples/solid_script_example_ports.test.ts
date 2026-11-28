@@ -273,15 +273,17 @@ describe('SolidScript examples', () => {
 
   it('places the vector examples where their vectors point', () => {
     const lines = (id: string) => SOLID_SCRIPT_EXAMPLES.find((example) => example.id === id)!.lines;
-    const ring = solidScriptProgramRun(solidScriptDocumentCreate(lines('pillarRing')));
+    const ringBox: [number, number, number] = [7.5, 3, 7.5];
+    const ring = solidScriptProgramRun(solidScriptDocumentCreate(lines('pillarRing')), { box: ringBox });
     expect(ring.steps).toHaveLength(8);
     const centres = ring.shapes.flatMap(solidScriptShapeLeavesPositive).map((leaf) => {
       const box = new THREE.Box3().setFromPoints(leaf.kind === 'solid' ? leaf.points : []);
       return box.getCenter(new THREE.Vector3());
     });
+    const radius = Math.min(ringBox[0], ringBox[2]) * 0.4;
     for (const center of centres) {
-      expect(Math.hypot(center.x, center.z)).toBeCloseTo(3, 1);
-      expect(center.y).toBeCloseTo(1.5, 5);
+      expect(Math.hypot(center.x, center.z)).toBeCloseTo(radius, 1);
+      expect(center.y).toBeCloseTo(0, 5);
     }
     const stones = solidScriptProgramRun(solidScriptDocumentCreate(lines('steppingStones')));
     expect(stones.steps).toHaveLength(9);
@@ -289,14 +291,16 @@ describe('SolidScript examples', () => {
 
   it('sweeps the spiral staircase stringer as one smooth slope of twisted convex pieces', () => {
     const lines = SOLID_SCRIPT_EXAMPLES.find((example) => example.id === 'spiralStaircase')!.lines;
-    const run = solidScriptProgramRun(solidScriptDocumentCreate(lines));
+    const box = 4;
+    const run = solidScriptProgramRun(solidScriptDocumentCreate(lines), { box: [box, box, box] });
     expect(run.error).toBeNull();
     expect(run.steps).toHaveLength(1 + 18 * 4 + 18 + 3 * 18 * 4);
+    const outer = box / 2 - (box / 2) * 0.044;
     const radius = (point: THREE.Vector3) => Math.hypot(point.x, point.z);
     const stringer = run.shapes
       .flatMap(solidScriptShapeLeavesPositive)
       .flatMap((leaf) => (leaf.kind === 'solid' ? [leaf.points] : []))
-      .filter((points) => points.every((point) => radius(point) >= 1.8 - 1e-6));
+      .filter((points) => points.every((point) => radius(point) >= outer - 1e-6));
     expect(stringer).toHaveLength(72);
     for (const [index, piece] of stringer.entries()) {
       const outside = [...piece].sort((a, b) => b.y - a.y).slice(0, 4);

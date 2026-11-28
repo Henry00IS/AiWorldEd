@@ -13,16 +13,14 @@ import {
 /** An irregular convex rock: Scatter In Box, then Hull around the points. */
 export const SOLID_SCRIPT_EXAMPLE_IRREGULAR_ROCK: readonly SolidScriptLine[] = [
   ...solidScriptExampleNote(
-    'Scatter In Box drops random points in a box of this Size and Height. Count is how many points, and Seed picks the layout: the same Seed is the same rock. Into writes the points to [Spots], a list you can use later.',
+    'Scatter In Box drops random points in the generator box, [Box]. Count is how many points, and Seed picks the layout: the same Seed is the same rock. Into writes the points to [Spots], a list you can use later.',
   ),
-  solidScriptExampleInput('Size', 'Number', '2', { min: '0.5', max: '20', label: 'Size' }),
-  solidScriptExampleInput('Height', 'Number', '1.2', { min: '0.2', max: '20', label: 'Height' }),
   solidScriptExampleInput('Count', 'Count', '16', { min: '4', max: '64', label: 'Points' }),
   solidScriptExampleInput('Seed', 'Number', '4', { label: 'Seed' }),
   solidScriptExampleLine('scatter_in_box', {
     count: '[Count]',
     seed: '[Seed]',
-    size: '[Size], [Height], [Size]',
+    size: '[$Box.Size]',
     into: 'Spots',
   }),
   ...solidScriptExampleNote(
@@ -38,9 +36,9 @@ export const SOLID_SCRIPT_EXAMPLE_TAPERED_BOX: readonly SolidScriptLine[] = [
   ),
   solidScriptExampleInput('Factor', 'Number', '0.5', { min: '0.1', max: '2', label: 'Factor' }),
   ...solidScriptExampleNote(
-    'This Cube has no Anchor written, so it uses the usual Center, Center, Center. Select Objects picks solids. Which Between keeps everything built since the last Select Objects. This is the first Select, so it picks the cube.',
+    "This Cube's Size is [Box.Size], so it fills the generator box you draw in the editor. It has no Anchor written, so it uses the usual Center, Center, Center. Select Objects picks solids. Which Between keeps everything built since the last Select Objects. This is the first Select, so it picks the cube.",
   ),
-  solidScriptExampleLine('cube', { size: '2, 2, 2' }),
+  solidScriptExampleLine('cube', { size: '[$Box.Size]' }),
   solidScriptExampleLine('select_objects', { which: 'Between' }),
   ...solidScriptExampleNote(
     'Select Faces picks faces of those solids. Which Facing Up keeps the faces that point up, so only the top is kept.',
@@ -58,15 +56,13 @@ export const SOLID_SCRIPT_EXAMPLE_TAPERED_BOX: readonly SolidScriptLine[] = [
  */
 export const SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL: readonly SolidScriptLine[] = [
   ...solidScriptExampleNote(
-    'Path From Points draws a path through these four corners. Corner rounds them, Closed joins the last back to the first, and Into writes the path to [Rail].',
+    'Path From Points draws a path through the four corners of the generator box, [Box], at its mid-height. Corner rounds them, Closed joins the last back to the first, and Into writes the path to [Rail].',
   ),
-  solidScriptExampleInput('Width', 'Number', '3', { min: '0.5', max: '20', label: 'Width' }),
-  solidScriptExampleInput('Depth', 'Number', '2', { min: '0.5', max: '20', label: 'Depth' }),
   solidScriptExampleInput('Corner', 'Number', '0.4', { min: '0', max: '5', label: 'Corner' }),
   solidScriptExampleInput('Thickness', 'Number', '0.08', { min: '0.01', max: '1', label: 'Thickness' }),
   solidScriptExampleLine('path_from_points', {
     points:
-      '[=Vector(-[Width] / 2, 0, -[Depth] / 2)], [=Vector([Width] / 2, 0, -[Depth] / 2)], [=Vector([Width] / 2, 0, [Depth] / 2)], [=Vector(-[Width] / 2, 0, [Depth] / 2)]',
+      '[=Vector(-[$Box.Extents.X], 0, -[$Box.Extents.Z])], [=Vector([$Box.Extents.X], 0, -[$Box.Extents.Z])], [=Vector([$Box.Extents.X], 0, [$Box.Extents.Z])], [=Vector(-[$Box.Extents.X], 0, [$Box.Extents.Z])]',
     corner_radius: '[Corner]',
     sides: '6',
     closed: 'Yes',
@@ -77,26 +73,25 @@ export const SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL: readonly SolidScriptLine[] = [
 ];
 
 /**
- * A baseboard along a Path object of the scene: trace the bottom corners of a
- * room with it and Sweep Along Path runs a moulding profile along them.
+ * A baseboard along a Path input: trace the bottom corners of a room with it
+ * and Sweep Along Path runs a moulding profile along them.
  */
 export const SOLID_SCRIPT_EXAMPLE_BASEBOARD: readonly SolidScriptLine[] = [
   ...solidScriptExampleNote(
-    'Wall follows the Path object named Room Wall. Add a Path from the shape picker and name it Room Wall, then select it, click Edit and Ctrl+Click each bottom corner of the room; the board follows as you draw. Until the scene has one, Wall uses these room corner points. Pick Own Path under Wall to draw on this object instead.',
+    'Wall is the path around the room. Select this object, click Edit and Ctrl+Click each bottom corner; the board follows as you draw. These room corner points are the starting path. To follow a Path object in the scene instead, pick it under Wall in the inspector.',
   ),
-  solidScriptExampleInput('Wall', 'Path', '[-2, 0, 1.5], [-2, 0, -1.5], [2, 0, -1.5], [2, 0, 1.5]', {
+  solidScriptExampleInput('Wall', 'Path', '[2, 0, 1.5], [2, 0, -1.5], [-2, 0, -1.5], [-2, 0, 1.5]', {
     label: 'Wall',
-    follows: 'Room Wall',
   }),
   solidScriptExampleInput('Height', 'Number', '0.12', { min: '0.02', max: '1', label: 'Height' }),
   solidScriptExampleInput('Thickness', 'Number', '0.02', { min: '0.005', max: '0.2', label: 'Thickness' }),
   ...solidScriptExampleNote(
-    'Sweep Along Path runs the moulding profile along the wall: x runs to the side of the path and y up, so the board stands on the floor with a bevelled top.',
+    'Sweep Along Path runs the moulding profile along the wall: x runs to the side of the path and y up, so the flat back sits on the wall and the bevelled face points into the room.',
   ),
   solidScriptExampleLine('sweep_along_path', {
     path: '[Wall]',
     profile:
-      '[0, 0, 0], [[Thickness], 0, 0], [[Thickness], [=[Height] * 0.8], 0], [[=[Thickness] / 2], [Height], 0], [0, [Height], 0]',
+      '[0, 0], [[Thickness], 0], [[Thickness], [=[Height] * 0.8]], [[=[Thickness] / 2], [Height]], [0, [Height]]',
     up: '0, 1, 0',
   }),
 ];
@@ -126,7 +121,7 @@ export const SOLID_SCRIPT_EXAMPLE_CURVE_BASEBOARD: readonly SolidScriptLine[] = 
     into: 'Profile',
   }),
   solidScriptExampleLine('path_from_points', {
-    points: '[-1.5, 0, 1], [-1.5, 0, -1], [1.5, 0, -1], [1.5, 0, 1]',
+    points: '[1.5, 0, 1], [1.5, 0, -1], [-1.5, 0, -1], [-1.5, 0, 1]',
     into: 'Wall',
   }),
   solidScriptExampleLine('sweep_along_path', { path: '[Wall]', profile: '[Profile]', up: '0, 1, 0' }),
@@ -225,20 +220,23 @@ export const SOLID_SCRIPT_EXAMPLE_PATH_STAIRS: readonly SolidScriptLine[] = [
 
 /** A hilly floor: Grid Mesh, then Displace with Noise at each point. */
 export const SOLID_SCRIPT_EXAMPLE_HILLY_FLOOR: readonly SolidScriptLine[] = [
-  ...solidScriptExampleNote('Grid Mesh lays a flat floor of this Width and Depth, divided into Columns and Rows.'),
-  solidScriptExampleInput('Width', 'Number', '8', { min: '0.5', max: '40', label: 'Width' }),
-  solidScriptExampleInput('Depth', 'Number', '8', { min: '0.5', max: '40', label: 'Depth' }),
+  ...solidScriptExampleNote(
+    'Grid Mesh lays a flat floor that fills the width and depth of the generator box, [Box], divided into Columns and Rows.',
+  ),
   solidScriptExampleInput('Columns', 'Count', '12', { min: '1', max: '32', label: 'Columns' }),
   solidScriptExampleInput('Rows', 'Count', '12', { min: '1', max: '32', label: 'Rows' }),
-  solidScriptExampleInput('Height', 'Number', '0.6', { min: '0', max: '10', label: 'Height' }),
   solidScriptExampleInput('Scale', 'Number', '3', { min: '0.1', max: '40', label: 'Scale' }),
   solidScriptExampleInput('Seed', 'Number', '2', { label: 'Seed' }),
-  solidScriptExampleLine('grid_mesh', { size: '[Width], 0, [Depth]', columns: '[Columns]', rows: '[Rows]' }),
+  solidScriptExampleLine('grid_mesh', {
+    size: '[$Box.Width], 0, [$Box.Depth]',
+    columns: '[Columns]',
+    rows: '[Rows]',
+  }),
   solidScriptExampleLine('select_objects'),
   ...solidScriptExampleNote(
-    "Displace moves each selected point along its normal. The distance uses Noise, which turns a point into a smooth random height: the same Seed is the same hills. [X] and [Z] are the point's place on the floor.",
+    "Displace moves each selected point along its normal. The distance uses Noise, which turns a point into a smooth random height: the same Seed is the same hills, and the hills fill the height of the generator box. [X] and [Z] are the point's place on the floor.",
   ),
   solidScriptExampleLine('displace', {
-    distance: '[=[Height] * (Noise(Vector([$X], 0, [$Z]), [Scale], [Seed]) * 2 - 1)]',
+    distance: '[=[$Box.Height] * (Noise(Vector([$X], 0, [$Z]), [Scale], [Seed]) * 2 - 1)]',
   }),
 ];
