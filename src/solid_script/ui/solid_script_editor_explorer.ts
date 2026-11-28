@@ -7,6 +7,7 @@ import {
   solidScriptNameShown,
   solidScriptDocumentOrigins,
   solidScriptNameKindsText,
+  type SolidScriptName,
   type SolidScriptNameCategory,
 } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptInputTypeLabel } from '@/solid_script/language/solid_script_input.js';
@@ -19,6 +20,7 @@ import type {
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptExplorerContextEntries } from './solid_script_editor_explorer_context.js';
 import {
+  solidScriptExplorerResourceNameEntries,
   solidScriptExplorerSort,
   solidScriptExplorerSystemEntries,
   solidScriptExplorerVariablesSorted,
@@ -196,34 +198,102 @@ export function solidScriptExplorerEntries(
 ): SolidScriptExplorerEntry[] {
   const origins = solidScriptDocumentOrigins(script);
   const live = solidScriptExplorerLive(variables, stack);
-  const entries: SolidScriptExplorerEntry[] = [];
-  for (const known of solidScriptDocumentNames(script)) {
-    const seen =
-      SOLID_SCRIPT_EXPLORER_TYPES_STATIC[known.category] === undefined ||
-      known.category === 'Lists' ||
-      known.category === 'Counters';
-    const found = seen ? live.get(known.name) : undefined;
-    const input = known.category === 'Inputs';
-    const block = script.blocks[known.line];
-    entries.push({
-      name: known.name,
-      category: known.category,
-      value: found?.value ?? null,
-      type: input
-        ? solidScriptInputTypeLabel(block?.values['type'] ?? '')
-        : known.gives !== undefined
-          ? `Function -> ${known.gives}`
-          : (found?.type ??
-            (solidScriptNameKindsText(known.kinds) ||
-              (SOLID_SCRIPT_EXPLORER_TYPES_STATIC[known.category] ?? 'Not Set Yet'))),
-      lines: origins.get(known.name) ?? [known.line],
-      ...(known.reachLines ? { reachLines: known.reachLines } : {}),
-      items: found?.items ?? [],
-      readOnly: input,
-      detail: '',
-      reaches: known.reaches ?? '',
-    });
-  }
+  const entries = solidScriptExplorerDefinedEntries(script, live, origins);
+  solidScriptExplorerLiveExtras(entries, live, origins);
+  const system = solidScriptExplorerSystemEntries(script, live, run);
+  entries.push(...system, ...solidScriptExplorerResourceNameEntries(system));
+  return solidScriptExplorerSort(entries);
+}
+
+/**
+ * Writes the Type of a name the script defines, from its input, Function,
+ * kinds, or a value the run already holds.
+ *
+ * @param script Script.
+ * @param known Name the script defines.
+ * @param found Value of the run, or undefined.
+ * @returns Type text.
+ */
+function solidScriptExplorerDefinedType(
+  script: SolidScriptDocument,
+  known: SolidScriptName,
+  found: SolidScriptVariable | undefined,
+): string {
+  if (known.category === 'Inputs') return solidScriptInputTypeLabel(script.blocks[known.line]?.values['type'] ?? '');
+  if (known.gives !== undefined) return `Function -> ${known.gives}`;
+  return (
+    found?.type ??
+    (solidScriptNameKindsText(known.kinds) || (SOLID_SCRIPT_EXPLORER_TYPES_STATIC[known.category] ?? 'Not Set Yet'))
+  );
+}
+
+/**
+ * Builds the entry of a name the script defines, with its value at the step
+ * shown when the run has one.
+ *
+ * @param script Script.
+ * @param known Name the script defines.
+ * @param live Values of the run by shown name.
+ * @param origins Lines that set each name.
+ * @returns Entry.
+ */
+function solidScriptExplorerDefinedEntry(
+  script: SolidScriptDocument,
+  known: SolidScriptName,
+  live: ReadonlyMap<string, SolidScriptVariable>,
+  origins: ReadonlyMap<string, readonly number[]>,
+): SolidScriptExplorerEntry {
+  const seen =
+    SOLID_SCRIPT_EXPLORER_TYPES_STATIC[known.category] === undefined ||
+    known.category === 'Lists' ||
+    known.category === 'Counters';
+  const found = seen ? live.get(known.name) : undefined;
+  return {
+    name: known.name,
+    category: known.category,
+    value: found?.value ?? null,
+    type: solidScriptExplorerDefinedType(script, known, found),
+    lines: origins.get(known.name) ?? [known.line],
+    ...(known.reachLines ? { reachLines: known.reachLines } : {}),
+    items: found?.items ?? [],
+    readOnly: known.category === 'Inputs',
+    detail: '',
+    reaches: known.reaches ?? '',
+  };
+}
+
+/**
+ * Lists the names the script defines, except resources, which All and the
+ * Resources tab take from the System tab's $Resources items.
+ *
+ * @param script Script.
+ * @param live Values of the run by shown name.
+ * @param origins Lines that set each name.
+ * @returns Entries.
+ */
+function solidScriptExplorerDefinedEntries(
+  script: SolidScriptDocument,
+  live: ReadonlyMap<string, SolidScriptVariable>,
+  origins: ReadonlyMap<string, readonly number[]>,
+): SolidScriptExplorerEntry[] {
+  return solidScriptDocumentNames(script)
+    .filter((known) => known.category !== 'Resources')
+    .map((known) => solidScriptExplorerDefinedEntry(script, known, live, origins));
+}
+
+/**
+ * Adds names only the run made, such as part[i], skipping names already listed
+ * and Function locals, which $Local holds.
+ *
+ * @param entries Entries so far; changed in place.
+ * @param live Values of the run by shown name.
+ * @param origins Lines that set each name.
+ */
+function solidScriptExplorerLiveExtras(
+  entries: SolidScriptExplorerEntry[],
+  live: ReadonlyMap<string, SolidScriptVariable>,
+  origins: ReadonlyMap<string, readonly number[]>,
+): void {
   const listed = new Set(entries.map((entry) => entry.name));
   for (const [name, variable] of live) {
     if (listed.has(name) || name.startsWith('$Local.')) continue;
@@ -238,8 +308,6 @@ export function solidScriptExplorerEntries(
       detail: '',
     });
   }
-  entries.push(...solidScriptExplorerSystemEntries(script, live, run));
-  return solidScriptExplorerSort(entries);
 }
 
 /**
@@ -436,7 +504,7 @@ export class SolidScriptEditorExplorer {
    * @returns True when listed.
    */
   private listedIn(entry: SolidScriptExplorerEntry, category: SolidScriptExplorerCategory, query: string): boolean {
-    const builtIn = entry.detail !== '';
+    const builtIn = entry.category === 'System';
     if (category === 'All') return !builtIn || solidScriptExplorerNames(entry, query);
     if (category === 'Current') return entry.value !== null && !builtIn;
     return entry.category === category;

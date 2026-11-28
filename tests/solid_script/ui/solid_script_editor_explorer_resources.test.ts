@@ -3,6 +3,7 @@ import { curveFromPolyline } from '@/curve/model/curve_model.js';
 import { curveEditorCloseActive } from '@/curve/ui/curve_editor.js';
 import { solidScriptDocumentCreate, type SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import {
+  SOLID_SCRIPT_RESOURCE_KINDS,
   solidScriptDocumentResourcesWith,
   solidScriptResourceCurve,
   solidScriptResourceText,
@@ -104,6 +105,24 @@ describe('$Resources in the variable viewer', () => {
     ]);
   });
 
+  it('shows the same name, value and type in All as on the System tab, for every resource kind', () => {
+    const resources = [...RESOURCES, solidScriptResourceText('Text', 'Hello, [$Local.X]')];
+    expect(new Set(resources.map((resource) => resource.kind))).toEqual(new Set(SOLID_SCRIPT_RESOURCE_KINDS));
+    const entries = solidScriptExplorerEntries(script(resources), [], [], { system: [], stoppedBefore: null });
+    const shown = (
+      item: Pick<SolidScriptExplorerEntry, 'name' | 'value' | 'type'>,
+    ): { name: string; value: string | null; type: string } => ({
+      name: item.name,
+      value: item.value,
+      type: item.type,
+    });
+    const all = entries.filter((entry) => entry.category === 'Resources').map(shown);
+    const system = (entries.find((entry) => entry.name === '$Resources')?.items ?? []).map(shown);
+    expect(all).toEqual(system);
+    expect(all.map((row) => row.type).sort()).toEqual([...SOLID_SCRIPT_RESOURCE_KINDS].sort());
+    expect(all.every((row) => row.value !== null)).toBe(true);
+  });
+
   it('follows the resources as they are added, renamed and removed', () => {
     expect(resourcesEntry(RESOURCES.slice(0, 1)).value).toBe('1 Resource');
     const renamed = resourcesEntry([{ ...RESOURCES[2]!, name: 'Stone' }, RESOURCES[0]!]);
@@ -143,5 +162,30 @@ describe('$Resources in the variable viewer', () => {
     tile().dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete' }));
     expect(fixture.script().resources ?? []).toEqual([]);
     expect(system()).toMatch(/\|No Resources Yet\|/);
+  });
+
+  it('shows the same resource values in the All view as on the System tab', () => {
+    editorFixture([{ command: 'cube' }]);
+    tool('New Text').click();
+    tool('New Curve').click();
+    curveEditorCloseActive();
+    const rowsOf = (category: string): [string, string][] => {
+      categoryShow(category);
+      if (category === 'System')
+        find('.solid-script-editor-explorer-row[data-name="$Resources"]').firstElementChild?.dispatchEvent(
+          new MouseEvent('click', { bubbles: true }),
+        );
+      return explorerRows()
+        .filter((text) => text.startsWith('$Resources.'))
+        .map((text) => {
+          const [name, value] = text.split('|');
+          return [name ?? '', value ?? ''];
+        });
+    };
+    const all = rowsOf('All');
+    const system = rowsOf('System');
+    expect(all.map((row) => row[0]).sort()).toEqual(['$Resources.Curve', '$Resources.Text']);
+    expect(all).toEqual(system);
+    expect(all.find((row) => row[0] === '$Resources.Text')?.[1]).not.toBe('—');
   });
 });

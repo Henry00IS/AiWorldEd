@@ -65,6 +65,29 @@ export function solidScriptExplorerVariablesSorted(variables: readonly SolidScri
 }
 
 /**
+ * Builds the All and Resources-tab rows of each $Resources.Name from the same
+ * items the System tab lists under $Resources, so both views stay in step.
+ *
+ * @param system System entries, including $Resources.
+ * @returns One entry per resource.
+ */
+export function solidScriptExplorerResourceNameEntries(
+  system: readonly SolidScriptExplorerEntry[],
+): SolidScriptExplorerEntry[] {
+  const held = system.find((entry) => entry.name === '$Resources')?.items ?? [];
+  return held.map((item) => ({
+    name: item.name,
+    category: 'Resources',
+    value: item.value,
+    type: item.type,
+    lines: [],
+    items: item.items,
+    readOnly: true,
+    detail: '',
+  }));
+}
+
+/**
  * Builds the entries of every system name, each with its value now or a
  * placeholder that says why it has none.
  *
