@@ -20,6 +20,7 @@ import {
 import { TEXTURE_BROWSER_TILE_CHROME_PX, TEXTURE_BROWSER_TILE_GAP_PX } from './texture_browser_layout.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import { ThumbnailGrid, thumbnailGridThumbCreate } from '@/ui/thumbnail_grid/thumbnail_grid.js';
+import { ThumbnailGridWindow, type ThumbnailGridWindowAnchor } from '@/ui/thumbnail_grid/thumbnail_grid_window.js';
 import {
   VIRTUAL_LIST_SCROLLBAR_BIND_SCROLLER_CLASS,
   virtualListScrollbarBind,
@@ -50,9 +51,19 @@ const TEXTURE_BROWSER_SCROLL_STEP_PX = 24;
 const TEXTURE_BROWSER_GRID_PADDING_PX = 10;
 
 /** A tile that was in view before a rebuild and where it sat in the viewport. */
-interface TextureBrowserScrollAnchor {
-  id: string;
-  offset: number;
+type TextureBrowserScrollAnchor = ThumbnailGridWindowAnchor;
+
+/** Key of the heading above the missing textures. */
+const TEXTURE_BROWSER_MISSING_HEADING_KEY = '\u0000missing-heading';
+
+/** What the grid lists: a texture tile, or the heading above the missing ones. */
+interface TextureBrowserItem {
+  /** Texture id (the key of the heading for it). */
+  key: string;
+  /** Entry of a tile; the heading has none. */
+  entry: TextureBrowserEntry | null;
+  /** True for a texture the level uses whose file is missing. */
+  missing: boolean;
 }
 
 /**
@@ -89,7 +100,9 @@ export class TextureBrowser extends PanelFloating {
   private showImported: boolean;
   private source: TextureBrowserSource;
   private selectedId: string | null;
-  private tileElements: Map<string, HTMLElement>;
+  private entries: readonly TextureBrowserEntry[] = [];
+  private missingIds: readonly string[] = [];
+  private window: ThumbnailGridWindow<TextureBrowserItem> | null = null;
   private gridHost: HTMLElement;
   private scrollbar: VirtualListScrollbarBinding | null;
   private scrollObserver: ResizeObserver | null;
@@ -110,7 +123,6 @@ export class TextureBrowser extends PanelFloating {
     super(host, { corner: 'bottom-right' }, defaultAnchor);
     this.handlers = handlers;
     this.selectedId = null;
-    this.tileElements = new Map();
     this.gridElement = document.createElement('div');
     this.gridHost = document.createElement('div');
     this.scrollbar = null;
@@ -131,6 +143,12 @@ export class TextureBrowser extends PanelFloating {
       minColumnPx: TEXTURE_BROWSER_MIN_TRACK_PX,
       gapPx: TEXTURE_BROWSER_TILE_GAP_PX,
       tileChromePx: TEXTURE_BROWSER_TILE_CHROME_PX,
+    });
+    // Only the tiles in or near view exist; the rest is blank space of the same height.
+    this.window = new ThumbnailGridWindow(this.gridElement, this.thumbnails, {
+      key: (item) => item.key,
+      isFull: (item) => item.entry === null,
+      create: (item) => (item.entry === null ? this.missingHeadingCreate() : this.tileCreate(item)),
     });
     this.setEmptyState();
   }
@@ -165,11 +183,14 @@ export class TextureBrowser extends PanelFloating {
     const scrollTop = this.gridElement.scrollTop;
     // The tiles the user scrolled to, even when a shorter list made the browser clamp the offset since.
     const anchors =
-      this.anchorsKept !== null && Math.abs(scrollTop - this.scrollSet) <= 1 ? this.anchorsKept : this.scrollAnchors();
+      this.anchorsKept !== null && Math.abs(scrollTop - this.scrollSet) <= 1
+        ? this.anchorsKept
+        : (this.window?.anchorsTake() ?? []);
     this.restoring = true;
     this.selectedId = selectedId;
-    this.tileElements.clear();
-    this.gridElement.replaceChildren();
+    this.entries = entries;
+    this.missingIds = missingIds;
+    this.gridElement.querySelectorAll(':scope > [data-grid-message]').forEach((message) => message.remove());
     this.updateFolderLabel(folderName);
     if (entries.length + missingIds.length === 0) {
       this.setEmptyState();
@@ -177,13 +198,11 @@ export class TextureBrowser extends PanelFloating {
       this.scrollKeep(anchors);
       return;
     }
-    entries.forEach((entry) => this.appendTile(entry));
-    this.missingAppend(missingIds);
     this.filterApply();
     const missing = missingIds.length > 0 ? ` · ${missingIds.length} missing` : '';
     this.statusLabel.textContent = `${textCount(entries.length, 'texture')}${missing}`;
     this.gridElement.scrollTop = scrollTop;
-    this.scrollRestore(anchors);
+    this.window?.anchorsRestore(anchors);
     this.scrollLayout();
     this.scrollKeep(anchors);
     this.thumbnails?.draw();
@@ -254,8 +273,9 @@ export class TextureBrowser extends PanelFloating {
    */
   setSelectedId(selectedId: string | null): void {
     this.selectedId = selectedId;
-    this.tileElements.forEach((tile, id) => {
-      this.styleTileSelection(tile, id === selectedId);
+    // Tiles that are built later take the selection when they are built.
+    this.window?.mountedGet().forEach((tile) => {
+      if (tile.dataset['entryId'] !== undefined) this.styleTileSelection(tile, tile.dataset['entryId'] === selectedId);
     });
   }
 
@@ -270,7 +290,8 @@ export class TextureBrowser extends PanelFloating {
 
   /** Disposes tiles, the scrollbar and the shared floating-panel shell. */
   override dispose(): void {
-    this.tileElements.clear();
+    this.window?.dispose();
+    this.window = null;
     this.scrollObserver?.disconnect();
     this.thumbnails?.dispose();
     this.scrollbar?.dispose();
@@ -293,41 +314,6 @@ export class TextureBrowser extends PanelFloating {
    */
   private scrollLayout(): void {
     virtualListScrollbarGutterSync(this.gridElement, this.scrollbar, TEXTURE_BROWSER_GRID_PADDING_PX);
-  }
-
-  /**
-   * Lists the shown tiles from the first one in view onwards, with their
-   * distance from the top of the viewport.
-   *
-   * @returns Anchors in grid order.
-   */
-  private scrollAnchors(): TextureBrowserScrollAnchor[] {
-    const top = this.gridElement.getBoundingClientRect().top;
-    const anchors: TextureBrowserScrollAnchor[] = [];
-    this.tileElements.forEach((tile, id) => {
-      if (tile.style.display === 'none') return;
-      const rect = tile.getBoundingClientRect();
-      if (rect.bottom > top || anchors.length > 0) anchors.push({ id, offset: rect.top - top });
-    });
-    return anchors;
-  }
-
-  /**
-   * Scrolls the rebuilt grid so the first anchor tile still shown sits where it
-   * was; without one the scroll offset stays (the browser clamps it when the
-   * grid got shorter).
-   *
-   * @param anchors Anchors taken before the rebuild.
-   */
-  private scrollRestore(anchors: readonly TextureBrowserScrollAnchor[]): void {
-    const top = this.gridElement.getBoundingClientRect().top;
-    for (const anchor of anchors) {
-      const tile = this.tileElements.get(anchor.id);
-      if (tile === undefined || tile.style.display === 'none') continue;
-      const moved = tile.getBoundingClientRect().top - top - anchor.offset;
-      this.gridElement.scrollTop = Math.max(0, this.gridElement.scrollTop + moved);
-      return;
-    }
   }
 
   /** Fills the shared floating-panel shell with texture browser chrome. */
@@ -454,40 +440,31 @@ export class TextureBrowser extends PanelFloating {
   }
 
   /**
-   * Hides tiles whose path and name do not contain the search text, and the
-   * missing heading when none of its tiles match; says so when nothing
+   * Lists the textures whose path and name contain the search text, and the
+   * missing heading when one of its textures matches; says so when nothing
    * matches.
    */
   private filterApply(): void {
     const text = this.searchInput.value.trim();
     const needle = text.toLowerCase();
-    this.gridElement.querySelector('[data-search-empty]')?.remove();
-    let heading: HTMLElement | null = null;
-    let headingShown = false;
-    let shown = 0;
-    const headingClose = () => {
-      if (heading !== null) heading.style.display = headingShown ? '' : 'none';
-    };
-    for (const child of [...this.gridElement.children] as HTMLElement[]) {
-      if (child.dataset['missingHeading'] !== undefined) {
-        headingClose();
-        heading = child;
-        headingShown = false;
-        continue;
-      }
-      const id = child.dataset['entryId'];
-      if (id === undefined) continue;
-      const name = (child.dataset['entryName'] ?? '').toLowerCase();
-      const match = needle === '' || id.toLowerCase().includes(needle) || name.includes(needle);
-      child.style.display = match ? '' : 'none';
-      if (!match) continue;
-      headingShown = true;
-      shown += 1;
+    const matches = (id: string, name: string): boolean =>
+      needle === '' || id.toLowerCase().includes(needle) || name.toLowerCase().includes(needle);
+    this.gridElement.querySelector(':scope > [data-search-empty]')?.remove();
+    const items: TextureBrowserItem[] = [];
+    for (const entry of this.entries)
+      if (matches(entry.id, entry.displayName)) items.push({ key: entry.id, entry, missing: false });
+    const missing: TextureBrowserItem[] = [];
+    for (const id of this.missingIds) {
+      const entry = textureBrowserMissingEntry(id);
+      if (matches(id, entry.displayName)) missing.push({ key: id, entry, missing: true });
     }
-    headingClose();
-    if (shown > 0 || needle === '' || this.tileElements.size === 0) return;
+    if (missing.length > 0)
+      items.push({ key: TEXTURE_BROWSER_MISSING_HEADING_KEY, entry: null, missing: true }, ...missing);
+    this.window?.itemsSet(items);
+    if (items.length > 0 || needle === '' || this.entries.length + this.missingIds.length === 0) return;
     const empty = document.createElement('div');
     empty.dataset['searchEmpty'] = 'true';
+    empty.dataset['gridMessage'] = 'true';
     empty.textContent = `Nothing matches “${text}”`;
     empty.style.cssText = `grid-column:1 / -1;font:11px monospace;padding:12px 2px;color:${ThemeCss.textColor};opacity:0.75`;
     this.gridElement.appendChild(empty);
@@ -584,39 +561,34 @@ export class TextureBrowser extends PanelFloating {
   }
 
   /**
-   * Appends one texture tile to the grid.
-   *
-   * @param entry Texture entry to display.
-   */
-  private appendTile(entry: TextureBrowserEntry): void {
-    const tile = this.createTile(entry);
-    this.tileElements.set(entry.id, tile);
-    this.styleTileSelection(tile, entry.id === this.selectedId);
-    this.gridElement.appendChild(tile);
-  }
-
-  /**
-   * Lists the level's missing textures under a heading: pink checker tiles that
+   * Creates the heading above the missing textures: pink checker tiles that
    * keep their id, so the level still shows what it uses.
    *
-   * @param ids Missing texture ids.
+   * @returns Heading element.
    */
-  private missingAppend(ids: readonly string[]): void {
-    if (ids.length === 0) return;
+  private missingHeadingCreate(): HTMLElement {
     const heading = document.createElement('div');
     heading.dataset['missingHeading'] = 'true';
     heading.textContent = 'Used in the level, missing on disk';
     heading.style.cssText = 'grid-column:1 / -1;font:10px monospace;padding:8px 2px 2px;color:#ff7cff';
-    this.gridElement.appendChild(heading);
-    ids.forEach((id) => {
-      const tile = this.createTile(textureBrowserMissingEntry(id));
+    return heading;
+  }
+
+  /**
+   * Creates the tile of an item, in the selection state the browser shows.
+   *
+   * @param item Texture item.
+   * @returns Tile element.
+   */
+  private tileCreate(item: TextureBrowserItem): HTMLElement {
+    const tile = this.createTile(item.entry!);
+    if (item.missing) {
       tile.dataset['missing'] = 'true';
-      tile.title = `${id}\nMissing: stays assigned and comes back as soon as the file is in the project.`;
+      tile.title = `${item.key}\nMissing: stays assigned and comes back as soon as the file is in the project.`;
       (tile.firstElementChild as HTMLElement).style.background = MISSING_TEXTURE_CSS_BACKGROUND;
-      this.tileElements.set(id, tile);
-      this.styleTileSelection(tile, id === this.selectedId);
-      this.gridElement.appendChild(tile);
-    });
+    }
+    this.styleTileSelection(tile, item.key === this.selectedId);
+    return tile;
   }
 
   /**
@@ -660,7 +632,12 @@ export class TextureBrowser extends PanelFloating {
    * @returns Thumbnail element.
    */
   private createPreviewThumb(entry: TextureBrowserEntry): HTMLElement {
-    const thumb = thumbnailGridThumbCreate(TEXTURE_BROWSER_THUMB_CLASS, entry.previewObjectUrl || null, 'cover');
+    const thumb = thumbnailGridThumbCreate(
+      TEXTURE_BROWSER_THUMB_CLASS,
+      entry.previewObjectUrl || null,
+      'cover',
+      entry.sourceFile.size > 0 ? entry.sourceFile : null,
+    );
     thumb.dataset['previewThumb'] = 'true';
     thumb.setAttribute('role', 'img');
     thumb.setAttribute('aria-label', entry.displayName);
@@ -709,9 +686,10 @@ export class TextureBrowser extends PanelFloating {
 
   /** Shows the empty-state message in the grid area. */
   private setEmptyState(): void {
+    this.window?.itemsSet([]);
     this.gridElement.replaceChildren();
-    this.tileElements.clear();
     const empty = document.createElement('div');
+    empty.dataset['gridMessage'] = 'true';
     empty.textContent = 'Open a project folder to browse textures';
     empty.style.gridColumn = '1 / -1';
     empty.style.color = ThemeCss.mutedTextColor;

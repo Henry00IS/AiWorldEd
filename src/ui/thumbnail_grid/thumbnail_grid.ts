@@ -16,8 +16,12 @@ export const THUMBNAIL_GRID_SIZE_VARIABLE = '--ui-thumbnail-px';
 /** Style element id of the thumbnail CSS. */
 const THUMBNAIL_GRID_STYLE_ID = 'ui-thumbnail-stylesheet';
 
-/** Decoded thumbnails kept for redraws, at most. */
-const THUMBNAIL_GRID_CACHE_SIZE = 300;
+/**
+ * Decoded thumbnails kept for redraws, at most. Only tiles in or near view
+ * exist (see ThumbnailGridWindow), so this just lets a tile that scrolls back
+ * in draw at once instead of decoding its image again; older ones are closed.
+ */
+const THUMBNAIL_GRID_CACHE_SIZE = 128;
 
 /** How an image fills its square: cropped to fill it, or whole inside it. */
 export type ThumbnailGridFit = 'cover' | 'contain';
@@ -31,6 +35,12 @@ export interface ThumbnailGridOptions {
   /** Tile width around the thumbnail (padding plus border, both sides). */
   tileChromePx: number;
 }
+
+/**
+ * The file behind a thumbnail's URL, when its owner knows it: the image is then
+ * decoded straight from it (see thumbnailGridSourceDecode).
+ */
+const thumbnailGridSources = new WeakMap<HTMLElement, Blob>();
 
 /** Resampled thumbnails by URL, size and fit, oldest first. */
 const thumbnailGridCache = new Map<string, Promise<ImageBitmap | null>>();
@@ -48,19 +58,58 @@ export function thumbnailGridStylesEnsure(): void {
 }
 
 /**
+ * Removes a thumbnail's drawing and frees its pixels at once (a canvas of zero
+ * size has no backing store, whenever the garbage collector gets to it).
+ *
+ * @param thumb Thumbnail element.
+ */
+function thumbnailGridCanvasRelease(thumb: Element): void {
+  thumb.querySelectorAll(':scope > canvas').forEach((canvas) => {
+    (canvas as HTMLCanvasElement).width = 0;
+    (canvas as HTMLCanvasElement).height = 0;
+    canvas.remove();
+  });
+}
+
+/**
+ * Lets go of every image a tile holds: the drawings of its thumbnails are freed
+ * and their image URLs forgotten, so nothing in the element refers to an image
+ * any more (the tile is about to be dropped).
+ *
+ * @param root Tile element (or a thumbnail itself).
+ */
+export function thumbnailGridTileRelease(root: HTMLElement): void {
+  const thumbs = root.matches(`.${THUMBNAIL_GRID_THUMB_CLASS}`)
+    ? [root]
+    : [...root.querySelectorAll<HTMLElement>(`.${THUMBNAIL_GRID_THUMB_CLASS}`)];
+  for (const thumb of thumbs) {
+    thumbnailGridCanvasRelease(thumb);
+    thumbnailGridSources.delete(thumb);
+    delete thumb.dataset['thumbnailUrl'];
+    delete thumb.dataset['thumbnailDrawn'];
+  }
+}
+
+/**
  * Creates a thumbnail element.
  *
  * @param className Extra class (the browser's own look), or ''.
  * @param url Image URL, or null for none yet.
  * @param fit How the image fills the square.
+ * @param source The file behind the URL, when known.
  * @returns Thumbnail element.
  */
-export function thumbnailGridThumbCreate(className: string, url: string | null, fit: ThumbnailGridFit): HTMLElement {
+export function thumbnailGridThumbCreate(
+  className: string,
+  url: string | null,
+  fit: ThumbnailGridFit,
+  source: Blob | null = null,
+): HTMLElement {
   thumbnailGridStylesEnsure();
   const thumb = document.createElement('div');
   thumb.className = className === '' ? THUMBNAIL_GRID_THUMB_CLASS : `${THUMBNAIL_GRID_THUMB_CLASS} ${className}`;
   thumb.dataset['thumbnailFit'] = fit;
-  thumbnailGridThumbSet(thumb, url);
+  thumbnailGridThumbSet(thumb, url, source);
   return thumb;
 }
 
@@ -69,10 +118,13 @@ export function thumbnailGridThumbCreate(className: string, url: string | null, 
  *
  * @param thumb Thumbnail element.
  * @param url Image URL, or null.
+ * @param source The file behind the URL, when known.
  */
-export function thumbnailGridThumbSet(thumb: HTMLElement, url: string | null): void {
+export function thumbnailGridThumbSet(thumb: HTMLElement, url: string | null, source: Blob | null = null): void {
+  if (url === null || source === null) thumbnailGridSources.delete(thumb);
+  else thumbnailGridSources.set(thumb, source);
   if ((thumb.dataset['thumbnailUrl'] ?? null) === url) return;
-  thumb.querySelector(':scope > canvas')?.remove();
+  thumbnailGridCanvasRelease(thumb);
   delete thumb.dataset['thumbnailDrawn'];
   if (url === null) delete thumb.dataset['thumbnailUrl'];
   else thumb.dataset['thumbnailUrl'] = url;
@@ -86,6 +138,8 @@ export class ThumbnailGrid {
   private readonly observer: ResizeObserver | null;
   private sizePx = 0;
   private ratio = 0;
+  private columns = 0;
+  private readonly layoutListeners = new Set<() => void>();
   private readonly resized = (): void => this.layout();
 
   /**
@@ -115,6 +169,37 @@ export class ThumbnailGrid {
   }
 
   /**
+   * Returns the number of columns of the last layout (0 before the first one,
+   * or while the grid has no width).
+   *
+   * @returns Column count.
+   */
+  columnCount(): number {
+    return this.columns;
+  }
+
+  /**
+   * Returns the gap between tiles in CSS pixels.
+   *
+   * @returns Gap.
+   */
+  gapPx(): number {
+    return this.options.gapPx;
+  }
+
+  /**
+   * Calls a listener after every layout (columns or thumbnail size may have
+   * changed), before the thumbnails are drawn.
+   *
+   * @param listener Called after the columns are set.
+   * @returns Removes the listener.
+   */
+  layoutListen(listener: () => void): () => void {
+    this.layoutListeners.add(listener);
+    return () => this.layoutListeners.delete(listener);
+  }
+
+  /**
    * Snaps the columns to whole pixels for the grid's current width, then draws
    * thumbnails that are new or whose size changed.
    */
@@ -134,6 +219,8 @@ export class ThumbnailGrid {
     if (size !== this.sizePx) grid.style.setProperty(THUMBNAIL_GRID_SIZE_VARIABLE, `${size}px`);
     this.sizePx = size;
     this.ratio = ratio;
+    this.columns = columns;
+    this.layoutListeners.forEach((listener) => listener());
     this.draw();
   }
 
@@ -147,16 +234,22 @@ export class ThumbnailGrid {
       const key = `${device}|${fit}|${url}`;
       if (thumb.dataset['thumbnailDrawn'] === key) return;
       thumb.dataset['thumbnailDrawn'] = key;
-      void thumbnailGridBitmap(url, device, fit).then((bitmap) => {
+      void thumbnailGridBitmap(url, device, fit, thumbnailGridSources.get(thumb)).then((bitmap) => {
         if (thumb.dataset['thumbnailDrawn'] !== key) return;
-        thumb.querySelector(':scope > canvas')?.remove();
+        thumbnailGridCanvasRelease(thumb);
         if (bitmap === null) return;
         const canvas = document.createElement('canvas');
         canvas.width = device;
         canvas.height = device;
-        canvas
-          .getContext('2d')
-          ?.drawImage(bitmap, Math.round((device - bitmap.width) / 2), Math.round((device - bitmap.height) / 2));
+        try {
+          canvas
+            .getContext('2d')
+            ?.drawImage(bitmap, Math.round((device - bitmap.width) / 2), Math.round((device - bitmap.height) / 2));
+        } catch {
+          // The bitmap was closed meanwhile (evicted from the cache): draw again next time.
+          delete thumb.dataset['thumbnailDrawn'];
+          return;
+        }
         thumb.appendChild(canvas);
       });
     });
@@ -164,6 +257,7 @@ export class ThumbnailGrid {
 
   /** Stops following the grid. */
   dispose(): void {
+    this.layoutListeners.clear();
     this.observer?.disconnect();
     if (typeof window !== 'undefined') window.removeEventListener('resize', this.resized);
   }
@@ -198,9 +292,15 @@ export function thumbnailGridSizeSnap(size: number, ratio: number): number {
  * @param url Image URL.
  * @param device Square side in device pixels.
  * @param fit How the image fills it.
+ * @param source The file behind the URL, when known.
  * @returns Bitmap (at most the square), or null when it cannot be drawn.
  */
-function thumbnailGridBitmap(url: string, device: number, fit: ThumbnailGridFit): Promise<ImageBitmap | null> {
+function thumbnailGridBitmap(
+  url: string,
+  device: number,
+  fit: ThumbnailGridFit,
+  source: Blob | undefined,
+): Promise<ImageBitmap | null> {
   const key = `${device}|${fit}|${url}`;
   const cached = thumbnailGridCache.get(key);
   if (cached !== undefined) {
@@ -208,7 +308,7 @@ function thumbnailGridBitmap(url: string, device: number, fit: ThumbnailGridFit)
     thumbnailGridCache.set(key, cached);
     return cached;
   }
-  const made = thumbnailGridBitmapMake(url, device, fit);
+  const made = thumbnailGridBitmapMake(url, device, fit, source);
   thumbnailGridCache.set(key, made);
   while (thumbnailGridCache.size > THUMBNAIL_GRID_CACHE_SIZE) {
     const oldest = thumbnailGridCache.keys().next().value as string;
@@ -219,41 +319,76 @@ function thumbnailGridBitmap(url: string, device: number, fit: ThumbnailGridFit)
 }
 
 /**
- * Decodes an image and resamples it with high quality.
+ * Decodes an image and resamples it with high quality. The full-size decode is
+ * closed as soon as the thumbnail exists, so only the small bitmap is kept.
  *
  * @param url Image URL.
  * @param device Square side in device pixels.
  * @param fit How the image fills it.
+ * @param file The file behind the URL, when known.
  * @returns Bitmap, or null.
  */
 async function thumbnailGridBitmapMake(
   url: string,
   device: number,
   fit: ThumbnailGridFit,
+  file: Blob | undefined,
 ): Promise<ImageBitmap | null> {
-  if (typeof createImageBitmap !== 'function' || typeof Image === 'undefined') return null;
+  if (typeof createImageBitmap !== 'function') return null;
   try {
-    const image = new Image();
-    image.decoding = 'async';
-    image.src = url;
-    await image.decode();
-    const width = image.naturalWidth || device;
-    const height = image.naturalHeight || device;
-    if (fit === 'cover') {
-      const side = Math.min(width, height);
-      return await createImageBitmap(image, (width - side) / 2, (height - side) / 2, side, side, {
-        resizeWidth: device,
-        resizeHeight: device,
+    const source = await thumbnailGridSourceDecode(url, file);
+    if (source === null) return null;
+    try {
+      const width = source.width || device;
+      const height = source.height || device;
+      if (fit === 'cover') {
+        const side = Math.min(width, height);
+        return await createImageBitmap(source, (width - side) / 2, (height - side) / 2, side, side, {
+          resizeWidth: device,
+          resizeHeight: device,
+          resizeQuality: 'high',
+        });
+      }
+      const scale = Math.min(device / width, device / height);
+      return await createImageBitmap(source, {
+        resizeWidth: Math.max(1, Math.round(width * scale)),
+        resizeHeight: Math.max(1, Math.round(height * scale)),
         resizeQuality: 'high',
       });
+    } finally {
+      if ('close' in source) source.close();
+      else source.removeAttribute('src');
     }
-    const scale = Math.min(device / width, device / height);
-    return await createImageBitmap(image, {
-      resizeWidth: Math.max(1, Math.round(width * scale)),
-      resizeHeight: Math.max(1, Math.round(height * scale)),
-      resizeQuality: 'high',
-    });
   } catch {
     return null;
   }
+}
+
+/**
+ * Decodes the full image. A file the owner knows is decoded straight into a
+ * bitmap that can be closed at once, and the browser keeps no copy of it, as it
+ * does for the decode of an image element; anything else (an object URL without
+ * its file, a data URL) is decoded by an image element.
+ *
+ * @param url Image URL.
+ * @param file The file behind the URL, when known.
+ * @returns Decoded image, or null when it cannot be decoded.
+ */
+async function thumbnailGridSourceDecode(
+  url: string,
+  file: Blob | undefined,
+): Promise<ImageBitmap | HTMLImageElement | null> {
+  if (file !== undefined) {
+    try {
+      return await createImageBitmap(file);
+    } catch {
+      // Not decodable from the file: the image element reports it the same way.
+    }
+  }
+  if (typeof Image === 'undefined') return null;
+  const image = new Image();
+  image.decoding = 'async';
+  image.src = url;
+  await image.decode();
+  return image;
 }
